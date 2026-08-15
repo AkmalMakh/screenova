@@ -31,6 +31,7 @@ type Props = {
   onTextElementTextChange: (slideId: string, id: string, v: string) => void;
   onElementChange: (slideId: string, id: ElementId, t: ElementTransform) => void;
   onSelectElement: (element: SelectedElement | null) => void;
+  editable?: boolean;
 };
 
 // Fits one full-resolution screen inside the viewport while keeping the whole
@@ -52,6 +53,7 @@ export function PreviewStage({
   onTextElementTextChange,
   onElementChange,
   onSelectElement,
+  editable = true,
 }: Props) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const scrollerRef = React.useRef<HTMLDivElement>(null);
@@ -139,12 +141,12 @@ export function PreviewStage({
               appName={appName}
               appIcon={appIcon}
               connectedCanvas={connectedCanvas}
-              editable
+              editable={editable}
               previewScale={scale}
               selectedElement={selectedElement}
               activeSlideId={activeSlide?.id || null}
               showGuides
-              edit={{
+              edit={editable ? {
                 onLabelChange: (slideId, value) => {
                   const slide = slides.find((s) => s.id === slideId);
                   if (slide) onLabelChange(slide, value);
@@ -157,7 +159,7 @@ export function PreviewStage({
                 onElementChange,
                 onSelectElement,
                 onSelectScreen: handleCanvasActiveSlideChange,
-              }}
+              } : undefined}
             />
           </div>
         </div>

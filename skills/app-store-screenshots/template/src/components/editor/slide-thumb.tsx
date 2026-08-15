@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Copy, GripVertical, Trash2 } from "lucide-react";
+import { Check, Copy, GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LAYOUT_LABEL } from "@/lib/constants";
 import { pickText } from "@/lib/locale";
@@ -25,6 +25,8 @@ type Props = {
   onSelect: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  selectedForDesign?: boolean;
+  onToggleDesignSelection?: () => void;
 };
 
 // Thumb tile target width (pixels). Height is derived from device aspect.
@@ -45,6 +47,8 @@ export function SlideThumb({
   onSelect,
   onDelete,
   onDuplicate,
+  selectedForDesign,
+  onToggleDesignSelection,
 }: Props) {
   const headline = pickText(slide.headline, locale);
   const label = pickText(slide.label, locale);
@@ -75,6 +79,23 @@ export function SlideThumb({
         active && "border-primary ring-1 ring-primary",
       )}
     >
+      {onToggleDesignSelection && (
+        <button
+          type="button"
+          className={cn(
+            "absolute right-1.5 top-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border bg-background/90 shadow-sm transition-colors",
+            selectedForDesign && "border-primary bg-primary text-primary-foreground",
+          )}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleDesignSelection();
+          }}
+          aria-label={selectedForDesign ? "Remove from AI selection" : "Add to AI selection"}
+          title={selectedForDesign ? "Selected for AI redesign" : "Select for AI redesign"}
+        >
+          {selectedForDesign && <Check className="h-3 w-3" />}
+        </button>
+      )}
       <button
         type="button"
         className="flex w-3 cursor-grab items-center justify-center text-muted-foreground/60 hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing"

@@ -1,9 +1,18 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PROJECT_SCHEMA_VERSION, STORAGE_KEY } from "./constants";
+import { isHeadlineFontFamily, PROJECT_SCHEMA_VERSION, STORAGE_KEY } from "./constants";
 import { DEFAULT_PROJECT } from "./defaults";
 import { coerceLocalized } from "./locale";
-import type { Device, ElementTransform, ProjectState, Slide, TextElement } from "./types";
+import type {
+  DecorationElement,
+  Device,
+  ElementTransform,
+  ProjectState,
+  Slide,
+  TextElement,
+  Theme,
+  VisualAsset,
+} from "./types";
 
 const HISTORY_LIMIT = 50;
 // Coalesce rapid edits (typing, slider drags) into a single undo step.
@@ -53,6 +62,81 @@ function cleanTextElement(value: unknown): TextElement | undefined {
   };
 }
 
+function cleanDecoration(value: unknown): DecorationElement | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Partial<DecorationElement>;
+  if (typeof raw.id !== "string" || !raw.id.trim()) return undefined;
+  if (raw.kind !== "ellipse" && raw.kind !== "rounded-rectangle" && raw.kind !== "line") {
+    return undefined;
+  }
+  const transform = cleanTransform(raw.transform);
+  if (!transform || !raw.fill || !Array.isArray(raw.fill.colors)) return undefined;
+  const colors = raw.fill.colors.filter(
+    (color): color is string => typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color),
+  );
+  if (!colors.length) return undefined;
+  return {
+    id: raw.id,
+    kind: raw.kind,
+    transform,
+    fill: {
+      type: raw.fill.type === "linear-gradient" ? "linear-gradient" : "solid",
+      colors: colors.slice(0, 3),
+      ...(typeof raw.fill.angle === "number" && Number.isFinite(raw.fill.angle)
+        ? { angle: Math.max(0, Math.min(360, raw.fill.angle)) }
+        : {}),
+    },
+    opacity:
+      typeof raw.opacity === "number" && Number.isFinite(raw.opacity)
+        ? Math.max(0.05, Math.min(1, raw.opacity))
+        : 1,
+    ...(typeof raw.borderRadius === "number" && Number.isFinite(raw.borderRadius)
+      ? { borderRadius: Math.max(0, raw.borderRadius) }
+      : {}),
+    ...(typeof raw.blur === "number" && Number.isFinite(raw.blur)
+      ? { blur: Math.max(0, Math.min(80, raw.blur)) }
+      : {}),
+  };
+}
+
+function cleanVisualAsset(value: unknown): VisualAsset | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Partial<VisualAsset>;
+  if (typeof raw.src !== "string" || !raw.src.trim()) return undefined;
+  return {
+    src: raw.src,
+    prompt: typeof raw.prompt === "string" ? raw.prompt.slice(0, 1_200) : "Generated visual",
+    opacity:
+      typeof raw.opacity === "number" && Number.isFinite(raw.opacity)
+        ? Math.max(0.05, Math.min(1, raw.opacity))
+        : 0.65,
+  };
+}
+
+function cleanTheme(value: unknown): Theme | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Partial<Theme>;
+  const colors = [raw.bg, raw.bgAlt, raw.fg, raw.fgAlt, raw.accent, raw.muted];
+  if (
+    typeof raw.id !== "string" ||
+    typeof raw.name !== "string" ||
+    !colors.every((color) => typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color))
+  ) {
+    return undefined;
+  }
+  return raw as Theme;
+}
+
+function cleanThemesByDevice(value: unknown): ProjectState["customThemesByDevice"] {
+  if (!value || typeof value !== "object") return undefined;
+  const entries = Object.entries(value)
+    .map(([device, theme]) => [device, cleanTheme(theme)] as const)
+    .filter((entry): entry is readonly [string, Theme] => !!entry[1]);
+  return entries.length
+    ? (Object.fromEntries(entries) as ProjectState["customThemesByDevice"])
+    : undefined;
+}
+
 // Migrate older projects into the current schema while keeping legacy decks
 // visually stable until they explicitly opt into connected canvas.
 function migrateSlide(slide: Slide): Slide {
@@ -66,17 +150,25 @@ function migrateSlide(slide: Slide): Slide {
   const textElements = Array.isArray(slide.textElements)
     ? slide.textElements.map(cleanTextElement).filter((t): t is TextElement => !!t)
     : undefined;
+  const decorations = Array.isArray(slide.decorations)
+    ? slide.decorations.map(cleanDecoration).filter((item): item is DecorationElement => !!item)
+    : undefined;
 
   return {
     ...slide,
     label: coerceLocalized(slide.label as unknown),
     headline: coerceLocalized(slide.headline as unknown),
+    headlineFontFamily: isHeadlineFontFamily(slide.headlineFontFamily)
+      ? slide.headlineFontFamily
+      : undefined,
     ...(transforms && Object.keys(transforms).length > 0 ? { transforms } : { transforms: undefined }),
     ...(textElements && textElements.length > 0 ? { textElements } : { textElements: undefined }),
+    ...(decorations && decorations.length > 0 ? { decorations } : { decorations: undefined }),
+    visualAsset: cleanVisualAsset(slide.visualAsset),
   };
 }
 
-function mergeWithDefaults(parsed: Partial<ProjectState>): ProjectState {
+export function mergeWithDefaults(parsed: Partial<ProjectState>): ProjectState {
   const connectedCanvas =
     typeof parsed.connectedCanvas === "boolean"
       ? parsed.connectedCanvas
@@ -98,6 +190,8 @@ function mergeWithDefaults(parsed: Partial<ProjectState>): ProjectState {
     ...parsed,
     schemaVersion: PROJECT_SCHEMA_VERSION,
     themeId,
+    customTheme: cleanTheme(parsed.customTheme),
+    customThemesByDevice: cleanThemesByDevice(parsed.customThemesByDevice),
     connectedCanvas,
     slidesByDevice: {
       ...DEFAULT_PROJECT.slidesByDevice,

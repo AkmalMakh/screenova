@@ -32,6 +32,8 @@ type Props = {
   appIcon?: string;
   connectedCanvas: boolean;
   disabled?: boolean;
+  selectedForDesign?: Set<string>;
+  onToggleDesignSelection?: (id: string) => void;
   onReorder: (next: Slide[]) => void;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
@@ -50,6 +52,8 @@ export function Sidebar({
   appIcon,
   connectedCanvas,
   disabled,
+  selectedForDesign,
+  onToggleDesignSelection,
   onReorder,
   onSelect,
   onDelete,
@@ -71,7 +75,7 @@ export function Sidebar({
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className={`flex h-full flex-col ${disabled ? "pointer-events-none opacity-60" : ""}`}>
       <div className="border-b p-3">
         <h2 className="text-sm font-semibold">Screens</h2>
         <p className="text-xs text-muted-foreground">
@@ -100,6 +104,10 @@ export function Sidebar({
                   onSelect={() => onSelect(slide.id)}
                   onDelete={() => onDelete(slide.id)}
                   onDuplicate={() => onDuplicate(slide.id)}
+                  selectedForDesign={selectedForDesign?.has(slide.id)}
+                  onToggleDesignSelection={
+                    onToggleDesignSelection ? () => onToggleDesignSelection(slide.id) : undefined
+                  }
                 />
               ))}
               {slides.length === 0 && (

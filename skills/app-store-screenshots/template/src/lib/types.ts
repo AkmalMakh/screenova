@@ -10,6 +10,13 @@ export type Orientation = "portrait" | "landscape";
 
 export type Platform = "ios" | "android";
 
+export type HeadlineFontFamily =
+  | "modern"
+  | "editorial"
+  | "geometric"
+  | "rounded"
+  | "mono";
+
 // Layouts the editor can render. Vary across slides for visual rhythm.
 export type SlideLayout =
   | "hero"             // centered device, headline above
@@ -32,7 +39,8 @@ export type ElementTransform = {
 
 export type BuiltInElementId = "caption" | "device" | "deviceSecondary";
 export type TextElementId = `text:${string}`;
-export type ElementId = BuiltInElementId | TextElementId;
+export type DecorationElementId = `decoration:${string}`;
+export type ElementId = BuiltInElementId | TextElementId | DecorationElementId;
 
 export type SelectedElement = {
   slideId: string;
@@ -55,17 +63,42 @@ export type TextElement = {
   align?: "left" | "center" | "right";
 };
 
+export type DecorationElement = {
+  id: string;
+  kind: "ellipse" | "rounded-rectangle" | "line";
+  transform: ElementTransform;
+  fill: {
+    type: "solid" | "linear-gradient";
+    colors: string[];
+    angle?: number;
+  };
+  opacity: number;
+  borderRadius?: number;
+  blur?: number;
+};
+
+export type VisualAsset = {
+  src: string;
+  prompt: string;
+  opacity: number;
+};
+
 export type Slide = {
   id: string;
   layout: SlideLayout;
   label: LocalizedText;       // tiny uppercase caption above headline, per locale
   headline: LocalizedText;    // multi-line; newlines are intentional, per locale
+  headlineFontFamily?: HeadlineFontFamily;
   screenshot: string;         // path under /screenshots/ — may contain {locale}
   screenshotSecondary?: string; // for two-devices layout — may contain {locale}
+  screenshotByLocale?: Partial<Record<string, string>>;
+  screenshotSecondaryByLocale?: Partial<Record<string, string>>;
   inverted?: boolean;         // dark background variant
   // Per-element overrides; when present, replaces layout default placement.
   transforms?: Partial<Record<BuiltInElementId, ElementTransform>>;
   textElements?: TextElement[];
+  decorations?: DecorationElement[];
+  visualAsset?: VisualAsset;
 };
 
 export type ThemeId =
@@ -73,7 +106,8 @@ export type ThemeId =
   | "dark-bold"
   | "warm-editorial"
   | "ocean-fresh"
-  | "bloom-roast";
+  | "bloom-roast"
+  | "mote-calendar";
 
 export type Theme = {
   id: string;
@@ -90,6 +124,8 @@ export type ProjectState = {
   schemaVersion?: number;
   appName: string;
   themeId: string;
+  customTheme?: Theme;
+  customThemesByDevice?: Partial<Record<Device, Theme>>;
   // v1 projects render as isolated screens until the user opts into connected crops.
   connectedCanvas: boolean;
   // Locales this project targets. Drives the toolbar dropdown and bulk export.

@@ -1,8 +1,11 @@
 "use client";
 import * as React from "react";
 import JSZip from "jszip";
-import { toPng } from "html-to-image";
+import { toJpeg, toPng } from "html-to-image";
+import { Check, Eye, EyeOff, X } from "lucide-react";
 import { Toaster, toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { loadDesignMessages, saveDesignMessages, saveDesignReferences } from "@/lib/chat-storage";
 import {
   getExportSizes,
   hasTheme,
@@ -10,9 +13,26 @@ import {
   themeById,
 } from "@/lib/constants";
 import { detectPlatform, nid } from "@/lib/defaults";
-import { isBuiltInElementId, isTextElementId, textElementKey } from "@/lib/elements";
-import { preloadImages } from "@/lib/image-cache";
-import { resolveScreenshot, writeLocalized } from "@/lib/locale";
+import {
+  applyDesignProposal,
+  cloneProject,
+  parseDesignProposal,
+  proposalSummary,
+  type DesignConversationMessage,
+  type DesignProposal,
+  type DesignReference,
+  type DesignScope,
+  type GeneratedVisualAsset,
+} from "@/lib/design";
+import {
+  decorationElementKey,
+  isBuiltInElementId,
+  isDecorationElementId,
+  isTextElementId,
+  textElementKey,
+} from "@/lib/elements";
+import { preloadImages, setImage } from "@/lib/image-cache";
+import { resolveLocalizedScreenshot, resolveScreenshot, writeLocalized } from "@/lib/locale";
 import { useProject } from "@/lib/storage";
 import type {
   BuiltInElementId,
@@ -23,10 +43,54 @@ import type {
   Slide,
 } from "@/lib/types";
 import { Inspector } from "./inspector";
+import { DesignSidebar } from "./design-sidebar";
 import { PreviewStage } from "./preview-stage";
 import { Sidebar } from "./sidebar";
 import { DeckCanvas, getCanvas } from "./slide-canvas";
 import { Toolbar } from "./toolbar";
+
+type CopyPair = { headline: string; subheader: string };
+type PendingDesign = {
+  proposal: DesignProposal;
+  state: ReturnType<typeof cloneProject>;
+  assistantMessageId: string;
+  targetSlideIds: string[];
+  createdSlideIds: string[];
+};
+
+function parseBulkCopy(input: string): CopyPair[] {
+  const normalized = input.replace(/\r\n?/g, "\n").trim();
+  if (!normalized) return [];
+  const lines = normalized.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (lines.some((line) => line.includes("|") || line.includes("\t"))) {
+    return lines
+      .map((line) => {
+        const separator = line.includes("|") ? "|" : "\t";
+        const [headline, ...rest] = line.split(separator);
+        return { headline: headline.trim(), subheader: rest.join(separator).trim() };
+      })
+      .filter((pair) => pair.headline || pair.subheader);
+  }
+  const blocks = normalized.split(/\n\s*\n/g).map((block) => block.trim()).filter(Boolean);
+  if (blocks.length > 1) {
+    return blocks.map((block) => {
+      const [headline = "", ...rest] = block.split("\n").map((line) => line.trim());
+      return { headline, subheader: rest.join("\n").trim() };
+    });
+  }
+  const pairs: CopyPair[] = [];
+  for (let i = 0; i < lines.length; i += 2) {
+    pairs.push({ headline: lines[i] || "", subheader: lines[i + 1] || "" });
+  }
+  return pairs.filter((pair) => pair.headline || pair.subheader);
+}
+
+function captionElementIndex(slide: Slide): number {
+  const elements = slide.textElements || [];
+  const captionIndex = elements.findIndex((element) => element.id === "caption");
+  if (captionIndex >= 0) return captionIndex;
+  return elements.length > 0 ? 0 : -1;
+}
 
 export function ScreenshotEditor() {
   const { state, setState, hydrated, savedAt, saveError, reset, resetDevice, undo, redo } = useProject();
@@ -36,12 +100,48 @@ export function ScreenshotEditor() {
   const [ready, setReady] = React.useState(false);
   const [exportLocaleOverride, setExportLocaleOverride] = React.useState<string | null>(null);
   const [exportSlideIndex, setExportSlideIndex] = React.useState(0);
+  const [designMessages, setDesignMessages] = React.useState<DesignConversationMessage[]>(() =>
+    loadDesignMessages(),
+  );
+  const [designScope, setDesignScope] = React.useState<DesignScope>("current");
+  const [selectedSlideIds, setSelectedSlideIds] = React.useState<Set<string>>(new Set());
+  const [generatingDesign, setGeneratingDesign] = React.useState(false);
+  const [pendingDesign, setPendingDesign] = React.useState<PendingDesign | null>(null);
+  const [showProposal, setShowProposal] = React.useState(true);
+  const [screensOpen, setScreensOpen] = React.useState(true);
+  const [screenSettingsOpen, setScreenSettingsOpen] = React.useState(true);
   const exportRef = React.useRef<HTMLDivElement | null>(null);
+  const designAbortRef = React.useRef<AbortController | null>(null);
 
   const currentSlides = state.slidesByDevice[state.device] || [];
-  const activeSlide =
+  const canonicalActiveSlide =
     currentSlides.find((s) => s.id === activeSlideId) || currentSlides[0] || null;
-  const theme = themeById(state.themeId);
+  const displayState = pendingDesign && showProposal ? pendingDesign.state : state;
+  const displaySlides = displayState.slidesByDevice[state.device] || currentSlides;
+  const activeSlide =
+    displaySlides.find((slide) => slide.id === activeSlideId) || displaySlides[0] || null;
+  const theme =
+    displayState.customThemesByDevice?.[state.device] ||
+    themeById(displayState.themeId, displayState.customTheme);
+  const canonicalTheme =
+    state.customThemesByDevice?.[state.device] || themeById(state.themeId, state.customTheme);
+  const targetSlideIds = React.useMemo(() => {
+    if (designScope === "deck") return currentSlides.map((slide) => slide.id);
+    if (designScope === "selected") {
+      return currentSlides.filter((slide) => selectedSlideIds.has(slide.id)).map((slide) => slide.id);
+    }
+    return canonicalActiveSlide ? [canonicalActiveSlide.id] : [];
+  }, [canonicalActiveSlide, currentSlides, designScope, selectedSlideIds]);
+
+  React.useEffect(() => saveDesignMessages(designMessages), [designMessages]);
+
+  React.useEffect(() => {
+    const available = new Set(currentSlides.map((slide) => slide.id));
+    setSelectedSlideIds((current) => {
+      const next = new Set([...current].filter((id) => available.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [currentSlides]);
 
   React.useEffect(() => {
     if (selectedElement && selectedElement.slideId !== activeSlide?.id) {
@@ -63,13 +163,18 @@ export function ScreenshotEditor() {
   }, [state.device, state.orientation, setState]);
 
   React.useEffect(() => {
-    if (hydrated && state.themeId && !hasTheme(state.themeId)) {
+    if (
+      hydrated &&
+      state.themeId &&
+      !hasTheme(state.themeId) &&
+      state.customTheme?.id !== state.themeId
+    ) {
       toast.warning("Using fallback theme", {
         description: `Theme "${state.themeId}" is not defined in src/lib/constants.ts.`,
         duration: 8000,
       });
     }
-  }, [hydrated, state.themeId]);
+  }, [hydrated, state.customTheme?.id, state.themeId]);
 
   const assetPaths = React.useMemo(() => {
     const paths = new Set<string>();
@@ -78,10 +183,17 @@ export function ScreenshotEditor() {
     // Preload every locale variant so bulk export doesn't race image loads.
     const allSlides: Slide[] = Object.values(state.slidesByDevice).flat();
     for (const s of allSlides) {
-      for (const raw of [s.screenshot, s.screenshotSecondary]) {
+      if (s.visualAsset?.src && !s.visualAsset.src.startsWith("data:")) {
+        paths.add(s.visualAsset.src);
+      }
+      const rawPairs: Array<[string | undefined, Partial<Record<string, string>> | undefined]> = [
+        [s.screenshot, s.screenshotByLocale],
+        [s.screenshotSecondary, s.screenshotSecondaryByLocale],
+      ];
+      for (const [raw, overrides] of rawPairs) {
         if (!raw || raw.startsWith("data:")) continue;
-        if (raw.includes("{locale}")) {
-          for (const loc of state.locales) paths.add(resolveScreenshot(raw, loc));
+        if (raw.includes("{locale}") || overrides) {
+          for (const loc of state.locales) paths.add(resolveLocalizedScreenshot(raw, overrides, loc));
         } else {
           paths.add(raw);
         }
@@ -199,6 +311,42 @@ export function ScreenshotEditor() {
     [patchSlide, state.locale],
   );
 
+  const applyBulkCopy = React.useCallback(
+    (input: string) => {
+      const pairs = parseBulkCopy(input);
+      const applied = Math.min(pairs.length, currentSlides.length);
+      if (!applied) return { applied: 0, total: currentSlides.length };
+      setState((prev) => ({
+        ...prev,
+        slidesByDevice: {
+          ...prev.slidesByDevice,
+          [prev.device]: (prev.slidesByDevice[prev.device] || []).map((slide, index) => {
+            const pair = pairs[index];
+            if (!pair) return slide;
+            const patch: Partial<Slide> = {};
+            if (pair.headline) {
+              patch.headline = writeLocalized(slide.headline, prev.locale, pair.headline);
+            }
+            if (pair.subheader) {
+              const subheaderIndex = captionElementIndex(slide);
+              if (subheaderIndex >= 0) {
+                patch.textElements = (slide.textElements || []).map((element, elementIndex) =>
+                  elementIndex === subheaderIndex
+                    ? { ...element, text: writeLocalized(element.text, prev.locale, pair.subheader) }
+                    : element,
+                );
+              }
+            }
+            return Object.keys(patch).length ? { ...slide, ...patch } : slide;
+          }),
+        },
+      }));
+      toast.success(`Updated ${applied} screen${applied === 1 ? "" : "s"} for ${state.locale.toUpperCase()}`);
+      return { applied, total: currentSlides.length };
+    },
+    [currentSlides.length, setState, state.locale],
+  );
+
   const patchElementTransform = React.useCallback(
     (slideId: string, elementId: ElementId, transform: ElementTransform) => {
       setState((prev) => ({
@@ -213,6 +361,15 @@ export function ScreenshotEditor() {
                 ...slide,
                 textElements: (slide.textElements || []).map((element) =>
                   element.id === textId ? { ...element, transform } : element,
+                ),
+              };
+            }
+            if (isDecorationElementId(elementId)) {
+              const decorationId = decorationElementKey(elementId);
+              return {
+                ...slide,
+                decorations: (slide.decorations || []).map((element) =>
+                  element.id === decorationId ? { ...element, transform } : element,
                 ),
               };
             }
@@ -280,6 +437,13 @@ export function ScreenshotEditor() {
             text: { ...element.text },
             transform: { ...element.transform },
           })),
+          decorations: src.decorations?.map((element) => ({
+            ...element,
+            id: nid(),
+            transform: { ...element.transform },
+            fill: { ...element.fill, colors: [...element.fill.colors] },
+          })),
+          visualAsset: src.visualAsset ? { ...src.visualAsset } : undefined,
         };
         const next = [...slides.slice(0, idx + 1), copy, ...slides.slice(idx + 1)];
         return {
@@ -292,6 +456,182 @@ export function ScreenshotEditor() {
     [setState],
   );
 
+  async function generateDesign(prompt: string, references: DesignReference[]) {
+    if ((!targetSlideIds.length && !references.length) || generatingDesign || pendingDesign) return;
+    const requestState = cloneProject(state);
+    const requestTargets = [...targetSlideIds];
+    const userMessage: DesignConversationMessage = {
+      id: chatId(),
+      role: "user",
+      text: prompt,
+      createdAt: Date.now(),
+      referenceIds: references.map((reference) => reference.id),
+      referenceNames: references.map((reference) => reference.name),
+    };
+    setDesignMessages((messages) => [...messages, userMessage].slice(-50));
+    void saveDesignReferences(references).catch(() => undefined);
+    setGeneratingDesign(true);
+    setSelectedElement(null);
+    const controller = new AbortController();
+    designAbortRef.current = controller;
+
+    try {
+      const renderedPreviews = await captureDesignPreviews(requestTargets);
+      const response = await fetch("/api/design", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          prompt,
+          scope: { type: designScope, slideIds: requestTargets },
+          project: requestState,
+          renderedPreviews,
+          references: references.map(({ id, name, mimeType, dataUrl }) => ({
+            id,
+            name,
+            mimeType,
+            dataUrl,
+          })),
+          conversation: designMessages.slice(-12).map(({ role, text }) => ({ role, text })),
+        }),
+      });
+      const json = (await response.json()) as {
+        ok: boolean;
+        proposal?: unknown;
+        generatedVisualAssets?: unknown;
+        error?: string;
+      };
+      if (!response.ok || !json.ok || !json.proposal) {
+        throw new Error(json.error || `Design request failed (HTTP ${response.status}).`);
+      }
+      const proposal = parseDesignProposal(json.proposal);
+      const generatedVisualAssets = Array.isArray(json.generatedVisualAssets)
+        ? (json.generatedVisualAssets as GeneratedVisualAsset[])
+        : [];
+      const referencesById = new Map(references.map((reference) => [reference.id, reference]));
+      const uploadedPaths = new Map<string, Promise<string>>();
+      const newSlideAssets = await Promise.all(
+        (proposal.newSlides || []).map(async (newSlide) => {
+          const reference = referencesById.get(newSlide.sourceReferenceId);
+          if (!reference) {
+            throw new Error("The new screen references an attachment that is no longer available.");
+          }
+          let upload = uploadedPaths.get(reference.id);
+          if (!upload) {
+            upload = uploadDesignReference(reference);
+            uploadedPaths.set(reference.id, upload);
+          }
+          const screenshot = await upload;
+          setImage(screenshot, reference.dataUrl);
+          return { slideId: nid(), screenshot };
+        }),
+      );
+      const proposalState = applyDesignProposal(
+        requestState,
+        proposal,
+        requestTargets,
+        newSlideAssets,
+        generatedVisualAssets,
+      );
+      const createdSlideIds = newSlideAssets.map((asset) => asset.slideId);
+      const affectedSlideIds = [
+        ...new Set([
+          ...proposal.slidePatches.map((patch) => patch.slideId),
+          ...createdSlideIds,
+        ]),
+      ];
+      const assistantMessageId = chatId();
+      const assistantMessage: DesignConversationMessage = {
+        id: assistantMessageId,
+        role: "assistant",
+        text: proposalSummary(proposal),
+        createdAt: Date.now(),
+        proposalStatus: "pending",
+      };
+      setDesignMessages((messages) => [...messages, assistantMessage].slice(-50));
+      setPendingDesign({
+        proposal,
+        state: proposalState,
+        assistantMessageId,
+        targetSlideIds: affectedSlideIds,
+        createdSlideIds,
+      });
+      if (createdSlideIds[0]) setActiveSlideId(createdSlideIds[0]);
+      setShowProposal(true);
+      toast.success(createdSlideIds.length ? "New screen ready to preview" : "Redesign ready to preview");
+    } catch (error) {
+      if (controller.signal.aborted) {
+        toast("Design request cancelled");
+      } else {
+        const message = error instanceof Error ? error.message : "Design generation failed.";
+        const failureMessage: DesignConversationMessage = {
+          id: chatId(),
+          role: "assistant",
+          text: message,
+          createdAt: Date.now(),
+          proposalStatus: "failed",
+        };
+        setDesignMessages((messages) => [...messages, failureMessage].slice(-50));
+        toast.error("Couldn’t generate redesign", { description: message });
+      }
+    } finally {
+      if (designAbortRef.current === controller) designAbortRef.current = null;
+      setGeneratingDesign(false);
+    }
+  }
+
+  async function captureDesignPreviews(slideIds: string[]) {
+    const { cW: canvasWidth, cH: canvasHeight } = getCanvas(state.device, state.orientation);
+    await preloadImages(assetPaths, { retryFailed: true });
+    await waitForPaint();
+    const previews: Array<{ slideId: string; dataUrl: string }> = [];
+    for (const slideId of slideIds) {
+      const index = currentSlides.findIndex((slide) => slide.id === slideId);
+      if (index < 0) throw new Error(`Could not render selected screen ${slideId}.`);
+      setExportSlideIndex(index);
+      await waitForPaint();
+      const element = exportRef.current;
+      if (!element) throw new Error("Design preview render target is unavailable.");
+      previews.push({
+        slideId,
+        dataUrl: await captureSlideForModel(element, canvasWidth, canvasHeight),
+      });
+    }
+    return previews;
+  }
+
+  function applyPendingDesign() {
+    if (!pendingDesign) return;
+    setState(pendingDesign.state);
+    markProposalStatus(pendingDesign.assistantMessageId, "applied");
+    setPendingDesign(null);
+    setShowProposal(true);
+    toast.success(
+      pendingDesign.createdSlideIds.length
+        ? `Added ${pendingDesign.createdSlideIds.length} new screen${pendingDesign.createdSlideIds.length === 1 ? "" : "s"}`
+        : `Applied redesign to ${pendingDesign.targetSlideIds.length} screen${pendingDesign.targetSlideIds.length === 1 ? "" : "s"}`,
+    );
+  }
+
+  function discardPendingDesign() {
+    if (!pendingDesign) return;
+    markProposalStatus(pendingDesign.assistantMessageId, "discarded");
+    setPendingDesign(null);
+    setShowProposal(true);
+    toast("Redesign discarded");
+  }
+
+  function markProposalStatus(
+    messageId: string,
+    proposalStatus: NonNullable<DesignConversationMessage["proposalStatus"]>,
+  ) {
+    setDesignMessages((messages) =>
+      messages.map((message) =>
+        message.id === messageId ? { ...message, proposalStatus } : message,
+      ),
+    );
+  }
+
   // ---------- Keyboard shortcuts ----------
 
   React.useEffect(() => {
@@ -302,7 +642,7 @@ export function ScreenshotEditor() {
         (target.tagName === "INPUT" ||
           target.tagName === "TEXTAREA" ||
           (target as HTMLElement).isContentEditable);
-      if (exporting) return;
+      if (exporting || generatingDesign || pendingDesign) return;
 
       if (e.key === "Escape") {
         setSelectedElement(null);
@@ -349,17 +689,18 @@ export function ScreenshotEditor() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeSlide, currentSlides, duplicateSlide, deleteSlide, exporting, undo, redo]);
+  }, [activeSlide, currentSlides, duplicateSlide, deleteSlide, exporting, generatingDesign, pendingDesign, undo, redo]);
 
   // ---------- Export ----------
 
   // Wait two animation frames so React's render → browser layout/paint of the
   // off-screen container settles before html-to-image snapshots it. One frame
   // is occasionally not enough on slower machines.
-  const waitForPaint = () =>
-    new Promise<void>((resolve) => {
+  function waitForPaint() {
+    return new Promise<void>((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     });
+  }
 
   async function exportAll() {
     if (!currentSlides.length) {
@@ -548,7 +889,7 @@ export function ScreenshotEditor() {
   }
 
   const { cW, cH } = getCanvas(state.device, state.orientation);
-  const busy = !!exporting;
+  const busy = !!exporting || generatingDesign || !!pendingDesign;
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
@@ -566,6 +907,7 @@ export function ScreenshotEditor() {
         orientation={state.orientation}
         setOrientation={(v) => setState((p) => ({ ...p, orientation: v }))}
         onExport={exportAll}
+        onBulkCopy={applyBulkCopy}
         onResetAll={() => {
           reset();
           setActiveSlideId(null);
@@ -580,33 +922,33 @@ export function ScreenshotEditor() {
         savedAt={savedAt}
         saveError={saveError}
         busy={busy}
+        screensOpen={screensOpen}
+        onScreensOpenChange={setScreensOpen}
+        screenSettingsOpen={screenSettingsOpen}
+        onScreenSettingsOpenChange={setScreenSettingsOpen}
       />
 
-      <div className="flex flex-1 overflow-hidden md:flex-row flex-col">
-        <aside className="md:w-72 w-full shrink-0 border-r bg-card md:max-h-none max-h-64 overflow-hidden">
-          <Sidebar
-            slides={currentSlides}
-            activeId={activeSlide?.id || null}
-            device={state.device}
-            orientation={state.orientation}
-            theme={theme}
-            locale={state.locale}
-            appName={state.appName}
-            appIcon={state.appIcon}
-            connectedCanvas={state.connectedCanvas}
+      <div className="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+        <aside className="h-[58vh] min-h-[460px] max-h-[620px] w-full shrink-0 overflow-hidden border-r bg-card lg:h-auto lg:min-h-0 lg:max-h-none lg:w-80 xl:w-96">
+          <DesignSidebar
+            messages={designMessages}
+            scope={designScope}
+            onScopeChange={(scope) => {
+              setDesignScope(scope);
+              if (scope === "selected") setScreensOpen(true);
+            }}
+            targetCount={targetSlideIds.length}
+            generating={generatingDesign}
+            onSubmit={generateDesign}
+            onCancel={() => designAbortRef.current?.abort()}
             disabled={busy}
-            onReorder={reorderSlides}
-            onSelect={setActiveSlideId}
-            onDelete={deleteSlide}
-            onDuplicate={duplicateSlide}
-            onAdd={addSlide}
           />
         </aside>
 
-        <main className="flex flex-1 items-stretch overflow-hidden min-h-0">
+        <main className="relative flex h-[72vh] min-h-[520px] w-full shrink-0 items-stretch overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
           {activeSlide && currentSlides.length > 0 ? (
             <PreviewStage
-              slides={currentSlides}
+              slides={displaySlides}
               activeSlideId={activeSlide.id}
               device={state.device}
               orientation={state.orientation}
@@ -622,22 +964,102 @@ export function ScreenshotEditor() {
               onTextElementTextChange={patchTextElementText}
               onElementChange={patchElementTransform}
               onSelectElement={setSelectedElement}
+              editable={!busy}
             />
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center text-sm text-muted-foreground">
               <p className="font-medium text-foreground">No screen selected</p>
-              <p>Add a screen on the left to get started.</p>
+              <p>Add a screen in the Screens panel to get started.</p>
+            </div>
+          )}
+          {pendingDesign && (
+            <div className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-1 rounded-xl border bg-background/95 p-1.5 shadow-xl backdrop-blur">
+              <div className="mr-1 hidden items-center gap-1.5 px-2 text-[11px] font-medium sm:flex">
+                <Eye className="h-3.5 w-3.5" /> AI preview
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant={!showProposal ? "default" : "ghost"}
+                className="h-7 text-xs"
+                onClick={() => setShowProposal(false)}
+              >
+                <EyeOff className="h-3.5 w-3.5" /> Before
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={showProposal ? "default" : "ghost"}
+                className="h-7 text-xs"
+                onClick={() => setShowProposal(true)}
+              >
+                <Eye className="h-3.5 w-3.5" /> After
+              </Button>
+              <span className="mx-1 h-5 w-px bg-border" />
+              <Button type="button" size="sm" className="h-7 text-xs" onClick={applyPendingDesign}>
+                <Check className="h-3.5 w-3.5" /> Apply
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={discardPendingDesign}
+                title="Discard redesign"
+                aria-label="Discard redesign"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
             </div>
           )}
         </main>
 
-        <aside className="md:w-80 w-full shrink-0 border-l bg-card md:max-h-none max-h-96 overflow-hidden">
-          {activeSlide ? (
+        {screensOpen && (
+          <aside
+            id="screens-panel"
+            className="h-[58vh] min-h-[460px] w-full shrink-0 overflow-hidden border-l bg-card lg:h-auto lg:min-h-0 lg:w-80"
+          >
+            <Sidebar
+              slides={displaySlides}
+              activeId={activeSlide?.id || null}
+              device={state.device}
+              orientation={state.orientation}
+              theme={theme}
+              locale={state.locale}
+              appName={state.appName}
+              appIcon={state.appIcon}
+              connectedCanvas={state.connectedCanvas}
+              disabled={busy}
+              selectedForDesign={selectedSlideIds}
+              onToggleDesignSelection={(id) =>
+                setSelectedSlideIds((current) => {
+                  const next = new Set(current);
+                  if (next.has(id)) next.delete(id);
+                  else next.add(id);
+                  return next;
+                })
+              }
+              onReorder={reorderSlides}
+              onSelect={setActiveSlideId}
+              onDelete={deleteSlide}
+              onDuplicate={duplicateSlide}
+              onAdd={addSlide}
+            />
+          </aside>
+        )}
+
+        {screenSettingsOpen && (
+        <aside
+          id="screen-settings-panel"
+          className="h-[70vh] min-h-[520px] w-full shrink-0 overflow-hidden border-l bg-card lg:h-auto lg:min-h-0 lg:w-80"
+        >
+          {activeSlide && !pendingDesign && !generatingDesign ? (
             <Inspector
               slide={activeSlide}
               device={state.device}
               orientation={state.orientation}
               locale={state.locale}
+              locales={state.locales}
               selectedElementId={
                 selectedElement?.slideId === activeSlide.id ? selectedElement.elementId : null
               }
@@ -648,6 +1070,17 @@ export function ScreenshotEditor() {
                 )
               }
             />
+          ) : pendingDesign || generatingDesign ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">
+                {pendingDesign ? "Review the AI proposal" : "Creating your redesign"}
+              </p>
+              <p className="text-xs">
+                {pendingDesign
+                  ? "Use Before and After on the canvas, then apply or discard."
+                  : "Canvas editing is paused until the proposal is ready."}
+              </p>
+            </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
               <p className="font-medium text-foreground">Nothing to inspect</p>
@@ -655,6 +1088,7 @@ export function ScreenshotEditor() {
             </div>
           )}
         </aside>
+        )}
       </div>
 
       {/* Off-screen export container — full-resolution canvases for html-to-image. */}
@@ -692,7 +1126,7 @@ export function ScreenshotEditor() {
                 slides={currentSlides}
                 device={state.device}
                 orientation={state.orientation}
-                theme={theme}
+                theme={canonicalTheme}
                 locale={exportLocaleOverride ?? state.locale}
                 appName={state.appName}
                 appIcon={state.appIcon}
@@ -714,6 +1148,62 @@ function slugify(s: string) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "") || "screenshots"
   );
+}
+
+async function captureSlideForModel(el: HTMLElement, sourceW: number, sourceH: number) {
+  const scale = Math.min(1, 1024 / Math.max(sourceW, sourceH));
+  const outputW = Math.max(1, Math.round(sourceW * scale));
+  const outputH = Math.max(1, Math.round(sourceH * scale));
+  const prev = {
+    left: el.style.left,
+    top: el.style.top,
+    position: el.style.position,
+    transform: el.style.transform,
+    transformOrigin: el.style.transformOrigin,
+    zIndex: el.style.zIndex,
+  };
+  el.style.left = "0px";
+  el.style.top = "0px";
+  el.style.position = "absolute";
+  el.style.transform = "none";
+  el.style.transformOrigin = "top left";
+  el.style.zIndex = "-1";
+  try {
+    return await toJpeg(el, {
+      width: sourceW,
+      height: sourceH,
+      canvasWidth: outputW,
+      canvasHeight: outputH,
+      pixelRatio: 1,
+      quality: 0.82,
+      cacheBust: false,
+      backgroundColor: "#ffffff",
+    });
+  } finally {
+    el.style.left = prev.left || "-99999px";
+    el.style.top = prev.top || "0px";
+    el.style.position = prev.position || "absolute";
+    el.style.transform = prev.transform;
+    el.style.transformOrigin = prev.transformOrigin;
+    el.style.zIndex = prev.zIndex;
+  }
+}
+
+async function uploadDesignReference(reference: DesignReference): Promise<string> {
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ dataUrl: reference.dataUrl }),
+  });
+  const result = (await response.json()) as { ok?: boolean; path?: string; error?: string };
+  if (!response.ok || !result.ok || !result.path) {
+    throw new Error(result.error || `Could not save ${reference.name} as a screen screenshot.`);
+  }
+  return result.path;
+}
+
+function chatId() {
+  return `chat_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function slideNeedsScreenshot(device: Device, slide: Slide) {

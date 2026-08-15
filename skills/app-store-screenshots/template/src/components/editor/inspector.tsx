@@ -8,6 +8,8 @@ import {
   ArrowUpToLine,
   ChevronDown,
   ChevronUp,
+  Circle,
+  ImageIcon,
   Plus,
   RotateCw,
   Trash2,
@@ -24,20 +26,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { LAYOUT_HINT, LAYOUT_LABEL } from "@/lib/constants";
+import {
+  HEADLINE_FONT_LABEL,
+  LAYOUT_HINT,
+  LAYOUT_LABEL,
+} from "@/lib/constants";
 import { nid } from "@/lib/defaults";
 import {
+  decorationElementKey,
   isBuiltInElementId,
+  isDecorationElementId,
   isTextElementId,
   textElementKey,
+  toDecorationElementId,
   toTextElementId,
 } from "@/lib/elements";
 import { pickText, writeLocalized } from "@/lib/locale";
+import { img } from "@/lib/image-cache";
 import type {
   BuiltInElementId,
+  DecorationElement,
   Device,
   ElementId,
   ElementTransform,
+  HeadlineFontFamily,
   Orientation,
   Slide,
   SlideLayout,
@@ -51,6 +63,7 @@ type Props = {
   device: Device;
   orientation: Orientation;
   locale: string;
+  locales: string[];
   selectedElementId: ElementId | null;
   onChange: (patch: Partial<Slide>) => void;
   onSelectElement: (id: ElementId | null) => void;
@@ -67,6 +80,7 @@ export function Inspector({
   device,
   orientation,
   locale,
+  locales,
   selectedElementId,
   onChange,
   onSelectElement,
@@ -161,6 +175,79 @@ export function Inspector({
           />
         </div>
 
+        <div className="space-y-1.5">
+          <Label className="text-xs">
+            {isFeatureGraphic ? "Tagline font" : "Headline font"}
+          </Label>
+          <Select
+            value={slide.headlineFontFamily || "modern"}
+            onValueChange={(value) =>
+              onChange({ headlineFontFamily: value as HeadlineFontFamily })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(HEADLINE_FONT_LABEL).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {slide.visualAsset && (
+          <div className="space-y-2 rounded-md border bg-muted/25 p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="flex items-center gap-1.5 text-xs">
+                <ImageIcon className="h-3.5 w-3.5" /> GPT Image visual
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px] hover:text-destructive"
+                onClick={() => onChange({ visualAsset: undefined })}
+              >
+                Remove
+              </Button>
+            </div>
+            <img
+              src={img(slide.visualAsset.src)}
+              alt="Generated visual preview"
+              className="h-20 w-full rounded border object-cover"
+            />
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>Opacity</span>
+                <span>{Math.round(slide.visualAsset.opacity * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={5}
+                max={100}
+                step={1}
+                value={Math.round(slide.visualAsset.opacity * 100)}
+                onChange={(event) =>
+                  onChange({
+                    visualAsset: {
+                      ...slide.visualAsset!,
+                      opacity: Number(event.target.value) / 100,
+                    },
+                  })
+                }
+                className="w-full"
+                aria-label="Generated visual opacity"
+              />
+            </div>
+            <p className="line-clamp-3 text-[10px] leading-relaxed text-muted-foreground">
+              {slide.visualAsset.prompt}
+            </p>
+          </div>
+        )}
+
         {!isFeatureGraphic && !isNoDevice && (
           <div className="space-y-1.5">
             <Label className="text-xs">
@@ -170,6 +257,8 @@ export function Inspector({
               label="Primary"
               value={slide.screenshot}
               locale={locale}
+              locales={locales}
+              localizedSlug={`${slide.id}-primary`}
               onChange={(v) => onChange({ screenshot: v })}
             />
           </div>
@@ -182,6 +271,8 @@ export function Inspector({
               label="Secondary (back layer)"
               value={slide.screenshotSecondary || ""}
               locale={locale}
+              locales={locales}
+              localizedSlug={`${slide.id}-secondary`}
               onChange={(v) => onChange({ screenshotSecondary: v })}
             />
           </div>
@@ -230,6 +321,7 @@ function ElementTransformControls({
   if (slide.layout !== "no-device") present.push("device");
   if (slide.layout === "two-devices") present.push("deviceSecondary");
   for (const element of slide.textElements || []) present.push(toTextElementId(element.id));
+  for (const element of slide.decorations || []) present.push(toDecorationElementId(element.id));
 
   const transforms = slide.transforms || {};
   const activeId =
@@ -240,6 +332,10 @@ function ElementTransformControls({
   const activeTextElement =
     activeId && isTextElementId(activeId)
       ? slide.textElements?.find((element) => element.id === textElementKey(activeId))
+      : null;
+  const activeDecoration =
+    activeId && isDecorationElementId(activeId)
+      ? slide.decorations?.find((element) => element.id === decorationElementKey(activeId))
       : null;
 
   function getTransform(id: ElementId) {
@@ -254,6 +350,17 @@ function ElementTransformControls({
       onChange({
         textElements: (slide.textElements || []).map((element) =>
           element.id === textId
+            ? { ...element, transform: { ...element.transform, ...patch } }
+            : element,
+        ),
+      });
+      return;
+    }
+    if (isDecorationElementId(id)) {
+      const decorationId = decorationElementKey(id);
+      onChange({
+        decorations: (slide.decorations || []).map((element) =>
+          element.id === decorationId
             ? { ...element, transform: { ...element.transform, ...patch } }
             : element,
         ),
@@ -313,6 +420,42 @@ function ElementTransformControls({
     onSelectElement(toTextElementId(id));
   }
 
+  function patchDecoration(id: string, patch: Partial<DecorationElement>) {
+    onChange({
+      decorations: (slide.decorations || []).map((element) =>
+        element.id === id ? { ...element, ...patch } : element,
+      ),
+    });
+  }
+
+  function deleteDecoration(element: DecorationElement) {
+    const next = (slide.decorations || []).filter((item) => item.id !== element.id);
+    onChange({ decorations: next.length ? next : undefined });
+    onSelectElement(null);
+  }
+
+  function addDecoration() {
+    const { cW, cH } = getCanvas(device, orientation);
+    const id = nid();
+    const decoration: DecorationElement = {
+      id,
+      kind: "ellipse",
+      transform: {
+        x: cW * 0.1,
+        y: cH * 0.18,
+        width: cW * 0.28,
+        height: cW * 0.28,
+        rotation: 0,
+        zIndex: 1,
+      },
+      fill: { type: "solid", colors: ["#5B7CFA"] },
+      opacity: 0.3,
+      blur: 0,
+    };
+    onChange({ decorations: [...(slide.decorations || []), decoration] });
+    onSelectElement(toDecorationElementId(id));
+  }
+
   // Z-order: re-rank zIndex among present elements so they remain contiguous.
   function reorder(id: ElementId, dir: "front" | "back" | "up" | "down") {
     const ranked = [...present].sort((a, b) => {
@@ -335,6 +478,10 @@ function ElementTransformControls({
       ...element,
       transform: { ...element.transform },
     }));
+    const nextDecorations = (slide.decorations || []).map((element) => ({
+      ...element,
+      transform: { ...element.transform },
+    }));
     ranked.forEach((eid, i) => {
       const cur = getTransform(eid);
       if (!cur) return;
@@ -342,11 +489,19 @@ function ElementTransformControls({
         const textId = textElementKey(eid);
         const textElement = nextTextElements.find((element) => element.id === textId);
         if (textElement) textElement.transform = { ...textElement.transform, zIndex: i + 1 };
+      } else if (isDecorationElementId(eid)) {
+        const decorationId = decorationElementKey(eid);
+        const decoration = nextDecorations.find((element) => element.id === decorationId);
+        if (decoration) decoration.transform = { ...decoration.transform, zIndex: i + 1 };
       } else if (isBuiltInElementId(eid)) {
         nextTransforms[eid] = { ...cur, zIndex: i + 1 };
       }
     });
-    onChange({ transforms: nextTransforms, textElements: nextTextElements });
+    onChange({
+      transforms: nextTransforms,
+      textElements: nextTextElements,
+      decorations: nextDecorations,
+    });
   }
 
   return (
@@ -360,16 +515,28 @@ function ElementTransformControls({
               : "Click an element on the canvas to fine-tune its rotation and stacking."}
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-7 shrink-0 px-2 text-xs"
-          onClick={addTextElement}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Text
-        </Button>
+        <div className="flex shrink-0 gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={addDecoration}
+          >
+            <Circle className="h-3.5 w-3.5" />
+            Shape
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={addTextElement}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Text
+          </Button>
+        </div>
       </div>
 
       {activeId ? (
@@ -377,6 +544,7 @@ function ElementTransformControls({
           activeId={activeId}
           transform={activeTransform}
           textElement={activeTextElement || undefined}
+          decoration={activeDecoration || undefined}
           locale={locale}
           onRotate={(rotation) => patchElement(activeId, { rotation })}
           onReorder={(dir) => reorder(activeId, dir)}
@@ -388,6 +556,12 @@ function ElementTransformControls({
           }}
           onDeleteText={() => {
             if (activeTextElement) deleteTextElement(activeTextElement);
+          }}
+          onDecorationPatch={(patch) => {
+            if (activeDecoration) patchDecoration(activeDecoration.id, patch);
+          }}
+          onDeleteDecoration={() => {
+            if (activeDecoration) deleteDecoration(activeDecoration);
           }}
         />
       ) : (
@@ -403,22 +577,28 @@ function ActiveElementPanel({
   activeId,
   transform,
   textElement,
+  decoration,
   locale,
   onRotate,
   onReorder,
   onTextChange,
   onTextPatch,
   onDeleteText,
+  onDecorationPatch,
+  onDeleteDecoration,
 }: {
   activeId: ElementId;
   transform: ElementTransform | undefined;
   textElement?: TextElement;
+  decoration?: DecorationElement;
   locale: string;
   onRotate: (rotation: number) => void;
   onReorder: (dir: "front" | "back" | "up" | "down") => void;
   onTextChange: (value: string) => void;
   onTextPatch: (patch: Partial<TextElement>) => void;
   onDeleteText: () => void;
+  onDecorationPatch: (patch: Partial<DecorationElement>) => void;
+  onDeleteDecoration: () => void;
 }) {
   const engaged = !!transform;
   const rotation = transform?.rotation ?? 0;
@@ -428,17 +608,18 @@ function ActiveElementPanel({
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1 text-xs font-medium">
           {textElement && <Type className="h-3.5 w-3.5" />}
+          {decoration && <Circle className="h-3.5 w-3.5" />}
           {label}
         </span>
-        {textElement ? (
+        {textElement || decoration ? (
           <Button
             type="button"
             variant="ghost"
             size="icon"
             className="h-6 w-6 hover:text-destructive"
-            onClick={onDeleteText}
-            title="Delete text element"
-            aria-label="Delete text element"
+            onClick={decoration ? onDeleteDecoration : onDeleteText}
+            title={`Delete ${decoration ? "decoration" : "text element"}`}
+            aria-label={`Delete ${decoration ? "decoration" : "text element"}`}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
@@ -454,6 +635,10 @@ function ActiveElementPanel({
           onTextChange={onTextChange}
           onTextPatch={onTextPatch}
         />
+      )}
+
+      {decoration && (
+        <DecorationPanel element={decoration} onPatch={onDecorationPatch} />
       )}
 
       <div className="space-y-1">
@@ -570,6 +755,122 @@ function TextElementPanel({
   );
 }
 
+function DecorationPanel({
+  element,
+  onPatch,
+}: {
+  element: DecorationElement;
+  onPatch: (patch: Partial<DecorationElement>) => void;
+}) {
+  const primary = element.fill.colors[0] || "#5B7CFA";
+  const secondary = element.fill.colors[1] || "#8B5CF6";
+  return (
+    <div className="space-y-2 rounded border bg-muted/30 p-2">
+      <div className="space-y-1">
+        <Label className="text-[11px] text-muted-foreground">Shape</Label>
+        <Select
+          value={element.kind}
+          onValueChange={(kind) =>
+            onPatch({ kind: kind as DecorationElement["kind"] })
+          }
+        >
+          <SelectTrigger className="h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ellipse">Ellipse</SelectItem>
+            <SelectItem value="rounded-rectangle">Rounded rectangle</SelectItem>
+            <SelectItem value="line">Line</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">Fill</Label>
+          <Input
+            type="color"
+            value={primary}
+            className="h-9 p-1"
+            onChange={(event) =>
+              onPatch({ fill: { ...element.fill, colors: [event.target.value, ...element.fill.colors.slice(1)] } })
+            }
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">Style</Label>
+          <Select
+            value={element.fill.type}
+            onValueChange={(type) =>
+              onPatch({
+                fill: {
+                  ...element.fill,
+                  type: type as DecorationElement["fill"]["type"],
+                  colors: type === "linear-gradient" ? [primary, secondary] : [primary],
+                },
+              })
+            }
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="solid">Solid</SelectItem>
+              <SelectItem value="linear-gradient">Gradient</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      {element.fill.type === "linear-gradient" && (
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            type="color"
+            value={secondary}
+            className="h-9 p-1"
+            aria-label="Gradient second color"
+            onChange={(event) =>
+              onPatch({ fill: { ...element.fill, colors: [primary, event.target.value] } })
+            }
+          />
+          <Input
+            type="number"
+            min={0}
+            max={360}
+            value={Math.round(element.fill.angle ?? 135)}
+            aria-label="Gradient angle"
+            onChange={(event) =>
+              onPatch({ fill: { ...element.fill, angle: Number(event.target.value) || 0 } })
+            }
+          />
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">Opacity</Label>
+          <Input
+            type="number"
+            min={5}
+            max={100}
+            value={Math.round(element.opacity * 100)}
+            onChange={(event) =>
+              onPatch({ opacity: Math.max(0.05, Math.min(1, Number(event.target.value) / 100)) })
+            }
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">Blur</Label>
+          <Input
+            type="number"
+            min={0}
+            max={80}
+            value={Math.round(element.blur || 0)}
+            onChange={(event) => onPatch({ blur: Math.max(0, Number(event.target.value) || 0) })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LayerButton({
   disabled,
   onClick,
@@ -599,10 +900,12 @@ function LayerButton({
 
 function elementLabel(id: ElementId): string {
   if (isBuiltInElementId(id)) return ELEMENT_LABEL[id];
+  if (isDecorationElementId(id)) return "Decoration";
   return "Text";
 }
 
 function defaultZ(id: ElementId): number {
+  if (isDecorationElementId(id)) return 1;
   if (isTextElementId(id)) return 5;
   if (id === "deviceSecondary") return 2;
   if (id === "device") return 3;

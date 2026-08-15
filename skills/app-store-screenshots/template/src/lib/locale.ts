@@ -28,6 +28,14 @@ export function resolveScreenshot(path: string | undefined, locale: string): str
   return path.replace(/\{locale\}/g, locale);
 }
 
+export function resolveLocalizedScreenshot(
+  path: string | undefined,
+  overrides: Partial<Record<string, string>> | undefined,
+  locale: string,
+): string {
+  return resolveScreenshot(overrides?.[locale] || path, locale);
+}
+
 // Convert legacy `string` headline/label fields to the per-locale shape. Safe
 // to call on already-migrated data.
 export function coerceLocalized(value: unknown): LocalizedText {

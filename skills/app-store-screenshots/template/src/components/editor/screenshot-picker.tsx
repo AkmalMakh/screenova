@@ -9,6 +9,8 @@ type Props = {
   label: string;
   value: string;
   locale?: string;
+  locales?: string[];
+  localizedSlug?: string;
   onChange: (v: string) => void;
 };
 
@@ -23,12 +25,15 @@ async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-async function uploadDataUrl(dataUrl: string): Promise<string | null> {
+async function uploadDataUrl(
+  dataUrl: string,
+  options: { targetPath?: string; seedFromPath?: string; seedPaths?: string[] } = {},
+): Promise<string | null> {
   try {
     const resp = await fetch("/api/upload", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ dataUrl }),
+      body: JSON.stringify({ dataUrl, ...options }),
     });
     if (!resp.ok) return null;
     const json = (await resp.json()) as { ok: boolean; path?: string };
@@ -38,7 +43,7 @@ async function uploadDataUrl(dataUrl: string): Promise<string | null> {
   }
 }
 
-export function ScreenshotPicker({ label, value, locale, onChange }: Props) {
+export function ScreenshotPicker({ label, value, locale, locales = [], localizedSlug, onChange }: Props) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -69,11 +74,30 @@ export function ScreenshotPicker({ label, value, locale, onChange }: Props) {
     // If the upload endpoint is unreachable (e.g. static export), fall back
     // to the inline data URI — still works in the current session.
     setUploading(true);
-    const uploadedPath = await uploadDataUrl(dataUrl);
+    const localizedValue = !!locale && value.includes("{locale}");
+    const shouldLocalizeSharedValue =
+      !!locale && locales.length > 1 && !!localizedSlug && !!value && !value.startsWith("data:");
+    const localizedPattern = localizedValue
+      ? value
+      : shouldLocalizeSharedValue
+        ? `/screenshots/localized/{locale}/manual-${localizedSlug}.png`
+        : undefined;
+    const localizedPath =
+      localizedPattern && locale ? resolveScreenshot(localizedPattern, locale) : undefined;
+    const seedPaths = localizedPattern
+      ? locales.map((loc) => resolveScreenshot(localizedPattern, loc))
+      : undefined;
+    const seedFromPath =
+      shouldLocalizeSharedValue && locale ? resolveScreenshot(value, locale) : undefined;
+    const uploadedPath = await uploadDataUrl(dataUrl, {
+      targetPath: localizedPath,
+      seedFromPath,
+      seedPaths,
+    });
     setUploading(false);
     if (uploadedPath) {
-      setImage(uploadedPath, dataUrl);
-      onChange(uploadedPath);
+      setImage(localizedPath || uploadedPath, dataUrl);
+      onChange(localizedPattern || uploadedPath);
     } else {
       setImage(dataUrl, dataUrl);
       onChange(dataUrl);

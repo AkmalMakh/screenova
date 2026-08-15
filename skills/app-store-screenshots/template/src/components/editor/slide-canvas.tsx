@@ -4,6 +4,7 @@ import { Rnd } from "react-rnd";
 import { RotateCw } from "lucide-react";
 import type {
   BuiltInElementId,
+  DecorationElement,
   Device,
   ElementId,
   ElementTransform,
@@ -15,6 +16,7 @@ import type {
 } from "@/lib/types";
 import {
   CANVAS,
+  HEADLINE_FONT_CSS,
   IPAD_RATIO,
   MK_RATIO,
   ipadW,
@@ -23,9 +25,9 @@ import {
   tabletLW,
   tabletPW,
 } from "@/lib/constants";
-import { toTextElementId } from "@/lib/elements";
+import { toDecorationElementId, toTextElementId } from "@/lib/elements";
 import { img } from "@/lib/image-cache";
-import { pickText, resolveScreenshot } from "@/lib/locale";
+import { pickText, resolveLocalizedScreenshot } from "@/lib/locale";
 import {
   AndroidPhone,
   AndroidTabletL,
@@ -263,6 +265,7 @@ function Caption({
         placeholder="Headline goes here"
         style={{
           fontSize: unit * 0.092,
+          fontFamily: HEADLINE_FONT_CSS[slide.headlineFontFamily || "modern"],
           fontWeight: 700,
           lineHeight: 0.96,
           letterSpacing: -unit * 0.001,
@@ -471,6 +474,10 @@ export function getElementTransform(
     const textElement = slide.textElements?.find((element) => element.id === textId);
     return textElement?.transform;
   }
+  if (id.startsWith("decoration:")) {
+    const decorationId = id.slice("decoration:".length);
+    return slide.decorations?.find((element) => element.id === decorationId)?.transform;
+  }
   const { defaults } = getSlideGeometry(slide, device, orientation);
   const rect = rectFor(id as BuiltInElementId, slide, defaults);
   if (!rect) return undefined;
@@ -511,16 +518,34 @@ export function SlideCanvas({
 
   if (slide.layout === "feature-graphic" || device === "feature-graphic") {
     return (
-      <FeatureGraphicCanvas
-        slide={slide}
-        cW={cW}
-        theme={theme}
-        locale={locale}
-        appName={appName}
-        appIcon={appIcon}
-        editable={editable}
-        edit={edit}
-      />
+      <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden" }}>
+        <FeatureGraphicCanvas
+          slide={slide}
+          cW={cW}
+          theme={theme}
+          locale={locale}
+          appName={appName}
+          appIcon={appIcon}
+          editable={editable}
+          edit={edit}
+        />
+        <SlideElements
+          slide={slide}
+          device={device}
+          orientation={orientation}
+          theme={theme}
+          locale={locale}
+          editable={editable}
+          edit={edit}
+          selectedElementId={selectedElementId}
+          previewScale={previewScale}
+          hideEmpty={hideEmpty}
+          screenX={0}
+          boundsW={cW}
+          boundsH={cH}
+          allowCrossScreen={false}
+        />
+      </div>
     );
   }
 
@@ -596,6 +621,19 @@ export function DeckCanvas({
         const screenX = index * cW;
         const active = activeSlideId === slide.id;
         if (slide.layout === "feature-graphic" || device === "feature-graphic") {
+          const selectedElementId =
+            selectedElement?.slideId === slide.id ? selectedElement.elementId : null;
+          const perSlideEdit: EditHandlers | undefined = editable
+            ? {
+                onHeadlineChange: (v) => edit?.onHeadlineChange?.(slide.id, v),
+                onTextElementTextChange: (id, v) => edit?.onTextElementTextChange?.(slide.id, id, v),
+                onElementChange: (id, t) => edit?.onElementChange?.(slide.id, id, t),
+                onSelectElement: (id) => {
+                  edit?.onSelectScreen?.(slide.id);
+                  edit?.onSelectElement?.(id ? { slideId: slide.id, elementId: id } : null);
+                },
+              }
+            : undefined;
           return (
             <div
               key={`${slide.id}-feature`}
@@ -621,9 +659,23 @@ export function DeckCanvas({
                 appName={appName}
                 appIcon={appIcon}
                 editable={editable}
-                edit={{
-                  onHeadlineChange: (v) => edit?.onHeadlineChange?.(slide.id, v),
-                }}
+                edit={perSlideEdit}
+              />
+              <SlideElements
+                slide={slide}
+                device={device}
+                orientation={orientation}
+                theme={theme}
+                locale={locale}
+                editable={editable}
+                edit={perSlideEdit}
+                selectedElementId={selectedElementId}
+                previewScale={previewScale}
+                hideEmpty={hideEmpty}
+                screenX={0}
+                boundsW={cW}
+                boundsH={cH}
+                allowCrossScreen={false}
               />
               {showGuides && <ScreenGuide cW={cW} cH={cH} index={index} active={active} />}
             </div>
@@ -731,6 +783,21 @@ function SlideBackground({
         color: inverted ? theme.fgAlt : theme.fg,
       }}
     >
+      {slide.visualAsset?.src ? (
+        <img
+          src={img(slide.visualAsset.src)}
+          alt=""
+          draggable={false}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: slide.visualAsset.opacity,
+          }}
+        />
+      ) : null}
       <Blob cW={cW} color={theme.accent} x={-15} y={-10} size={55} opacity={inverted ? 0.25 : 0.32} />
       <Blob cW={cW} color={theme.accent} x={70} y={75} size={45} opacity={inverted ? 0.18 : 0.25} />
     </div>
@@ -818,6 +885,21 @@ function FeatureGraphicCanvas({
         color: theme.fgAlt,
       }}
     >
+      {slide.visualAsset?.src ? (
+        <img
+          src={img(slide.visualAsset.src)}
+          alt=""
+          draggable={false}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: slide.visualAsset.opacity,
+          }}
+        />
+      ) : null}
       <Blob cW={cW} color={theme.accent} x={70} y={20} size={50} opacity={0.45} />
       <div style={{ display: "flex", alignItems: "center", gap: cW * 0.03, zIndex: 2 }}>
         {appIcon && img(appIcon) ? (
@@ -861,6 +943,7 @@ function FeatureGraphicCanvas({
             onChange={edit?.onHeadlineChange}
             style={{
               fontSize: cW * 0.028,
+              fontFamily: HEADLINE_FONT_CSS[slide.headlineFontFamily || "modern"],
               color: "rgba(255,255,255,0.85)",
               marginTop: cW * 0.012,
               lineHeight: 1.25,
@@ -903,8 +986,12 @@ function SlideElements({
   boundsH: number;
   allowCrossScreen: boolean;
 }) {
-  const screenshot = resolveScreenshot(slide.screenshot, locale);
-  const screenshotSecondary = resolveScreenshot(slide.screenshotSecondary, locale);
+  const screenshot = resolveLocalizedScreenshot(slide.screenshot, slide.screenshotByLocale, locale);
+  const screenshotSecondary = resolveLocalizedScreenshot(
+    slide.screenshotSecondary,
+    slide.screenshotSecondaryByLocale,
+    locale,
+  );
   const { cW, cH, Frame, frameAspect, defaults } = getSlideGeometry(slide, device, orientation);
   const inverted = !!slide.inverted;
   const captionRect = rectFor("caption", slide, defaults);
@@ -1072,8 +1159,63 @@ function SlideElements({
     );
   }
 
+  function renderDecoration(element: DecorationElement, index: number) {
+    const elementId = toDecorationElementId(element.id);
+    const rect = element.transform;
+    const rotation = rect.rotation ?? 0;
+    const zIndex = rect.zIndex ?? 1 + index;
+    const background =
+      element.fill.type === "linear-gradient" && element.fill.colors.length > 1
+        ? `linear-gradient(${element.fill.angle ?? 135}deg, ${element.fill.colors.join(", ")})`
+        : element.fill.colors[0];
+    const borderRadius =
+      element.kind === "ellipse"
+        ? "50%"
+        : element.kind === "line"
+          ? "999px"
+          : `${element.borderRadius ?? Math.min(rect.width, rect.height) * 0.18}px`;
+    return (
+      <Movable
+        key={element.id}
+        rect={toGlobal(rect)}
+        boundsW={boundsW}
+        boundsH={boundsH}
+        editable={editable}
+        previewScale={previewScale}
+        rotation={rotation}
+        onChange={(transform) =>
+          edit?.onElementChange?.(
+            elementId,
+            toLocal({
+              ...transform,
+              rotation: transform.rotation ?? rotation,
+              zIndex: transform.zIndex ?? zIndex,
+            }),
+          )
+        }
+        zIndex={zIndex}
+        selected={selectedElementId === elementId}
+        onSelect={() => edit?.onSelectElement?.(elementId)}
+        allowOverflow={allowCrossScreen}
+      >
+        <div
+          aria-hidden
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius,
+            background,
+            opacity: element.opacity,
+            filter: element.blur ? `blur(${element.blur}px)` : undefined,
+          }}
+        />
+      </Movable>
+    );
+  }
+
   return (
     <>
+      {(slide.decorations || []).map(renderDecoration)}
       {secondaryRect &&
         renderDevice(
           "deviceSecondary",

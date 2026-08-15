@@ -1,6 +1,18 @@
 "use client";
 import * as React from "react";
-import { AlertTriangle, Check, Cloud, Download, UnfoldHorizontal, RotateCcw } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  Cloud,
+  Download,
+  FileText,
+  Images,
+  PanelRightClose,
+  PanelRightOpen,
+  RotateCcw,
+  UnfoldHorizontal,
+  Upload,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DEVICE_LABEL,
   supportsLandscape,
@@ -38,18 +51,27 @@ type Props = {
   orientation: Orientation;
   setOrientation: (v: Orientation) => void;
   onExport: () => void;
+  onBulkCopy: (input: string) => { applied: number; total: number };
   onResetAll: () => void;
   onResetDevice: () => void;
   exporting: string | null;
   savedAt: number | null;
   saveError: string | null;
   busy: boolean;
+  screensOpen: boolean;
+  onScreensOpenChange: (open: boolean) => void;
+  screenSettingsOpen: boolean;
+  onScreenSettingsOpenChange: (open: boolean) => void;
 };
 
 export function Toolbar(props: Props) {
   const platform = detectPlatform(props.device);
   const hasLandscape = supportsLandscape(props.device);
   const [resetOpen, setResetOpen] = React.useState(false);
+  const [copyOpen, setCopyOpen] = React.useState(false);
+  const [bulkInput, setBulkInput] = React.useState("");
+  const [bulkResult, setBulkResult] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Track last device per platform so iOS/Android tabs preserve user's choice.
   const lastByPlatform = React.useRef<{ ios: Device; android: Device }>({
@@ -176,6 +198,50 @@ export function Toolbar(props: Props) {
         <SaveStatus savedAt={props.savedAt} saveError={props.saveError} />
         <span aria-hidden className="h-5 w-px bg-border" />
         <Button
+          type="button"
+          variant={props.screensOpen ? "secondary" : "outline"}
+          size="sm"
+          className="h-8 gap-1.5 px-2 text-xs"
+          onClick={() => props.onScreensOpenChange(!props.screensOpen)}
+          aria-pressed={props.screensOpen}
+          aria-controls="screens-panel"
+          title={props.screensOpen ? "Hide screens" : "Show screens"}
+        >
+          <Images className="h-4 w-4" />
+          Screens
+        </Button>
+        <Button
+          type="button"
+          variant={props.screenSettingsOpen ? "secondary" : "outline"}
+          size="sm"
+          className="h-8 gap-1.5 px-2 text-xs"
+          onClick={() => props.onScreenSettingsOpenChange(!props.screenSettingsOpen)}
+          aria-pressed={props.screenSettingsOpen}
+          aria-controls="screen-settings-panel"
+          title={props.screenSettingsOpen ? "Hide screen settings" : "Show screen settings"}
+        >
+          {props.screenSettingsOpen ? (
+            <PanelRightClose className="h-4 w-4" />
+          ) : (
+            <PanelRightOpen className="h-4 w-4" />
+          )}
+          Settings
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8"
+          onClick={() => {
+            setBulkResult(null);
+            setCopyOpen(true);
+          }}
+          title="Bulk edit headlines and subheaders"
+          disabled={props.busy}
+        >
+          <FileText className="h-4 w-4" />
+          Copy
+        </Button>
+        <Button
           variant="ghost"
           size="icon"
           className="h-8 w-8"
@@ -230,6 +296,72 @@ export function Toolbar(props: Props) {
             >
               Reset all devices
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bulk Copy</DialogTitle>
+            <DialogDescription>
+              Updates headlines and subheaders for {props.locale.toUpperCase()} only.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea
+              value={bulkInput}
+              onChange={(e) => {
+                setBulkInput(e.target.value);
+                setBulkResult(null);
+              }}
+              rows={12}
+              placeholder={"Header | Subheader\nJust say it. It files itself. | Speak once - MoteCalendar sorts it into the right calendar\nOne sentence. Five outcomes. | Tasks, expenses, diary, cycle, shifts - detected automatically"}
+              className="font-mono text-xs"
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.csv,text/plain,text/csv"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.currentTarget.files?.[0];
+                if (file) {
+                  setBulkInput(await file.text());
+                  setBulkResult(null);
+                }
+                e.currentTarget.value = "";
+              }}
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4" />
+                Load file
+              </Button>
+              <div className="flex items-center gap-2">
+                {bulkResult ? (
+                  <span className="text-xs text-muted-foreground">{bulkResult}</span>
+                ) : null}
+                <Button variant="ghost" size="sm" onClick={() => setCopyOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={!bulkInput.trim() || props.busy}
+                  onClick={() => {
+                    const result = props.onBulkCopy(bulkInput);
+                    setBulkResult(`Updated ${result.applied} of ${result.total} screens`);
+                  }}
+                >
+                  Apply
+                </Button>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -1,4 +1,11 @@
-import type { Device, Orientation, SlideLayout, Theme, ThemeId } from "./types";
+import type {
+  Device,
+  HeadlineFontFamily,
+  Orientation,
+  SlideLayout,
+  Theme,
+  ThemeId,
+} from "./types";
 
 // ---------- Canvas dimensions (design at largest required resolution) ----------
 export const CANVAS: Record<Device, { w: number; h: number; wL?: number; hL?: number }> = {
@@ -134,9 +141,20 @@ export const THEMES: Record<string, Theme> = {
     accent: "#B8794A",
     muted: "#65736B",
   },
+  "mote-calendar": {
+    id: "mote-calendar",
+    name: "MoteCalendar",
+    bg: "#E3F2FD",
+    bgAlt: "#0B0B0F",
+    fg: "#000000",
+    fgAlt: "#FFFFFF",
+    accent: "#4361EE",
+    muted: "#3A3A3C",
+  },
 };
 
-export function themeById(themeId: string | undefined): Theme {
+export function themeById(themeId: string | undefined, customTheme?: Theme): Theme {
+  if (customTheme && customTheme.id === themeId) return customTheme;
   return THEMES[themeId || ""] || THEMES[DEFAULT_THEME_ID];
 }
 
@@ -144,8 +162,28 @@ export function hasTheme(themeId: string | undefined): boolean {
   return !!themeId && !!THEMES[themeId];
 }
 
+export const HEADLINE_FONT_LABEL: Record<HeadlineFontFamily, string> = {
+  modern: "Modern",
+  editorial: "Editorial",
+  geometric: "Geometric",
+  rounded: "Rounded",
+  mono: "Mono",
+};
+
+export const HEADLINE_FONT_CSS: Record<HeadlineFontFamily, string> = {
+  modern: "inherit",
+  editorial: 'Iowan Old Style, Baskerville, "Times New Roman", serif',
+  geometric: '"Avenir Next", Avenir, Futura, "Century Gothic", sans-serif',
+  rounded: 'ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", sans-serif',
+  mono: '"SFMono-Regular", Menlo, Monaco, Consolas, monospace',
+};
+
+export function isHeadlineFontFamily(value: unknown): value is HeadlineFontFamily {
+  return typeof value === "string" && value in HEADLINE_FONT_LABEL;
+}
+
 export const STORAGE_KEY = "app-store-screenshots:project:v1";
-export const PROJECT_SCHEMA_VERSION = 2;
+export const PROJECT_SCHEMA_VERSION = 4;
 
 export const DEVICE_LABEL: Record<Device, string> = {
   iphone: "iPhone",
