@@ -2,6 +2,19 @@ import type { LocalizedText } from "./types";
 
 export const DEFAULT_LOCALE = "en";
 
+// Content languages selectable when creating a project. Separate from the UI
+// chrome languages in ui-i18n.tsx — these become the project's locales and
+// drive the toolbar content-locale switcher and multi-language copy.
+export const CONTENT_LANGUAGES: readonly { code: string; name: string }[] = [
+  { code: "en", name: "English" },
+  { code: "de", name: "Deutsch" },
+  { code: "es", name: "Español" },
+  { code: "fr", name: "Français" },
+  { code: "zh", name: "中文" },
+  { code: "ja", name: "日本語" },
+  { code: "ko", name: "한국어" },
+];
+
 // Read the value for `locale` from a localized field. Falls back to en, then to
 // the first locale that has a non-empty value, then to empty string. Used by
 // the canvas/preview/thumb so switching to a locale the user hasn't filled in

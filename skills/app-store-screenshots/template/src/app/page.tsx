@@ -1,5 +1,5 @@
-import { ScreenshotEditor } from "@/components/editor/screenshot-editor";
+import { HomePage } from "@/components/home/home-page";
 
 export default function Page() {
-  return <ScreenshotEditor />;
+  return <HomePage />;
 }

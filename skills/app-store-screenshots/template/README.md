@@ -26,6 +26,8 @@ cp .env.local.example .env.local
 - **Screen controls** — drag-to-reorder screens, click-to-edit text, screenshot drop targets, per-screen layout switcher, dark/light toggle.
 - **Device frames** (`src/components/editor/device-frames.tsx`) — iPhone (PNG mockup), iPad, Android phone, Android tablet (portrait + landscape), feature graphic.
 - **Auto-save (git-trackable)** — every change is persisted within ~600ms to **`app-store-screenshots.json`** at the project root (via `/api/project`) **and** mirrored to `localStorage` as an instant-paint cache. Commit `app-store-screenshots.json` and you can `git clone` to another machine and resume exactly where you left off.
+- **Multiple projects** — the toolbar's project switcher creates, switches, renames, duplicates, and deletes projects (see Manage projects…). Each project keeps its own decks, screens, and design chat, and all of them live in the same git-tracked file.
+- **New project from screenshots** — click “New project”, pick the project's languages (en/de/es/fr/zh/ja/ko), optionally name it and drop in up to 10 PNG/JPEG/WebP screenshots; a vision model drafts one screen per screenshot (label, headline, layout) in every chosen language and each becomes an editable slide with the screenshot attached. No screenshots? You still get a plain starter deck, with its placeholder copy translated into the chosen languages too. Switch content languages later in the toolbar and edit each locale separately.
 - **Multi-device decks** — iOS and Android slide decks live side by side; switching the platform tab preserves both.
 - **One-click export** — bulk PNG export at any required App Store / Play Store resolution using `html-to-image`; each PNG is rendered from the current connected or isolated deck mode.
 - **Project migration** — older `app-store-screenshots.json` files are migrated on load. Existing per-slide transforms remain valid, and connected crops become available without rewriting the deck by hand.
@@ -39,7 +41,7 @@ cp .env.local.example .env.local
 4. Wait for the proposal, then switch between **Before** and **After** on the canvas.
 5. Click **Apply** to add the redesign as one undoable project change, or **Discard** to leave the project untouched.
 
-The model receives the prompt, rendered previews of targeted screens, and optional attachments. Existing screenshot paths cannot be replaced by a redesign. When a new screen is requested, the model selects a supplied attachment ID and the editor generates the destination slide ID and screenshot path. Chat messages stay in browser storage and are not written to `app-store-screenshots.json`; the OpenAI Responses request is sent with storage disabled.
+The model receives the prompt, rendered previews of targeted screens, and optional attachments. Existing screenshot paths cannot be replaced by a redesign. When a new screen is requested, the model selects a supplied attachment ID and the editor generates the destination slide ID and screenshot path. Chat messages stay in per-project browser storage and are not written to `app-store-screenshots.json`; the OpenAI Responses request is sent with storage disabled.
 
 ## Adding screenshots
 
@@ -62,7 +64,8 @@ The toolbar dropdown lists every Apple/Google-required size for the current devi
 | Where | What |
 |-------|------|
 | `src/lib/constants.ts` | Canvas dimensions, export sizes, frame ratios, themes, locales |
-| `app-store-screenshots.json` | Canonical starter project: app name, current device, connected-canvas mode, slide copy, screenshots, and transforms |
+| `src/lib/ui-translations/` | UI language strings (en source of truth, de/es/fr). Add a language: add a file + one entry in `UI_LANGUAGES` in `src/lib/ui-i18n.tsx` |
+| `app-store-screenshots.json` | Canonical starter bundle: every project (ids, names, order, activeId), each with app name, current device, connected-canvas mode, slide copy, screenshots, and transforms |
 | `src/lib/defaults.ts` | Fallback/reset state used when no project file or local cache exists |
 | `src/components/editor/slide-canvas.tsx` | Add new layouts, decorations, and connected-canvas element rendering |
 | `src/lib/design.ts` | AI proposal schema, validation, and safe proposal application |
@@ -74,7 +77,8 @@ The toolbar dropdown lists every Apple/Google-required size for the current devi
 
 - `mockup.png` is the iPhone bezel overlay; replacing it requires re-measuring the `PHONE_SCREEN` constants.
 - Image preloading converts every static path to a base64 data URI before exports run, and export retries paths that were previously missing — this prevents the html-to-image race where some slide screenshots come out black.
-- Reset via the toolbar's circular arrow icon clears in-memory state and reloads the default screens. To wipe disk state too, delete `app-store-screenshots.json`.
-- **Persistence model** — the canonical state lives in `app-store-screenshots.json` (git-tracked). On load, the editor reads localStorage first for instant paint, then overwrites with the file contents if present; if the file endpoint is unavailable, autosave is blocked so stale cache cannot overwrite disk. On save, both are written. If you ever see a conflict, the file always wins.
+- Reset via the toolbar's circular arrow icon reloads the default screens of the active project. To wipe disk state too, delete `app-store-screenshots.json`.
+- **Persistence model** — the canonical state lives in `app-store-screenshots.json` (git-tracked) as a bundle of every project plus the active-project id. On load, the editor reads per-project localStorage keys first for instant paint, then merges the file contents if present (the file wins per project); if the file endpoint is unavailable, autosave is blocked so stale cache cannot overwrite disk. On save, both are written.
+- **Interface language** — the toolbar's language selector switches the editor chrome (buttons, dialogs, toasts) between English, Deutsch, Español, and Français. The choice is per-browser (`localStorage` `app-store-screenshots:ui-lang:v1`, falling back to the browser language, then English) and is independent of the per-project content locale — slide copy always renders in the project's locale.
 - **Migration model** — older projects do not need a manual conversion. On first load, the editor upgrades localized text, transform records, editable decorations, and per-device AI themes to schema v3 while preserving all existing screens. Legacy projects still keep `connectedCanvas: false` until explicitly enabled.
 - **Custom themes** — if a project file references a theme id that is not present in `src/lib/constants.ts`, the editor falls back to `clean-light` and shows a warning. Merge custom `THEMES` entries during in-place upgrades.

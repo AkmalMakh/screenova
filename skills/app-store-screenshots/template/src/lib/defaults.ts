@@ -4,6 +4,7 @@ import type { Device, ProjectState, Slide } from "./types";
 
 let _id = 0;
 export const nid = () => `s_${Date.now().toString(36)}_${(_id++).toString(36)}`;
+export const pid = () => `p_${Date.now().toString(36)}_${(_id++).toString(36)}`;
 
 const en = (s: string) => ({ [DEFAULT_LOCALE]: s });
 

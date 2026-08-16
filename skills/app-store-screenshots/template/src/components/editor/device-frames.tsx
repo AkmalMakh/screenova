@@ -2,6 +2,7 @@
 import * as React from "react";
 import { PHONE_SCREEN } from "@/lib/constants";
 import { img } from "@/lib/image-cache";
+import { useT } from "@/lib/ui-i18n";
 
 type FrameProps = {
   src: string;
@@ -276,6 +277,7 @@ export function IPad({ src, alt = "", style, hideEmpty }: FrameProps) {
 }
 
 function EmptySlot() {
+  const { t } = useT();
   return (
     <div
       style={{
@@ -291,7 +293,7 @@ function EmptySlot() {
         padding: "4%",
       }}
     >
-      Drop a screenshot here
+      {t("canvas.dropHere")}
     </div>
   );
 }

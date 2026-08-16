@@ -1,12 +1,15 @@
 "use client";
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Check,
   Cloud,
   Download,
   FileText,
+  Home,
   Images,
+  Languages,
   PanelRightClose,
   PanelRightOpen,
   RotateCcw,
@@ -31,14 +34,20 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  DEVICE_LABEL,
-  supportsLandscape,
-} from "@/lib/constants";
+import { supportsLandscape } from "@/lib/constants";
 import { detectPlatform } from "@/lib/defaults";
-import type { Device, Orientation } from "@/lib/types";
+import type { Device, Orientation, ProjectMeta } from "@/lib/types";
+import { deviceLabel, UI_LANGUAGES, useT, type UiLang } from "@/lib/ui-i18n";
+import { ProjectSwitcher } from "./project-switcher";
 
 type Props = {
+  projects: ProjectMeta[];
+  activeProjectId: string | null;
+  onSwitchProject: (id: string) => void;
+  onCreateProject: () => void;
+  onRenameProject: (id: string, name: string) => void;
+  onDuplicateProject: (id: string) => void;
+  onDeleteProject: (id: string) => void;
   appName: string;
   setAppName: (v: string) => void;
   connectedCanvas: boolean;
@@ -65,6 +74,8 @@ type Props = {
 };
 
 export function Toolbar(props: Props) {
+  const { t, lang, setLang } = useT();
+  const router = useRouter();
   const platform = detectPlatform(props.device);
   const hasLandscape = supportsLandscape(props.device);
   const [resetOpen, setResetOpen] = React.useState(false);
@@ -84,17 +95,43 @@ export function Toolbar(props: Props) {
 
   const showLocale = props.locales.length > 1;
 
-  const deviceLabel = DEVICE_LABEL[props.device];
+  const deviceName = deviceLabel(props.device, t);
 
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b bg-card/40 px-4 py-2">
+    <div className="glass sticky top-0 z-40 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-border/70 px-4 py-2">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={() => router.push("/")}
+        title={t("toolbar.home")}
+        aria-label={t("toolbar.home")}
+        disabled={props.busy}
+      >
+        <Home className="h-4 w-4" />
+      </Button>
+
+      <ProjectSwitcher
+        projects={props.projects}
+        activeId={props.activeProjectId}
+        disabled={props.busy}
+        onSwitch={props.onSwitchProject}
+        onCreate={props.onCreateProject}
+        onRename={props.onRenameProject}
+        onDuplicate={props.onDuplicateProject}
+        onDelete={props.onDeleteProject}
+      />
+
+      <span aria-hidden className="mx-1 h-5 w-px bg-border" />
+
       <Input
         value={props.appName}
         onChange={(e) => props.setAppName(e.target.value)}
         className="h-8 w-40 border-dashed text-sm font-semibold focus-visible:border-input focus-visible:border-solid focus-visible:bg-background"
-        placeholder="App name"
-        aria-label="App name"
-        title="App name (click to edit)"
+        placeholder={t("toolbar.appName")}
+        aria-label={t("toolbar.appName")}
+        title={t("toolbar.appNameHint")}
         disabled={props.busy}
       />
 
@@ -108,14 +145,12 @@ export function Toolbar(props: Props) {
         onClick={() => props.setConnectedCanvas(!props.connectedCanvas)}
         aria-pressed={props.connectedCanvas}
         title={
-          props.connectedCanvas
-            ? "Connected canvas enabled"
-            : "Isolated screens; turn on to let elements cross screen edges"
+          props.connectedCanvas ? t("toolbar.connectedOn") : t("toolbar.connectedOff")
         }
         disabled={props.busy}
       >
         <UnfoldHorizontal className="h-3.5 w-3.5" />
-        {props.connectedCanvas ? "Connected" : "Isolated"}
+        {props.connectedCanvas ? t("toolbar.connected") : t("toolbar.isolated")}
       </Button>
 
       <span aria-hidden className="mx-1 h-5 w-px bg-border" />
@@ -129,6 +164,7 @@ export function Toolbar(props: Props) {
         }}
       >
         <TabsList className="h-8 p-0.5">
+          {/* iOS / Android are product names — not translated. */}
           <TabsTrigger value="ios" className="h-7 px-3 text-xs" disabled={props.busy}>
             iOS
           </TabsTrigger>
@@ -144,20 +180,22 @@ export function Toolbar(props: Props) {
         disabled={props.busy}
       >
         <SelectTrigger className="h-8 w-44 text-xs">
-          <SelectValue placeholder="Device">{deviceLabel}</SelectValue>
+          <SelectValue placeholder={t("toolbar.devicePlaceholder")}>{deviceName}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {platform === "ios" ? (
             <>
-              <SelectItem value="iphone">{DEVICE_LABEL.iphone}</SelectItem>
-              <SelectItem value="ipad">{DEVICE_LABEL.ipad}</SelectItem>
+              <SelectItem value="iphone">{deviceLabel("iphone", t)}</SelectItem>
+              <SelectItem value="ipad">{deviceLabel("ipad", t)}</SelectItem>
             </>
           ) : (
             <>
-              <SelectItem value="android">{DEVICE_LABEL.android}</SelectItem>
-              <SelectItem value="android-7">{DEVICE_LABEL["android-7"]}</SelectItem>
-              <SelectItem value="android-10">{DEVICE_LABEL["android-10"]}</SelectItem>
-              <SelectItem value="feature-graphic">{DEVICE_LABEL["feature-graphic"]}</SelectItem>
+              <SelectItem value="android">{deviceLabel("android", t)}</SelectItem>
+              <SelectItem value="android-7">{deviceLabel("android-7", t)}</SelectItem>
+              <SelectItem value="android-10">{deviceLabel("android-10", t)}</SelectItem>
+              <SelectItem value="feature-graphic">
+                {deviceLabel("feature-graphic", t)}
+              </SelectItem>
             </>
           )}
         </SelectContent>
@@ -173,8 +211,8 @@ export function Toolbar(props: Props) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="portrait">Portrait</SelectItem>
-            <SelectItem value="landscape">Landscape</SelectItem>
+            <SelectItem value="portrait">{t("toolbar.portrait")}</SelectItem>
+            <SelectItem value="landscape">{t("toolbar.landscape")}</SelectItem>
           </SelectContent>
         </Select>
       )}
@@ -194,6 +232,29 @@ export function Toolbar(props: Props) {
         </Select>
       )}
 
+      {/* UI language (editor chrome) — separate from the content locale above. */}
+      <Select
+        value={lang}
+        onValueChange={(v) => setLang(v as UiLang)}
+        disabled={props.busy}
+      >
+        <SelectTrigger
+          className="h-8 w-32 gap-1 text-xs"
+          aria-label={t("toolbar.interfaceLanguage")}
+          title={t("toolbar.interfaceLanguage")}
+        >
+          <Languages className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {UI_LANGUAGES.map((l) => (
+            <SelectItem key={l.code} value={l.code}>
+              {l.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <SaveStatus savedAt={props.savedAt} saveError={props.saveError} />
         <span aria-hidden className="h-5 w-px bg-border" />
@@ -205,10 +266,10 @@ export function Toolbar(props: Props) {
           onClick={() => props.onScreensOpenChange(!props.screensOpen)}
           aria-pressed={props.screensOpen}
           aria-controls="screens-panel"
-          title={props.screensOpen ? "Hide screens" : "Show screens"}
+          title={props.screensOpen ? t("toolbar.hideScreens") : t("toolbar.showScreens")}
         >
           <Images className="h-4 w-4" />
-          Screens
+          {t("toolbar.screens")}
         </Button>
         <Button
           type="button"
@@ -218,14 +279,16 @@ export function Toolbar(props: Props) {
           onClick={() => props.onScreenSettingsOpenChange(!props.screenSettingsOpen)}
           aria-pressed={props.screenSettingsOpen}
           aria-controls="screen-settings-panel"
-          title={props.screenSettingsOpen ? "Hide screen settings" : "Show screen settings"}
+          title={
+            props.screenSettingsOpen ? t("toolbar.hideSettings") : t("toolbar.showSettings")
+          }
         >
           {props.screenSettingsOpen ? (
             <PanelRightClose className="h-4 w-4" />
           ) : (
             <PanelRightOpen className="h-4 w-4" />
           )}
-          Settings
+          {t("toolbar.settings")}
         </Button>
         <Button
           variant="outline"
@@ -235,19 +298,19 @@ export function Toolbar(props: Props) {
             setBulkResult(null);
             setCopyOpen(true);
           }}
-          title="Bulk edit headlines and subheaders"
+          title={t("toolbar.bulkCopyHint")}
           disabled={props.busy}
         >
           <FileText className="h-4 w-4" />
-          Copy
+          {t("toolbar.copy")}
         </Button>
         <Button
           variant="ghost"
           size="icon"
           className="h-8 w-8"
           onClick={() => setResetOpen(true)}
-          title="Reset screens to defaults"
-          aria-label="Reset"
+          title={t("toolbar.resetHint")}
+          aria-label={t("toolbar.reset")}
           disabled={props.busy}
         >
           <RotateCcw className="h-4 w-4" />
@@ -257,24 +320,28 @@ export function Toolbar(props: Props) {
           disabled={!!props.exporting}
           size="sm"
           className="h-8"
-          title="Export every size × locale for this device as a zip"
+          title={t("toolbar.exportHint")}
         >
           <Download className="h-4 w-4" />
-          {props.exporting ? `Exporting ${props.exporting}` : "Export bundle"}
+          {props.exporting
+            ? t("toolbar.exporting", { progress: props.exporting })
+            : t("toolbar.exportBundle")}
         </Button>
       </div>
 
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Reset to defaults?</DialogTitle>
+            <DialogTitle>{t("toolbar.resetTitle")}</DialogTitle>
             <DialogDescription>
-              Choose whether to reset just <span className="font-medium">{deviceLabel}</span> or every device deck. Your canvas edits, uploaded screenshots, and copy will be lost.
+              {t("toolbar.resetDescriptionBefore")}
+              <span className="font-medium">{deviceName}</span>
+              {t("toolbar.resetDescriptionAfter")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={() => setResetOpen(false)}>
-              Cancel
+              {t("toolbar.cancel")}
             </Button>
             <Button
               variant="outline"
@@ -284,7 +351,7 @@ export function Toolbar(props: Props) {
                 props.onResetDevice();
               }}
             >
-              Reset {deviceLabel} only
+              {t("toolbar.resetDeviceOnly", { device: deviceName })}
             </Button>
             <Button
               variant="destructive"
@@ -294,7 +361,7 @@ export function Toolbar(props: Props) {
                 props.onResetAll();
               }}
             >
-              Reset all devices
+              {t("toolbar.resetAllDevices")}
             </Button>
           </div>
         </DialogContent>
@@ -303,9 +370,9 @@ export function Toolbar(props: Props) {
       <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Bulk Copy</DialogTitle>
+            <DialogTitle>{t("toolbar.bulkTitle")}</DialogTitle>
             <DialogDescription>
-              Updates headlines and subheaders for {props.locale.toUpperCase()} only.
+              {t("toolbar.bulkDescription", { locale: props.locale.toUpperCase() })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -316,6 +383,7 @@ export function Toolbar(props: Props) {
                 setBulkResult(null);
               }}
               rows={12}
+              // Example CONTENT (brand copy) — intentionally not translated.
               placeholder={"Header | Subheader\nJust say it. It files itself. | Speak once - MoteCalendar sorts it into the right calendar\nOne sentence. Five outcomes. | Tasks, expenses, diary, cycle, shifts - detected automatically"}
               className="font-mono text-xs"
             />
@@ -341,24 +409,29 @@ export function Toolbar(props: Props) {
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="h-4 w-4" />
-                Load file
+                {t("toolbar.loadFile")}
               </Button>
               <div className="flex items-center gap-2">
                 {bulkResult ? (
                   <span className="text-xs text-muted-foreground">{bulkResult}</span>
                 ) : null}
                 <Button variant="ghost" size="sm" onClick={() => setCopyOpen(false)}>
-                  Cancel
+                  {t("toolbar.cancel")}
                 </Button>
                 <Button
                   size="sm"
                   disabled={!bulkInput.trim() || props.busy}
                   onClick={() => {
                     const result = props.onBulkCopy(bulkInput);
-                    setBulkResult(`Updated ${result.applied} of ${result.total} screens`);
+                    setBulkResult(
+                      t("toolbar.bulkResult", {
+                        applied: result.applied,
+                        total: result.total,
+                      }),
+                    );
                   }}
                 >
-                  Apply
+                  {t("toolbar.apply")}
                 </Button>
               </div>
             </div>
@@ -370,10 +443,11 @@ export function Toolbar(props: Props) {
 }
 
 function SaveStatus({ savedAt, saveError }: { savedAt: number | null; saveError: string | null }) {
+  const { t } = useT();
   const [, setTick] = React.useState(0);
   React.useEffect(() => {
-    const t = setInterval(() => setTick((x) => x + 1), 60_000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setTick((x) => x + 1), 60_000);
+    return () => clearInterval(timer);
   }, []);
 
   if (saveError) {
@@ -382,7 +456,7 @@ function SaveStatus({ savedAt, saveError }: { savedAt: number | null; saveError:
         className="flex items-center gap-1 text-xs text-destructive"
         title={saveError}
       >
-        <AlertTriangle className="h-3.5 w-3.5" /> save failed
+        <AlertTriangle className="h-3.5 w-3.5" /> {t("toolbar.saveFailed")}
       </span>
     );
   }
@@ -390,19 +464,19 @@ function SaveStatus({ savedAt, saveError }: { savedAt: number | null; saveError:
   if (!savedAt) {
     return (
       <span className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Cloud className="h-3.5 w-3.5" /> not saved yet
+        <Cloud className="h-3.5 w-3.5" /> {t("toolbar.notSavedYet")}
       </span>
     );
   }
   const seconds = Math.max(0, Math.round((Date.now() - savedAt) / 1000));
   const label =
     seconds < 5
-      ? "saved"
+      ? t("toolbar.saved")
       : seconds < 60
-        ? `saved ${seconds}s ago`
+        ? t("toolbar.savedSeconds", { seconds })
         : seconds < 3600
-          ? `saved ${Math.round(seconds / 60)}m ago`
-          : `saved ${Math.round(seconds / 3600)}h ago`;
+          ? t("toolbar.savedMinutes", { minutes: Math.round(seconds / 60) })
+          : t("toolbar.savedHours", { hours: Math.round(seconds / 3600) });
   return (
     <span className="flex items-center gap-1 text-xs text-muted-foreground">
       <Check className="h-3.5 w-3.5 text-green-500" /> {label}

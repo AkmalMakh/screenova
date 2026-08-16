@@ -1,0 +1,142 @@
+import { z } from "zod";
+import { DEFAULT_THEME_ID, THEMES } from "./constants";
+import type { SlideAnalysis } from "./import-slides";
+import type { ThemeId } from "./types";
+
+// A template deck drafted from a free-text app description. The editor turns
+// it into a real project via buildSlidesFromAnalysis (lib/import-slides.ts).
+
+export const DECK_SLIDE_LAYOUTS = [
+  "hero",
+  "device-bottom",
+  "device-top",
+  "two-devices",
+  "no-device",
+] as const;
+export type DeckSlideLayout = (typeof DECK_SLIDE_LAYOUTS)[number];
+
+// Layouts allowed when the user attached real screenshots: every slide must
+// render its screenshot, so "no-device" (which draws no device) is excluded.
+export const DECK_DEVICE_LAYOUTS = ["hero", "device-bottom", "device-top", "two-devices"] as const;
+
+export const DECK_THEME_IDS = [
+  "clean-light",
+  "dark-bold",
+  "warm-editorial",
+  "ocean-fresh",
+  "bloom-roast",
+  "mote-calendar",
+] as const;
+
+export type DeckSuggestion = {
+  appName: string;
+  themeId: ThemeId;
+  summary: string;
+  slides: SlideAnalysis[];
+};
+
+export const MAX_DECK_SLIDES = 8;
+export const MIN_DECK_SLIDES = 3;
+export const DEFAULT_DECK_COUNT = 5;
+
+const slideCopySchema = z.object({
+  label: z.string().trim().min(1).max(40),
+  headline: z.string().trim().min(1).max(120),
+});
+
+// Structured Outputs requires bounded object keys with
+// additionalProperties: false. z.record() emits `propertyNames` (rejected by
+// OpenAI), so build a literal-keyed z.object from the REQUEST's locales —
+// same trick as the analyze-screenshots route.
+export function buildDeckSchema(
+  locales: string[],
+  count: number,
+  layouts: readonly DeckSlideLayout[] = DECK_SLIDE_LAYOUTS,
+) {
+  const copyByLocale: Record<string, typeof slideCopySchema> = {};
+  for (const locale of locales) copyByLocale[locale] = slideCopySchema;
+  return z.object({
+    appName: z.string().trim().min(1).max(40),
+    themeId: z.enum(DECK_THEME_IDS),
+    summary: z.string().trim().min(1).max(500),
+    slides: z
+      .array(
+        z.object({
+          layout: z.enum(layouts),
+          copy: z.object(copyByLocale),
+        }),
+      )
+      .length(count),
+  });
+}
+
+export function buildDeckPrompt(
+  locales: string[],
+  device: string,
+  count: number,
+  screenshotCount = 0,
+): string {
+  const themeGuide = DECK_THEME_IDS.map((id) => `- ${id}: ${THEMES[id].name}`).join("\n");
+  const slideRules =
+    screenshotCount > 0
+      ? `The user attached ${screenshotCount} screenshots of their app. Write exactly one slide per screenshot, in the same order — the first slide is about screenshot 1, and so on. Ground each label and headline in what that screenshot actually shows; never invent features the screenshots don't display. Every slide must use a layout that shows a device frame (hero, device-bottom, device-top, two-devices) — never "no-device". Vary the layouts for rhythm.`
+      : `Vary the layouts across screens for visual rhythm; the first screen is a "hero" and the last is a "no-device" closer. Use at most one "two-devices" screen.`;
+  return `You are the template engine inside an App Store screenshot editor. The user has described their app and wants a starter template deck to begin designing from.
+
+Draft exactly ${count} screens for a ${device}-frame App Store campaign:
+- ${slideRules}
+- label: a short feature keyword (≤40 characters). It renders as a small uppercase accent line.
+- headline: punchy, outcome-led copy (≤120 characters). It renders as the main text. Keep it readable at thumbnail size.
+- Never invent features, testimonials, prices, or facts beyond what the user described. If the description is thin, propose plausible, on-brand framing rather than specifics.
+- For every screen, write label and headline in EACH of the project's languages: ${locales.join(", ")}. The response's copy object must contain an entry for every one of these locale codes, with no extra codes.
+
+Also return:
+- appName: the app's name as stated by the user, or a short clean name you propose (≤40 characters).
+- themeId: the theme that best fits the described vibe, from:
+${themeGuide}
+- summary: one or two friendly sentences (≤500 characters) telling the user what template you drafted — the slide order and the vibe.`;
+}
+
+/** Validate and normalize a model response into a DeckSuggestion. */
+export function normalizeDeck(
+  value: unknown,
+  locales: string[],
+  count: number,
+): DeckSuggestion | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  if (!Array.isArray(raw.slides) || raw.slides.length !== count) return null;
+
+  const slides: SlideAnalysis[] = [];
+  for (const item of raw.slides) {
+    if (!item || typeof item !== "object") return null;
+    const entry = item as Record<string, unknown>;
+    if (
+      typeof entry.layout !== "string" ||
+      !(DECK_SLIDE_LAYOUTS as readonly string[]).includes(entry.layout)
+    ) {
+      return null;
+    }
+    const copy = entry.copy as Record<string, unknown> | null;
+    if (!copy || typeof copy !== "object") return null;
+    const localized: SlideAnalysis["copy"] = {};
+    for (const locale of locales) {
+      const pair = copy[locale] as Record<string, unknown> | null;
+      if (!pair || typeof pair !== "object") return null;
+      const label = typeof pair.label === "string" ? pair.label.trim().slice(0, 40) : "";
+      const headline = typeof pair.headline === "string" ? pair.headline.trim().slice(0, 120) : "";
+      if (!label || !headline) return null;
+      localized[locale] = { label, headline };
+    }
+    slides.push({ layout: entry.layout as DeckSlideLayout, copy: localized });
+  }
+
+  const themeId = (DECK_THEME_IDS as readonly string[]).includes(String(raw.themeId))
+    ? (raw.themeId as ThemeId)
+    : DEFAULT_THEME_ID;
+  const appName = typeof raw.appName === "string" ? raw.appName.trim().slice(0, 40) : "";
+  const summary = typeof raw.summary === "string" ? raw.summary.trim().slice(0, 500) : "";
+  if (!appName || !summary) return null;
+
+  return { appName, themeId, summary, slides };
+}

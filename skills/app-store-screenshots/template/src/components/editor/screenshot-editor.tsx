@@ -44,8 +44,12 @@ import type {
 } from "@/lib/types";
 import { Inspector } from "./inspector";
 import { DesignSidebar } from "./design-sidebar";
+import { NewProjectDialog } from "./new-project-dialog";
 import { PreviewStage } from "./preview-stage";
+import { fileToDataUrl, uploadDataUrl } from "./screenshot-picker";
 import { Sidebar } from "./sidebar";
+import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides";
+import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
 import { DeckCanvas, getCanvas } from "./slide-canvas";
 import { Toolbar } from "./toolbar";
 
@@ -93,16 +97,41 @@ function captionElementIndex(slide: Slide): number {
 }
 
 export function ScreenshotEditor() {
-  const { state, setState, hydrated, savedAt, saveError, reset, resetDevice, undo, redo } = useProject();
+  return (
+    <LanguageProvider>
+      <Editor />
+    </LanguageProvider>
+  );
+}
+
+function Editor() {
+  const { t } = useT();
+  const {
+    state,
+    setState,
+    hydrated,
+    savedAt,
+    saveError,
+    reset,
+    resetDevice,
+    undo,
+    redo,
+    projects,
+    activeProjectId,
+    createProject,
+    switchProject,
+    renameProject,
+    duplicateProject,
+    deleteProject,
+  } = useProject();
   const [activeSlideId, setActiveSlideId] = React.useState<string | null>(null);
   const [selectedElement, setSelectedElement] = React.useState<SelectedElement | null>(null);
   const [exporting, setExporting] = React.useState<string | null>(null);
   const [ready, setReady] = React.useState(false);
   const [exportLocaleOverride, setExportLocaleOverride] = React.useState<string | null>(null);
   const [exportSlideIndex, setExportSlideIndex] = React.useState(0);
-  const [designMessages, setDesignMessages] = React.useState<DesignConversationMessage[]>(() =>
-    loadDesignMessages(),
-  );
+  const [designMessages, setDesignMessages] = React.useState<DesignConversationMessage[]>([]);
+  const [messagesProjectId, setMessagesProjectId] = React.useState<string | null>(null);
   const [designScope, setDesignScope] = React.useState<DesignScope>("current");
   const [selectedSlideIds, setSelectedSlideIds] = React.useState<Set<string>>(new Set());
   const [generatingDesign, setGeneratingDesign] = React.useState(false);
@@ -110,6 +139,8 @@ export function ScreenshotEditor() {
   const [showProposal, setShowProposal] = React.useState(true);
   const [screensOpen, setScreensOpen] = React.useState(true);
   const [screenSettingsOpen, setScreenSettingsOpen] = React.useState(true);
+  const [importDialogOpen, setImportDialogOpen] = React.useState(false);
+  const [importing, setImporting] = React.useState<string | null>(null);
   const exportRef = React.useRef<HTMLDivElement | null>(null);
   const designAbortRef = React.useRef<AbortController | null>(null);
 
@@ -133,7 +164,29 @@ export function ScreenshotEditor() {
     return canonicalActiveSlide ? [canonicalActiveSlide.id] : [];
   }, [canonicalActiveSlide, currentSlides, designScope, selectedSlideIds]);
 
-  React.useEffect(() => saveDesignMessages(designMessages), [designMessages]);
+  // Load the design chat of the active project. Declared before the save
+  // effect so the guard below never commits the outgoing project's messages
+  // under the incoming project's key.
+  React.useEffect(() => {
+    if (!activeProjectId) return;
+    setMessagesProjectId(activeProjectId);
+    setDesignMessages(loadDesignMessages(activeProjectId));
+  }, [activeProjectId]);
+
+  React.useEffect(() => {
+    if (!activeProjectId || messagesProjectId !== activeProjectId) return;
+    saveDesignMessages(designMessages, activeProjectId);
+  }, [designMessages, messagesProjectId, activeProjectId]);
+
+  // Reset editor-local UI state whenever the active project changes.
+  React.useEffect(() => {
+    setActiveSlideId(null);
+    setSelectedElement(null);
+    setSelectedSlideIds(new Set());
+    setDesignScope("current");
+    setPendingDesign(null);
+    setShowProposal(true);
+  }, [activeProjectId]);
 
   React.useEffect(() => {
     const available = new Set(currentSlides.map((slide) => slide.id));
@@ -169,7 +222,7 @@ export function ScreenshotEditor() {
       !hasTheme(state.themeId) &&
       state.customTheme?.id !== state.themeId
     ) {
-      toast.warning("Using fallback theme", {
+      toast.warning(t("toasts.usingFallbackTheme"), {
         description: `Theme "${state.themeId}" is not defined in src/lib/constants.ts.`,
         duration: 8000,
       });
@@ -214,7 +267,7 @@ export function ScreenshotEditor() {
   // Surface storage failures (quota exceeded etc.) so the user knows their work isn't safe.
   React.useEffect(() => {
     if (saveError) {
-      toast.error("Couldn't load or save project file", {
+      toast.error(t("toasts.loadOrSaveFailed"), {
         description: saveError,
         duration: 8000,
       });
@@ -266,9 +319,9 @@ export function ScreenshotEditor() {
       });
       setActiveSlideId((cur) => (cur === id ? fallback?.id || null : cur));
 
-      toast("Screen deleted", {
+      toast(t("toasts.screenDeleted"), {
         action: {
-          label: "Undo",
+          label: t("toasts.undo"),
           onClick: () => {
             setState((prev) => {
               const cur = prev.slidesByDevice[dev] || [];
@@ -341,7 +394,9 @@ export function ScreenshotEditor() {
           }),
         },
       }));
-      toast.success(`Updated ${applied} screen${applied === 1 ? "" : "s"} for ${state.locale.toUpperCase()}`);
+      toast.success(
+        t("toasts.updatedScreens", { count: applied, locale: state.locale.toUpperCase() }),
+      );
       return { applied, total: currentSlides.length };
     },
     [currentSlides.length, setState, state.locale],
@@ -502,7 +557,9 @@ export function ScreenshotEditor() {
         error?: string;
       };
       if (!response.ok || !json.ok || !json.proposal) {
-        throw new Error(json.error || `Design request failed (HTTP ${response.status}).`);
+        throw new Error(
+          json.error || t("toasts.designRequestFailed", { status: response.status }),
+        );
       }
       const proposal = parseDesignProposal(json.proposal);
       const generatedVisualAssets = Array.isArray(json.generatedVisualAssets)
@@ -514,11 +571,11 @@ export function ScreenshotEditor() {
         (proposal.newSlides || []).map(async (newSlide) => {
           const reference = referencesById.get(newSlide.sourceReferenceId);
           if (!reference) {
-            throw new Error("The new screen references an attachment that is no longer available.");
+            throw new Error(t("toasts.attachmentGone"));
           }
           let upload = uploadedPaths.get(reference.id);
           if (!upload) {
-            upload = uploadDesignReference(reference);
+            upload = uploadDesignReference(reference, t);
             uploadedPaths.set(reference.id, upload);
           }
           const screenshot = await upload;
@@ -558,12 +615,14 @@ export function ScreenshotEditor() {
       });
       if (createdSlideIds[0]) setActiveSlideId(createdSlideIds[0]);
       setShowProposal(true);
-      toast.success(createdSlideIds.length ? "New screen ready to preview" : "Redesign ready to preview");
+      toast.success(
+        createdSlideIds.length ? t("toasts.newScreenReady") : t("toasts.redesignReady"),
+      );
     } catch (error) {
       if (controller.signal.aborted) {
-        toast("Design request cancelled");
+        toast(t("toasts.designCancelled"));
       } else {
-        const message = error instanceof Error ? error.message : "Design generation failed.";
+        const message = error instanceof Error ? error.message : t("toasts.designFailed");
         const failureMessage: DesignConversationMessage = {
           id: chatId(),
           role: "assistant",
@@ -572,7 +631,7 @@ export function ScreenshotEditor() {
           proposalStatus: "failed",
         };
         setDesignMessages((messages) => [...messages, failureMessage].slice(-50));
-        toast.error("Couldn’t generate redesign", { description: message });
+        toast.error(t("toasts.generateFailed"), { description: message });
       }
     } finally {
       if (designAbortRef.current === controller) designAbortRef.current = null;
@@ -587,11 +646,11 @@ export function ScreenshotEditor() {
     const previews: Array<{ slideId: string; dataUrl: string }> = [];
     for (const slideId of slideIds) {
       const index = currentSlides.findIndex((slide) => slide.id === slideId);
-      if (index < 0) throw new Error(`Could not render selected screen ${slideId}.`);
+      if (index < 0) throw new Error(t("toasts.renderSelectedFailed", { slideId }));
       setExportSlideIndex(index);
       await waitForPaint();
       const element = exportRef.current;
-      if (!element) throw new Error("Design preview render target is unavailable.");
+      if (!element) throw new Error(t("toasts.renderTargetMissing"));
       previews.push({
         slideId,
         dataUrl: await captureSlideForModel(element, canvasWidth, canvasHeight),
@@ -608,8 +667,8 @@ export function ScreenshotEditor() {
     setShowProposal(true);
     toast.success(
       pendingDesign.createdSlideIds.length
-        ? `Added ${pendingDesign.createdSlideIds.length} new screen${pendingDesign.createdSlideIds.length === 1 ? "" : "s"}`
-        : `Applied redesign to ${pendingDesign.targetSlideIds.length} screen${pendingDesign.targetSlideIds.length === 1 ? "" : "s"}`,
+        ? t("toasts.addedScreens", { count: pendingDesign.createdSlideIds.length })
+        : t("toasts.appliedRedesign", { count: pendingDesign.targetSlideIds.length }),
     );
   }
 
@@ -618,7 +677,7 @@ export function ScreenshotEditor() {
     markProposalStatus(pendingDesign.assistantMessageId, "discarded");
     setPendingDesign(null);
     setShowProposal(true);
-    toast("Redesign discarded");
+    toast(t("toasts.redesignDiscarded"));
   }
 
   function markProposalStatus(
@@ -630,6 +689,67 @@ export function ScreenshotEditor() {
         message.id === messageId ? { ...message, proposalStatus } : message,
       ),
     );
+  }
+
+  // ---------- New project from screenshots ----------
+
+  async function handleCreateProject(name: string, files: File[], locales: string[]) {
+    if (importing) return; // double-submit guard
+    const created = createProject(name.trim(), locales);
+    if (files.length === 0) {
+      setImporting(null);
+      setImportDialogOpen(false);
+      toast.success(t("toasts.projectCreated"));
+      return;
+    }
+    setImporting(t("toasts.uploadingScreens", { count: files.length }));
+    try {
+      const paths = await Promise.all(
+        files.map(async (file) => {
+          const dataUrl = await fileToDataUrl(file);
+          const path = await uploadDataUrl(dataUrl);
+          if (!path) throw new Error(t("toasts.uploadFailed", { name: file.name }));
+          setImage(path, dataUrl); // prime the cache so the canvas paints immediately
+          return path;
+        }),
+      );
+      setImporting(t("toasts.analyzingScreens"));
+      const response = await fetch("/api/design/analyze-screenshots", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          appName: created.appName,
+          locales: created.locales,
+          screenshots: files.map((file, index) => ({ name: file.name, path: paths[index] })),
+        }),
+      });
+      const json = (await response.json()) as {
+        ok?: boolean;
+        slides?: SlideAnalysis[];
+        error?: string;
+      };
+      if (!response.ok || !json.ok || !json.slides) {
+        throw new Error(json.error || t("toasts.analysisFailed", { status: response.status }));
+      }
+      const slides = buildSlidesFromAnalysis(json.slides, paths, created.locales, created.device);
+      // Replace the new project's starter deck for the current device.
+      setState((prev) => ({
+        ...prev,
+        slidesByDevice: {
+          ...prev.slidesByDevice,
+          [prev.device]: slides,
+        },
+      }));
+      if (slides[0]) setActiveSlideId(slides[0].id);
+      toast.success(t("toasts.projectCreatedFromScreens", { count: slides.length }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("toasts.importFailed");
+      // Keep the (empty) project — the user can fill it in or delete it.
+      toast.error(t("toasts.createFromScreensFailed"), { description: message });
+    } finally {
+      setImporting(null);
+      setImportDialogOpen(false);
+    }
   }
 
   // ---------- Keyboard shortcuts ----------
@@ -704,13 +824,13 @@ export function ScreenshotEditor() {
 
   async function exportAll() {
     if (!currentSlides.length) {
-      toast.error("No screens to export");
+      toast.error(t("toasts.noScreensToExport"));
       return;
     }
 
     const sizes = getExportSizes(state.device, state.orientation);
     if (!sizes.length) {
-      toast.error("Nothing to export");
+      toast.error(t("toasts.nothingToExport"));
       return;
     }
     const locales = state.locales;
@@ -732,13 +852,13 @@ export function ScreenshotEditor() {
     if (missingScreens.length > 0 || reusedBackScreens.length > 0) {
       const details = [
         missingScreens.length
-          ? `${missingScreens.length} screen${missingScreens.length === 1 ? "" : "s"} will export with an empty device.`
+          ? t("toasts.screensEmptyDevice", { count: missingScreens.length })
           : null,
         reusedBackScreens.length
-          ? `${reusedBackScreens.length} two-device screen${reusedBackScreens.length === 1 ? "" : "s"} will reuse the primary screenshot in back.`
+          ? t("toasts.twoDeviceReuse", { count: reusedBackScreens.length })
           : null,
       ].filter(Boolean);
-      toast.warning("Export includes placeholder screenshots", {
+      toast.warning(t("toasts.exportPlaceholders"), {
         description: details.join(" "),
         duration: 7000,
       });
@@ -810,21 +930,21 @@ export function ScreenshotEditor() {
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
       } catch (e) {
-        toast.error("Couldn't bundle export");
+        toast.error(t("toasts.bundleFailed"));
         console.error(e);
         return;
       }
     }
 
-    const summary = `${locales.length} locale${locales.length === 1 ? "" : "s"} × ${sizes.length} size${sizes.length === 1 ? "" : "s"}`;
+    const summary = `${t("toasts.localeCount", { count: locales.length })} × ${t("toasts.sizeCount", { count: sizes.length })}`;
     if (failed === 0) {
-      toast.success(`Exported ${okCount} PNGs (${summary})`);
+      toast.success(t("toasts.exportedPngs", { count: okCount, summary }));
     } else if (okCount === 0) {
-      toast.error(`All ${failed} renders failed`, {
+      toast.error(t("toasts.rendersFailedAll", { count: failed }), {
         description: errors.slice(0, 3).join("\n"),
       });
     } else {
-      toast.error(`${failed} of ${totalUnits} renders failed`, {
+      toast.error(t("toasts.rendersFailedSome", { count: failed, total: totalUnits }), {
         description: errors.slice(0, 3).join("\n"),
       });
     }
@@ -882,19 +1002,26 @@ export function ScreenshotEditor() {
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          <p className="text-sm">Loading editor…</p>
+          <p className="text-sm">{t("common.loading")}</p>
         </div>
       </div>
     );
   }
 
   const { cW, cH } = getCanvas(state.device, state.orientation);
-  const busy = !!exporting || generatingDesign || !!pendingDesign;
+  const busy = !!exporting || generatingDesign || !!pendingDesign || !!importing;
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <Toaster position="top-right" richColors closeButton />
       <Toolbar
+        projects={projects}
+        activeProjectId={activeProjectId}
+        onSwitchProject={switchProject}
+        onCreateProject={() => setImportDialogOpen(true)}
+        onRenameProject={renameProject}
+        onDuplicateProject={duplicateProject}
+        onDeleteProject={deleteProject}
         appName={state.appName}
         setAppName={(v) => setState((p) => ({ ...p, appName: v }))}
         connectedCanvas={state.connectedCanvas}
@@ -911,12 +1038,12 @@ export function ScreenshotEditor() {
         onResetAll={() => {
           reset();
           setActiveSlideId(null);
-          toast.success("Reset all devices to defaults");
+          toast.success(t("toasts.resetAllDevices"));
         }}
         onResetDevice={() => {
           resetDevice(state.device);
           setActiveSlideId(null);
-          toast.success(`Reset ${state.device} to defaults`);
+          toast.success(t("toasts.resetDevice", { device: deviceLabel(state.device, t) }));
         }}
         exporting={exporting}
         savedAt={savedAt}
@@ -928,8 +1055,19 @@ export function ScreenshotEditor() {
         onScreenSettingsOpenChange={setScreenSettingsOpen}
       />
 
+      <NewProjectDialog
+        open={importDialogOpen}
+        onOpenChange={(next) => {
+          // Block Escape/overlay/X mid-import — the import must finish.
+          if (!next && importing) return;
+          setImportDialogOpen(next);
+        }}
+        importing={importing}
+        onSubmit={handleCreateProject}
+      />
+
       <div className="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
-        <aside className="h-[58vh] min-h-[460px] max-h-[620px] w-full shrink-0 overflow-hidden border-r bg-card lg:h-auto lg:min-h-0 lg:max-h-none lg:w-80 xl:w-96">
+        <aside className="glass h-[58vh] min-h-[460px] max-h-[620px] w-full shrink-0 overflow-hidden border-r border-border/70 lg:h-auto lg:min-h-0 lg:max-h-none lg:w-80 xl:w-96">
           <DesignSidebar
             messages={designMessages}
             scope={designScope}
@@ -945,7 +1083,7 @@ export function ScreenshotEditor() {
           />
         </aside>
 
-        <main className="relative flex h-[72vh] min-h-[520px] w-full shrink-0 items-stretch overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
+        <main className="relative flex h-[72vh] min-h-[520px] w-full shrink-0 items-stretch overflow-hidden bg-muted/40 lg:h-auto lg:min-h-0 lg:flex-1">
           {activeSlide && currentSlides.length > 0 ? (
             <PreviewStage
               slides={displaySlides}
@@ -968,14 +1106,14 @@ export function ScreenshotEditor() {
             />
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">No screen selected</p>
-              <p>Add a screen in the Screens panel to get started.</p>
+              <p className="font-medium text-foreground">{t("toasts.noScreenSelected")}</p>
+              <p>{t("toasts.addScreenHint")}</p>
             </div>
           )}
           {pendingDesign && (
             <div className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-1 rounded-xl border bg-background/95 p-1.5 shadow-xl backdrop-blur">
               <div className="mr-1 hidden items-center gap-1.5 px-2 text-[11px] font-medium sm:flex">
-                <Eye className="h-3.5 w-3.5" /> AI preview
+                <Eye className="h-3.5 w-3.5" /> {t("design.aiPreview")}
               </div>
               <Button
                 type="button"
@@ -984,7 +1122,7 @@ export function ScreenshotEditor() {
                 className="h-7 text-xs"
                 onClick={() => setShowProposal(false)}
               >
-                <EyeOff className="h-3.5 w-3.5" /> Before
+                <EyeOff className="h-3.5 w-3.5" /> {t("design.before")}
               </Button>
               <Button
                 type="button"
@@ -993,11 +1131,11 @@ export function ScreenshotEditor() {
                 className="h-7 text-xs"
                 onClick={() => setShowProposal(true)}
               >
-                <Eye className="h-3.5 w-3.5" /> After
+                <Eye className="h-3.5 w-3.5" /> {t("design.after")}
               </Button>
               <span className="mx-1 h-5 w-px bg-border" />
               <Button type="button" size="sm" className="h-7 text-xs" onClick={applyPendingDesign}>
-                <Check className="h-3.5 w-3.5" /> Apply
+                <Check className="h-3.5 w-3.5" /> {t("design.apply")}
               </Button>
               <Button
                 type="button"
@@ -1005,8 +1143,8 @@ export function ScreenshotEditor() {
                 variant="ghost"
                 className="h-7 w-7"
                 onClick={discardPendingDesign}
-                title="Discard redesign"
-                aria-label="Discard redesign"
+                title={t("design.discardRedesign")}
+                aria-label={t("design.discardRedesign")}
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -1017,7 +1155,7 @@ export function ScreenshotEditor() {
         {screensOpen && (
           <aside
             id="screens-panel"
-            className="h-[58vh] min-h-[460px] w-full shrink-0 overflow-hidden border-l bg-card lg:h-auto lg:min-h-0 lg:w-80"
+            className="glass h-[58vh] min-h-[460px] w-full shrink-0 overflow-hidden border-l border-border/70 lg:h-auto lg:min-h-0 lg:w-80"
           >
             <Sidebar
               slides={displaySlides}
@@ -1051,7 +1189,7 @@ export function ScreenshotEditor() {
         {screenSettingsOpen && (
         <aside
           id="screen-settings-panel"
-          className="h-[70vh] min-h-[520px] w-full shrink-0 overflow-hidden border-l bg-card lg:h-auto lg:min-h-0 lg:w-80"
+          className="glass h-[70vh] min-h-[520px] w-full shrink-0 overflow-hidden border-l border-border/70 lg:h-auto lg:min-h-0 lg:w-80"
         >
           {activeSlide && !pendingDesign && !generatingDesign ? (
             <Inspector
@@ -1073,18 +1211,16 @@ export function ScreenshotEditor() {
           ) : pendingDesign || generatingDesign ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
               <p className="font-medium text-foreground">
-                {pendingDesign ? "Review the AI proposal" : "Creating your redesign"}
+                {pendingDesign ? t("design.reviewProposal") : t("design.creatingRedesign")}
               </p>
               <p className="text-xs">
-                {pendingDesign
-                  ? "Use Before and After on the canvas, then apply or discard."
-                  : "Canvas editing is paused until the proposal is ready."}
+                {pendingDesign ? t("design.reviewHint") : t("design.pausedHint")}
               </p>
             </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Nothing to inspect</p>
-              <p className="text-xs">Screen settings will appear here once you add or select one.</p>
+              <p className="font-medium text-foreground">{t("toasts.nothingToInspect")}</p>
+              <p className="text-xs">{t("toasts.settingsWillAppear")}</p>
             </div>
           )}
         </aside>
@@ -1189,7 +1325,10 @@ async function captureSlideForModel(el: HTMLElement, sourceW: number, sourceH: n
   }
 }
 
-async function uploadDesignReference(reference: DesignReference): Promise<string> {
+async function uploadDesignReference(
+  reference: DesignReference,
+  t: ReturnType<typeof useT>["t"],
+): Promise<string> {
   const response = await fetch("/api/upload", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -1197,7 +1336,7 @@ async function uploadDesignReference(reference: DesignReference): Promise<string
   });
   const result = (await response.json()) as { ok?: boolean; path?: string; error?: string };
   if (!response.ok || !result.ok || !result.path) {
-    throw new Error(result.error || `Could not save ${reference.name} as a screen screenshot.`);
+    throw new Error(result.error || t("toasts.saveReferenceFailed", { name: reference.name }));
   }
   return result.path;
 }

@@ -2,16 +2,17 @@
 
 import type { DesignConversationMessage, DesignReference } from "./design";
 
-const CHAT_KEY = "app-store-screenshots:design-chat:v1";
+const LEGACY_CHAT_KEY = "app-store-screenshots:design-chat:v1";
 const DB_NAME = "app-store-screenshots-design";
 const DB_VERSION = 1;
 const STORE_NAME = "references";
 const MAX_MESSAGES = 50;
 
-export function loadDesignMessages(): DesignConversationMessage[] {
-  if (typeof window === "undefined") return [];
+const chatKey = (projectId: string) => `app-store-screenshots:design-chat:v1:${projectId}`;
+
+function readMessages(key: string): DesignConversationMessage[] {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(CHAT_KEY) || "[]") as unknown;
+    const parsed = JSON.parse(window.localStorage.getItem(key) || "[]") as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter(
@@ -29,12 +30,42 @@ export function loadDesignMessages(): DesignConversationMessage[] {
   }
 }
 
-export function saveDesignMessages(messages: DesignConversationMessage[]) {
+export function loadDesignMessages(projectId: string): DesignConversationMessage[] {
+  if (typeof window === "undefined") return [];
+  return readMessages(chatKey(projectId));
+}
+
+export function saveDesignMessages(messages: DesignConversationMessage[], projectId: string) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(CHAT_KEY, JSON.stringify(messages.slice(-MAX_MESSAGES)));
+    window.localStorage.setItem(chatKey(projectId), JSON.stringify(messages.slice(-MAX_MESSAGES)));
   } catch {
     // Chat is a convenience cache. Project persistence must remain independent.
+  }
+}
+
+// One-time: move the pre-multi-project chat into the given project's key.
+export function migrateLegacyDesignChat(projectId: string) {
+  if (typeof window === "undefined") return;
+  try {
+    if (window.localStorage.getItem(chatKey(projectId)) === null) {
+      const legacy = window.localStorage.getItem(LEGACY_CHAT_KEY);
+      if (legacy !== null) {
+        window.localStorage.setItem(chatKey(projectId), legacy);
+      }
+    }
+    window.localStorage.removeItem(LEGACY_CHAT_KEY);
+  } catch {
+    // Best effort — chat history is a convenience cache.
+  }
+}
+
+export function deleteDesignMessages(projectId: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(chatKey(projectId));
+  } catch {
+    // Best effort.
   }
 }
 

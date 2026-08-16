@@ -19,6 +19,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Device, Orientation, Slide, Theme } from "@/lib/types";
 import { newSlide } from "@/lib/defaults";
+import { useT } from "@/lib/ui-i18n";
 import { SlideThumb } from "./slide-thumb";
 
 type Props = {
@@ -60,6 +61,7 @@ export function Sidebar({
   onDuplicate,
   onAdd,
 }: Props) {
+  const { t } = useT();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -76,10 +78,10 @@ export function Sidebar({
 
   return (
     <div className={`flex h-full flex-col ${disabled ? "pointer-events-none opacity-60" : ""}`}>
-      <div className="border-b p-3">
-        <h2 className="text-sm font-semibold">Screens</h2>
+      <div className="border-b border-border/70 p-3">
+        <h2 className="text-sm font-semibold">{t("sidebar.screens")}</h2>
         <p className="text-xs text-muted-foreground">
-          {slides.length} screen{slides.length === 1 ? "" : "s"} · drag to reorder
+          {t("sidebar.screensCount", { count: slides.length })}
         </p>
       </div>
 
@@ -112,9 +114,13 @@ export function Sidebar({
               ))}
               {slides.length === 0 && (
                 <div className="rounded-lg border border-dashed p-6 text-center">
-                  <p className="text-xs font-medium text-foreground">No screens yet</p>
+                  <p className="text-xs font-medium text-foreground">
+                    {t("sidebar.noScreensYet")}
+                  </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Click <span className="font-semibold">Add screen</span> to get started.
+                    {t("sidebar.noScreensHintBefore")}
+                    <span className="font-semibold">{t("sidebar.addScreen")}</span>
+                    {t("sidebar.noScreensHintAfter")}
                   </p>
                 </div>
               )}
@@ -123,7 +129,7 @@ export function Sidebar({
         </DndContext>
       </div>
 
-      <div className="border-t bg-card p-3">
+      <div className="border-t border-border/70 bg-background/50 p-3">
         <Button
           type="button"
           className="w-full"
@@ -131,7 +137,7 @@ export function Sidebar({
           onClick={() => onAdd(newSlide(device === "feature-graphic" ? "feature-graphic" : "device-bottom"))}
           disabled={disabled}
         >
-          <Plus className="h-4 w-4" /> Add screen
+          <Plus className="h-4 w-4" /> {t("sidebar.addScreen")}
         </Button>
       </div>
     </div>

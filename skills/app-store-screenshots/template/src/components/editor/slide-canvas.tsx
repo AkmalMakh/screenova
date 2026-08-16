@@ -2,6 +2,7 @@
 import * as React from "react";
 import { Rnd } from "react-rnd";
 import { RotateCw } from "lucide-react";
+import { useT } from "@/lib/ui-i18n";
 import type {
   BuiltInElementId,
   DecorationElement,
@@ -149,6 +150,7 @@ function EditableText({
   multiline = false,
   placeholder,
   onFocus,
+  hideEmpty,
 }: {
   value: string;
   editable?: boolean;
@@ -157,6 +159,8 @@ function EditableText({
   multiline?: boolean;
   placeholder?: string;
   onFocus?: () => void;
+  // Suppress the CSS placeholder (exports must not bake chrome into PNGs).
+  hideEmpty?: boolean;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
@@ -179,7 +183,7 @@ function EditableText({
       ref={ref}
       contentEditable={editable}
       suppressContentEditableWarning
-      data-placeholder={placeholder}
+      data-placeholder={hideEmpty ? undefined : placeholder}
       onInput={handleInput}
       onFocus={() => onFocus?.()}
       onKeyDown={(e) => {
@@ -221,6 +225,7 @@ function Caption({
   align = "center",
   inverted,
   onFocus,
+  hideEmpty,
 }: {
   cW: number;
   cH: number;
@@ -232,7 +237,9 @@ function Caption({
   align?: "center" | "left";
   inverted?: boolean;
   onFocus?: () => void;
+  hideEmpty?: boolean;
 }) {
+  const { t } = useT();
   const fg = inverted ? theme.fgAlt : theme.fg;
   const accent = theme.accent;
   // Scale typography off the *shorter* dimension so landscape layouts don't
@@ -245,7 +252,7 @@ function Caption({
         editable={editable}
         onChange={edit?.onLabelChange}
         onFocus={onFocus}
-        placeholder="LABEL"
+        placeholder={hideEmpty ? undefined : t("canvas.labelPlaceholder")}
         style={{
           fontSize: unit * 0.028,
           fontWeight: 600,
@@ -262,7 +269,7 @@ function Caption({
         multiline
         onChange={edit?.onHeadlineChange}
         onFocus={onFocus}
-        placeholder="Headline goes here"
+        placeholder={hideEmpty ? undefined : t("canvas.headlinePlaceholder")}
         style={{
           fontSize: unit * 0.092,
           fontFamily: HEADLINE_FONT_CSS[slide.headlineFontFamily || "modern"],
@@ -986,6 +993,7 @@ function SlideElements({
   boundsH: number;
   allowCrossScreen: boolean;
 }) {
+  const { t } = useT();
   const screenshot = resolveLocalizedScreenshot(slide.screenshot, slide.screenshotByLocale, locale);
   const screenshotSecondary = resolveLocalizedScreenshot(
     slide.screenshotSecondary,
@@ -1023,6 +1031,7 @@ function SlideElements({
         align={captionRect.align || "center"}
         inverted={inverted}
         onFocus={() => edit?.onSelectElement?.("caption")}
+        hideEmpty={hideEmpty}
       />
     );
     return (
@@ -1143,7 +1152,7 @@ function SlideElements({
             multiline
             onChange={(value) => edit?.onTextElementTextChange?.(textElement.id, value)}
             onFocus={() => edit?.onSelectElement?.(elementId)}
-            placeholder="Text"
+            placeholder={hideEmpty ? undefined : t("canvas.textPlaceholder")}
             style={{
               width: "100%",
               color: textColor,
@@ -1288,6 +1297,7 @@ function Movable({
   selected?: boolean;
   onSelect?: () => void;
 }) {
+  const { t } = useT();
   const rotationRef = React.useRef(rotation);
   React.useEffect(() => {
     rotationRef.current = rotation;
@@ -1420,8 +1430,8 @@ function Movable({
           height: 28 / controlScale,
         }}
         onPointerDown={startRotate}
-        title="Rotate"
-        aria-label="Rotate element"
+        title={t("canvas.rotate")}
+        aria-label={t("canvas.rotateElement")}
       >
         <RotateCw style={{ width: 14 / controlScale, height: 14 / controlScale }} />
       </button>

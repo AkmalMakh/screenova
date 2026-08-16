@@ -4,9 +4,9 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Check, Copy, GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LAYOUT_LABEL } from "@/lib/constants";
 import { pickText } from "@/lib/locale";
 import type { Device, Orientation, Slide, Theme } from "@/lib/types";
+import { layoutLabel, useT } from "@/lib/ui-i18n";
 import { cn } from "@/lib/utils";
 import { DeckCanvas, SlideCanvas, getCanvas } from "./slide-canvas";
 
@@ -50,6 +50,7 @@ export function SlideThumb({
   selectedForDesign,
   onToggleDesignSelection,
 }: Props) {
+  const { t } = useT();
   const headline = pickText(slide.headline, locale);
   const label = pickText(slide.label, locale);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -90,8 +91,10 @@ export function SlideThumb({
             event.stopPropagation();
             onToggleDesignSelection();
           }}
-          aria-label={selectedForDesign ? "Remove from AI selection" : "Add to AI selection"}
-          title={selectedForDesign ? "Selected for AI redesign" : "Select for AI redesign"}
+          aria-label={
+            selectedForDesign ? t("thumb.removeFromAi") : t("thumb.addToAi")
+          }
+          title={selectedForDesign ? t("thumb.selectedForAi") : t("thumb.selectForAi")}
         >
           {selectedForDesign && <Check className="h-3 w-3" />}
         </button>
@@ -101,7 +104,7 @@ export function SlideThumb({
         className="flex w-3 cursor-grab items-center justify-center text-muted-foreground/60 hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing"
         {...attributes}
         {...listeners}
-        aria-label={`Reorder screen ${index + 1} (press space, then arrow keys)`}
+        aria-label={t("thumb.reorderA11y", { index: index + 1 })}
       >
         <GripVertical className="h-4 w-4" />
       </button>
@@ -156,11 +159,11 @@ export function SlideThumb({
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
-            {`Screen ${index + 1} · ${LAYOUT_LABEL[slide.layout]}`}
+            {t("thumb.screenN", { index: index + 1, layout: layoutLabel(slide.layout, t) })}
           </span>
           <span className="truncate text-sm font-medium leading-tight">
             {headline.split("\n")[0] || (
-              <em className="font-normal text-muted-foreground">Untitled</em>
+              <em className="font-normal text-muted-foreground">{t("thumb.untitled")}</em>
             )}
           </span>
           {label ? (
@@ -179,8 +182,8 @@ export function SlideThumb({
           variant="ghost"
           className="h-6 w-6"
           onClick={onDuplicate}
-          aria-label={`Duplicate screen ${index + 1}`}
-          title="Duplicate screen"
+          aria-label={t("thumb.duplicateA11y", { index: index + 1 })}
+          title={t("thumb.duplicate")}
         >
           <Copy className="h-3.5 w-3.5" />
         </Button>
@@ -190,8 +193,8 @@ export function SlideThumb({
           variant="ghost"
           className="h-6 w-6 hover:text-destructive"
           onClick={onDelete}
-          aria-label={`Delete screen ${index + 1}`}
-          title="Delete screen (undoable)"
+          aria-label={t("thumb.deleteA11y", { index: index + 1 })}
+          title={t("thumb.delete")}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>

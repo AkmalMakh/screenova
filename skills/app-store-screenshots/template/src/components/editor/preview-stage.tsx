@@ -2,7 +2,7 @@
 import * as React from "react";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DEVICE_LABEL, LAYOUT_LABEL } from "@/lib/constants";
+import { deviceLabel, layoutLabel, useT } from "@/lib/ui-i18n";
 import type {
   Device,
   ElementId,
@@ -55,6 +55,7 @@ export function PreviewStage({
   onSelectElement,
   editable = true,
 }: Props) {
+  const { t } = useT();
   const containerRef = React.useRef<HTMLDivElement>(null);
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const suppressNextActiveScreenPanRef = React.useRef(false);
@@ -166,25 +167,25 @@ export function PreviewStage({
       </div>
 
       <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-1.5 rounded-md bg-background/80 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
-        <span className="font-medium text-foreground">{DEVICE_LABEL[device]}</span>
+        <span className="font-medium text-foreground">{deviceLabel(device, t)}</span>
         {activeSlide && (
           <>
             <span aria-hidden>·</span>
-            <span>Screen {activeIndex + 1}</span>
+            <span>{t("preview.screen", { index: activeIndex + 1 })}</span>
             <span aria-hidden>·</span>
-            <span>{LAYOUT_LABEL[activeSlide.layout]}</span>
+            <span>{layoutLabel(activeSlide.layout, t)}</span>
           </>
         )}
         {orientation === "landscape" && (
           <>
             <span aria-hidden>·</span>
-            <span>landscape</span>
+            <span>{t("preview.landscape")}</span>
           </>
         )}
         {!connectedCanvas && (
           <>
             <span aria-hidden>·</span>
-            <span>isolated</span>
+            <span>{t("preview.isolated")}</span>
           </>
         )}
       </div>
@@ -199,8 +200,8 @@ export function PreviewStage({
           className="h-6 w-6"
           onClick={() => setZoom((value) => Math.max(0.25, Number((value - 0.1).toFixed(2))))}
           disabled={zoom <= 0.25}
-          title="Zoom out"
-          aria-label="Zoom out"
+          title={t("preview.zoomOut")}
+          aria-label={t("preview.zoomOut")}
         >
           <ZoomOut className="h-3.5 w-3.5" />
         </Button>
@@ -212,8 +213,8 @@ export function PreviewStage({
           className="h-6 w-6"
           onClick={() => setZoom((value) => Math.min(2, Number((value + 0.1).toFixed(2))))}
           disabled={zoom >= 2}
-          title="Zoom in"
-          aria-label="Zoom in"
+          title={t("preview.zoomIn")}
+          aria-label={t("preview.zoomIn")}
         >
           <ZoomIn className="h-3.5 w-3.5" />
         </Button>
@@ -223,8 +224,8 @@ export function PreviewStage({
           size="icon"
           className="h-6 w-6"
           onClick={() => setZoom(1)}
-          title="Fit active screen"
-          aria-label="Fit active screen"
+          title={t("preview.fitScreen")}
+          aria-label={t("preview.fitScreen")}
         >
           <Maximize2 className="h-3.5 w-3.5" />
         </Button>

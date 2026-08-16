@@ -121,6 +121,11 @@ export type Theme = {
 };
 
 export type ProjectState = {
+  // Project identity. Optional so legacy single-project states stay valid;
+  // assigned on load/creation by the project store.
+  id?: string;        // stable project key used for per-project storage
+  name?: string;      // label shown in the project switcher (appName is the product name)
+  updatedAt?: number; // epoch ms of the last edit
   schemaVersion?: number;
   appName: string;
   themeId: string;
@@ -137,4 +142,11 @@ export type ProjectState = {
   // Per-device slide decks so platform switching preserves work
   slidesByDevice: Record<Device, Slide[]>;
   appIcon?: string;    // path under /public (e.g. /app-icon.png)
+};
+
+// Lightweight project summary for list UIs (switcher, manage dialog).
+export type ProjectMeta = {
+  id: string;
+  name: string;
+  updatedAt: number;
 };

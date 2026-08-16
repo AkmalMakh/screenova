@@ -46,6 +46,11 @@ const config: Config = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      boxShadow: {
+        // Tinted, layered shadows — never pure black (single light source from above).
+        card: "0 1px 2px hsl(240 10% 8% / 0.05), 0 8px 24px -4px hsl(240 10% 8% / 0.08)",
+        pop: "0 2px 6px hsl(240 10% 8% / 0.06), 0 16px 40px -8px hsl(240 10% 8% / 0.16)",
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

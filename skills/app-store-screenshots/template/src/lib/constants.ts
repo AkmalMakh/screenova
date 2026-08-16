@@ -182,7 +182,16 @@ export function isHeadlineFontFamily(value: unknown): value is HeadlineFontFamil
   return typeof value === "string" && value in HEADLINE_FONT_LABEL;
 }
 
-export const STORAGE_KEY = "app-store-screenshots:project:v1";
+// Legacy single-project key; migrated into per-project storage on first load.
+export const LEGACY_STORAGE_KEY = "app-store-screenshots:project:v1";
+// Multi-project index: activeId + display order of all project ids.
+export const PROJECTS_INDEX_KEY = "app-store-screenshots:projects:v1";
+// Version of the on-disk bundle ({ version, activeId, order, projects }).
+export const PROJECTS_FILE_VERSION = 1;
+// Per-project state key.
+export function projectStorageKey(id: string) {
+  return `app-store-screenshots:project:v1:${id}`;
+}
 export const PROJECT_SCHEMA_VERSION = 4;
 
 export const DEVICE_LABEL: Record<Device, string> = {

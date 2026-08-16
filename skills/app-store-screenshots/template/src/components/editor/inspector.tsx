@@ -26,11 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  HEADLINE_FONT_LABEL,
-  LAYOUT_HINT,
-  LAYOUT_LABEL,
-} from "@/lib/constants";
+import { HEADLINE_FONT_LABEL, LAYOUT_LABEL } from "@/lib/constants";
 import { nid } from "@/lib/defaults";
 import {
   decorationElementKey,
@@ -44,7 +40,6 @@ import {
 import { pickText, writeLocalized } from "@/lib/locale";
 import { img } from "@/lib/image-cache";
 import type {
-  BuiltInElementId,
   DecorationElement,
   Device,
   ElementId,
@@ -55,6 +50,14 @@ import type {
   SlideLayout,
   TextElement,
 } from "@/lib/types";
+import {
+  elementLabel,
+  fontLabel,
+  layoutHint,
+  layoutLabel,
+  useT,
+  type T,
+} from "@/lib/ui-i18n";
 import { ScreenshotPicker } from "./screenshot-picker";
 import { getCanvas, getElementTransform } from "./slide-canvas";
 
@@ -69,12 +72,6 @@ type Props = {
   onSelectElement: (id: ElementId | null) => void;
 };
 
-const ELEMENT_LABEL: Record<BuiltInElementId, string> = {
-  caption: "Headline",
-  device: "Device",
-  deviceSecondary: "Back device",
-};
-
 export function Inspector({
   slide,
   device,
@@ -85,18 +82,23 @@ export function Inspector({
   onChange,
   onSelectElement,
 }: Props) {
+  const { t } = useT();
   const isFeatureGraphic = device === "feature-graphic" || slide.layout === "feature-graphic";
   const isNoDevice = slide.layout === "no-device";
   const layoutValue = device === "feature-graphic" ? "feature-graphic" : slide.layout;
-  const layoutOptions = Object.entries(LAYOUT_LABEL).filter(([layout]) =>
+  const layoutOptions = (Object.keys(LAYOUT_LABEL) as SlideLayout[]).filter((layout) =>
     device === "feature-graphic" ? layout === "feature-graphic" : layout !== "feature-graphic",
   );
   const localeLabel = slide.label?.[locale] ?? "";
   const localeHeadline = slide.headline?.[locale] ?? "";
   // When the active locale is empty, surface the fallback (typically en) as
   // the placeholder so the user sees what they're translating from.
-  const headlineDefault = isFeatureGraphic ? "Your tagline." : "One idea\nper slide.";
-  const labelPlaceholder = localeLabel ? "FEATURE 01" : pickText(slide.label, locale) || "FEATURE 01";
+  const headlineDefault = isFeatureGraphic
+    ? t("canvas.taglinePlaceholder")
+    : t("canvas.oneIdeaPlaceholder");
+  const labelPlaceholder = localeLabel
+    ? t("inspector.feature01")
+    : pickText(slide.label, locale) || t("inspector.feature01");
   const headlinePlaceholder = localeHeadline
     ? headlineDefault
     : pickText(slide.headline, locale) || headlineDefault;
@@ -113,19 +115,19 @@ export function Inspector({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b p-3">
+      <div className="border-b border-border/70 p-3">
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold">Screen settings</h2>
+          <h2 className="text-sm font-semibold">{t("inspector.screenSettings")}</h2>
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            editing · {locale.toUpperCase()}
+            {t("inspector.editingLocale", { locale: locale.toUpperCase() })}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground">{LAYOUT_HINT[layoutValue]}</p>
+        <p className="text-xs text-muted-foreground">{layoutHint(layoutValue, t)}</p>
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-3">
         <div className="space-y-1.5">
-          <Label className="text-xs">Layout</Label>
+          <Label className="text-xs">{t("inspector.layout")}</Label>
           <Select
             value={layoutValue}
             onValueChange={(layout) => {
@@ -142,9 +144,9 @@ export function Inspector({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {layoutOptions.map(([layout, label]) => (
+              {layoutOptions.map((layout) => (
                 <SelectItem key={layout} value={layout}>
-                  {label}
+                  {layoutLabel(layout, t)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -153,7 +155,7 @@ export function Inspector({
 
         {!isFeatureGraphic && (
           <div className="space-y-1.5">
-            <Label className="text-xs">Label</Label>
+            <Label className="text-xs">{t("inspector.label")}</Label>
             <Input
               value={localeLabel}
               onChange={(e) => setLocaleField("label", e.target.value)}
@@ -164,8 +166,10 @@ export function Inspector({
 
         <div className="space-y-1.5">
           <div className="flex items-baseline justify-between">
-            <Label className="text-xs">{isFeatureGraphic ? "Tagline" : "Headline"}</Label>
-            <span className="text-[10px] text-muted-foreground">newline = break</span>
+            <Label className="text-xs">
+              {isFeatureGraphic ? t("inspector.tagline") : t("inspector.headline")}
+            </Label>
+            <span className="text-[10px] text-muted-foreground">{t("inspector.newlineBreak")}</span>
           </div>
           <Textarea
             value={localeHeadline}
@@ -177,7 +181,7 @@ export function Inspector({
 
         <div className="space-y-1.5">
           <Label className="text-xs">
-            {isFeatureGraphic ? "Tagline font" : "Headline font"}
+            {isFeatureGraphic ? t("inspector.taglineFont") : t("inspector.headlineFont")}
           </Label>
           <Select
             value={slide.headlineFontFamily || "modern"}
@@ -189,9 +193,9 @@ export function Inspector({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(HEADLINE_FONT_LABEL).map(([value, label]) => (
+              {(Object.keys(HEADLINE_FONT_LABEL) as HeadlineFontFamily[]).map((value) => (
                 <SelectItem key={value} value={value}>
-                  {label}
+                  {fontLabel(value, t)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -202,7 +206,7 @@ export function Inspector({
           <div className="space-y-2 rounded-md border bg-muted/25 p-2.5">
             <div className="flex items-center justify-between gap-2">
               <Label className="flex items-center gap-1.5 text-xs">
-                <ImageIcon className="h-3.5 w-3.5" /> GPT Image visual
+                <ImageIcon className="h-3.5 w-3.5" /> {t("inspector.gptImage")}
               </Label>
               <Button
                 type="button"
@@ -211,17 +215,17 @@ export function Inspector({
                 className="h-6 px-2 text-[10px] hover:text-destructive"
                 onClick={() => onChange({ visualAsset: undefined })}
               >
-                Remove
+                {t("inspector.remove")}
               </Button>
             </div>
             <img
               src={img(slide.visualAsset.src)}
-              alt="Generated visual preview"
+              alt={t("inspector.generatedVisualAlt")}
               className="h-20 w-full rounded border object-cover"
             />
             <div className="space-y-1">
               <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                <span>Opacity</span>
+                <span>{t("inspector.opacity")}</span>
                 <span>{Math.round(slide.visualAsset.opacity * 100)}%</span>
               </div>
               <input
@@ -239,7 +243,7 @@ export function Inspector({
                   })
                 }
                 className="w-full"
-                aria-label="Generated visual opacity"
+                aria-label={t("inspector.opacityA11y")}
               />
             </div>
             <p className="line-clamp-3 text-[10px] leading-relaxed text-muted-foreground">
@@ -251,10 +255,12 @@ export function Inspector({
         {!isFeatureGraphic && !isNoDevice && (
           <div className="space-y-1.5">
             <Label className="text-xs">
-              {slide.layout === "two-devices" ? "Front device screenshot" : "Screenshot"}
+              {slide.layout === "two-devices"
+                ? t("inspector.frontScreenshot")
+                : t("inspector.screenshot")}
             </Label>
             <ScreenshotPicker
-              label="Primary"
+              label={t("inspector.primary")}
               value={slide.screenshot}
               locale={locale}
               locales={locales}
@@ -266,9 +272,9 @@ export function Inspector({
 
         {slide.layout === "two-devices" && (
           <div className="space-y-1.5">
-            <Label className="text-xs">Back device screenshot</Label>
+            <Label className="text-xs">{t("inspector.backScreenshot")}</Label>
             <ScreenshotPicker
-              label="Secondary (back layer)"
+              label={t("inspector.secondary")}
               value={slide.screenshotSecondary || ""}
               locale={locale}
               locales={locales}
@@ -292,7 +298,7 @@ export function Inspector({
 
         {isFeatureGraphic && (
           <p className="rounded-md border bg-muted/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
-            Shows app icon + name + tagline. Drop an icon at <span className="rounded bg-background px-1 py-0.5 font-mono text-[10px] text-foreground">/public/app-icon.png</span> (or leave blank — the app initial will be used). Name is set in the toolbar.
+            {t("inspector.appIconNote")}
           </p>
         )}
       </div>
@@ -317,6 +323,7 @@ function ElementTransformControls({
   onChange: (patch: Partial<Slide>) => void;
   onSelectElement: (id: ElementId | null) => void;
 }) {
+  const { t } = useT();
   const present: ElementId[] = ["caption"];
   if (slide.layout !== "no-device") present.push("device");
   if (slide.layout === "two-devices") present.push("deviceSecondary");
@@ -508,11 +515,9 @@ function ElementTransformControls({
     <div className="space-y-3 rounded-md border bg-muted/30 p-3">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <Label className="text-xs font-semibold">Elements</Label>
+          <Label className="text-xs font-semibold">{t("inspector.elements")}</Label>
           <p className="text-[11px] text-muted-foreground">
-            {activeId
-              ? "Fine-tune the selected element's rotation and stacking."
-              : "Click an element on the canvas to fine-tune its rotation and stacking."}
+            {activeId ? t("inspector.elementsHintSelected") : t("inspector.elementsHint")}
           </p>
         </div>
         <div className="flex shrink-0 gap-1">
@@ -524,7 +529,7 @@ function ElementTransformControls({
             onClick={addDecoration}
           >
             <Circle className="h-3.5 w-3.5" />
-            Shape
+            {t("inspector.shape")}
           </Button>
           <Button
             type="button"
@@ -534,7 +539,7 @@ function ElementTransformControls({
             onClick={addTextElement}
           >
             <Plus className="h-3.5 w-3.5" />
-            Text
+            {t("inspector.text")}
           </Button>
         </div>
       </div>
@@ -566,7 +571,7 @@ function ElementTransformControls({
         />
       ) : (
         <div className="rounded border border-dashed bg-background/40 p-4 text-center text-[11px] text-muted-foreground">
-          No element selected
+          {t("inspector.noElement")}
         </div>
       )}
     </div>
@@ -600,9 +605,10 @@ function ActiveElementPanel({
   onDecorationPatch: (patch: Partial<DecorationElement>) => void;
   onDeleteDecoration: () => void;
 }) {
+  const { t } = useT();
   const engaged = !!transform;
   const rotation = transform?.rotation ?? 0;
-  const label = elementLabel(activeId);
+  const label = elementLabelFor(activeId, t);
   return (
     <div className="space-y-2 rounded border bg-background/60 p-2.5">
       <div className="flex items-center justify-between">
@@ -618,13 +624,21 @@ function ActiveElementPanel({
             size="icon"
             className="h-6 w-6 hover:text-destructive"
             onClick={decoration ? onDeleteDecoration : onDeleteText}
-            title={`Delete ${decoration ? "decoration" : "text element"}`}
-            aria-label={`Delete ${decoration ? "decoration" : "text element"}`}
+            title={
+              decoration
+                ? t("inspector.deleteDecorationA11y")
+                : t("inspector.deleteTextA11y")
+            }
+            aria-label={
+              decoration
+                ? t("inspector.deleteDecorationA11y")
+                : t("inspector.deleteTextA11y")
+            }
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         ) : !engaged ? (
-          <span className="text-[10px] text-muted-foreground">drag to enable</span>
+          <span className="text-[10px] text-muted-foreground">{t("inspector.dragToEnable")}</span>
         ) : null}
       </div>
 
@@ -644,7 +658,7 @@ function ActiveElementPanel({
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <Label className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <RotateCw className="h-3 w-3" /> Rotation
+            <RotateCw className="h-3 w-3" /> {t("inspector.rotation")}
           </Label>
           <span className="text-[11px] tabular-nums text-muted-foreground">
             {rotation}°
@@ -659,23 +673,39 @@ function ActiveElementPanel({
           disabled={!engaged}
           onChange={(e) => onRotate(Number(e.target.value))}
           className="w-full disabled:opacity-50"
-          aria-label={`${label} rotation`}
+          aria-label={t("inspector.rotationA11y", { label })}
         />
       </div>
 
       <div className="space-y-1">
-        <Label className="text-[11px] text-muted-foreground">Layer</Label>
+        <Label className="text-[11px] text-muted-foreground">{t("inspector.layer")}</Label>
         <div className="grid grid-cols-4 gap-1">
-          <LayerButton disabled={!engaged} onClick={() => onReorder("back")} label="Send to back">
+          <LayerButton
+            disabled={!engaged}
+            onClick={() => onReorder("back")}
+            label={t("inspector.sendToBack")}
+          >
             <ArrowDownToLine className="h-3.5 w-3.5" />
           </LayerButton>
-          <LayerButton disabled={!engaged} onClick={() => onReorder("down")} label="Send backward">
+          <LayerButton
+            disabled={!engaged}
+            onClick={() => onReorder("down")}
+            label={t("inspector.sendBackward")}
+          >
             <ChevronDown className="h-3.5 w-3.5" />
           </LayerButton>
-          <LayerButton disabled={!engaged} onClick={() => onReorder("up")} label="Bring forward">
+          <LayerButton
+            disabled={!engaged}
+            onClick={() => onReorder("up")}
+            label={t("inspector.bringForward")}
+          >
             <ChevronUp className="h-3.5 w-3.5" />
           </LayerButton>
-          <LayerButton disabled={!engaged} onClick={() => onReorder("front")} label="Bring to front">
+          <LayerButton
+            disabled={!engaged}
+            onClick={() => onReorder("front")}
+            label={t("inspector.bringToFront")}
+          >
             <ArrowUpToLine className="h-3.5 w-3.5" />
           </LayerButton>
         </div>
@@ -695,21 +725,22 @@ function TextElementPanel({
   onTextChange: (value: string) => void;
   onTextPatch: (patch: Partial<TextElement>) => void;
 }) {
+  const { t } = useT();
   const text = element.text?.[locale] ?? pickText(element.text, locale);
   return (
     <div className="space-y-2 rounded border bg-muted/30 p-2">
       <div className="space-y-1">
-        <Label className="text-[11px] text-muted-foreground">Text</Label>
+        <Label className="text-[11px] text-muted-foreground">{t("inspector.text")}</Label>
         <Textarea
           value={text}
           rows={2}
           onChange={(event) => onTextChange(event.target.value)}
-          placeholder="Overlay text"
+          placeholder={t("inspector.overlayText")}
         />
       </div>
       <div className="grid grid-cols-[1fr_76px] gap-2">
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">Size</Label>
+          <Label className="text-[11px] text-muted-foreground">{t("inspector.size")}</Label>
           <Input
             type="number"
             min={12}
@@ -719,7 +750,7 @@ function TextElementPanel({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">Color</Label>
+          <Label className="text-[11px] text-muted-foreground">{t("inspector.color")}</Label>
           <Input
             type="color"
             value={element.color || "#171717"}
@@ -732,21 +763,21 @@ function TextElementPanel({
         <LayerButton
           disabled={false}
           onClick={() => onTextPatch({ align: "left" })}
-          label="Align left"
+          label={t("inspector.alignLeft")}
         >
           <AlignLeft className="h-3.5 w-3.5" />
         </LayerButton>
         <LayerButton
           disabled={false}
           onClick={() => onTextPatch({ align: "center" })}
-          label="Align center"
+          label={t("inspector.alignCenter")}
         >
           <AlignCenter className="h-3.5 w-3.5" />
         </LayerButton>
         <LayerButton
           disabled={false}
           onClick={() => onTextPatch({ align: "right" })}
-          label="Align right"
+          label={t("inspector.alignRight")}
         >
           <AlignRight className="h-3.5 w-3.5" />
         </LayerButton>
@@ -762,12 +793,13 @@ function DecorationPanel({
   element: DecorationElement;
   onPatch: (patch: Partial<DecorationElement>) => void;
 }) {
+  const { t } = useT();
   const primary = element.fill.colors[0] || "#5B7CFA";
   const secondary = element.fill.colors[1] || "#8B5CF6";
   return (
     <div className="space-y-2 rounded border bg-muted/30 p-2">
       <div className="space-y-1">
-        <Label className="text-[11px] text-muted-foreground">Shape</Label>
+        <Label className="text-[11px] text-muted-foreground">{t("inspector.shape")}</Label>
         <Select
           value={element.kind}
           onValueChange={(kind) =>
@@ -778,15 +810,15 @@ function DecorationPanel({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ellipse">Ellipse</SelectItem>
-            <SelectItem value="rounded-rectangle">Rounded rectangle</SelectItem>
-            <SelectItem value="line">Line</SelectItem>
+            <SelectItem value="ellipse">{t("inspector.ellipse")}</SelectItem>
+            <SelectItem value="rounded-rectangle">{t("inspector.roundedRect")}</SelectItem>
+            <SelectItem value="line">{t("inspector.line")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">Fill</Label>
+          <Label className="text-[11px] text-muted-foreground">{t("inspector.fill")}</Label>
           <Input
             type="color"
             value={primary}
@@ -797,7 +829,7 @@ function DecorationPanel({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">Style</Label>
+          <Label className="text-[11px] text-muted-foreground">{t("inspector.style")}</Label>
           <Select
             value={element.fill.type}
             onValueChange={(type) =>
@@ -814,8 +846,8 @@ function DecorationPanel({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="solid">Solid</SelectItem>
-              <SelectItem value="linear-gradient">Gradient</SelectItem>
+              <SelectItem value="solid">{t("inspector.solid")}</SelectItem>
+              <SelectItem value="linear-gradient">{t("inspector.gradient")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -826,7 +858,7 @@ function DecorationPanel({
             type="color"
             value={secondary}
             className="h-9 p-1"
-            aria-label="Gradient second color"
+            aria-label={t("inspector.gradientSecond")}
             onChange={(event) =>
               onPatch({ fill: { ...element.fill, colors: [primary, event.target.value] } })
             }
@@ -836,7 +868,7 @@ function DecorationPanel({
             min={0}
             max={360}
             value={Math.round(element.fill.angle ?? 135)}
-            aria-label="Gradient angle"
+            aria-label={t("inspector.gradientAngle")}
             onChange={(event) =>
               onPatch({ fill: { ...element.fill, angle: Number(event.target.value) || 0 } })
             }
@@ -845,7 +877,7 @@ function DecorationPanel({
       )}
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">Opacity</Label>
+          <Label className="text-[11px] text-muted-foreground">{t("inspector.opacity")}</Label>
           <Input
             type="number"
             min={5}
@@ -857,7 +889,7 @@ function DecorationPanel({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">Blur</Label>
+          <Label className="text-[11px] text-muted-foreground">{t("inspector.blur")}</Label>
           <Input
             type="number"
             min={0}
@@ -898,10 +930,12 @@ function LayerButton({
   );
 }
 
-function elementLabel(id: ElementId): string {
-  if (isBuiltInElementId(id)) return ELEMENT_LABEL[id];
-  if (isDecorationElementId(id)) return "Decoration";
-  return "Text";
+// Map an ElementId (which may carry text:/decoration: prefixes) to the
+// dictionary element kind, then look up the translated label.
+function elementLabelFor(id: ElementId, t: T["t"]): string {
+  if (isBuiltInElementId(id)) return elementLabel(id, t);
+  if (isDecorationElementId(id)) return elementLabel("decoration", t);
+  return elementLabel("text", t);
 }
 
 function defaultZ(id: ElementId): number {
