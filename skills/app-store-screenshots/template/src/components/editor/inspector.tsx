@@ -115,14 +115,16 @@ export function Inspector({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border/70 p-3">
+      <div className="border-b border-border/70 px-3 py-3">
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold">{t("inspector.screenSettings")}</h2>
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          <h2 className="text-[13px] font-semibold tracking-tight">
+            {t("inspector.screenSettings")}
+          </h2>
+          <span className="rounded-full border border-border/70 bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             {t("inspector.editingLocale", { locale: locale.toUpperCase() })}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground">{layoutHint(layoutValue, t)}</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{layoutHint(layoutValue, t)}</p>
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-3">

@@ -94,7 +94,7 @@ export function DesignSidebar({
             <Sparkles className="h-3.5 w-3.5" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold">{t("designSidebar.title")}</h2>
+            <h2 className="text-[13px] font-semibold tracking-tight">{t("designSidebar.title")}</h2>
             <p className="text-[11px] text-muted-foreground">{t("designSidebar.subtitle")}</p>
           </div>
         </div>

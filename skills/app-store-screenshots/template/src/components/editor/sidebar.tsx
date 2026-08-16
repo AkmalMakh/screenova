@@ -78,9 +78,9 @@ export function Sidebar({
 
   return (
     <div className={`flex h-full flex-col ${disabled ? "pointer-events-none opacity-60" : ""}`}>
-      <div className="border-b border-border/70 p-3">
-        <h2 className="text-sm font-semibold">{t("sidebar.screens")}</h2>
-        <p className="text-xs text-muted-foreground">
+      <div className="border-b border-border/70 px-3 py-3">
+        <h2 className="text-[13px] font-semibold tracking-tight">{t("sidebar.screens")}</h2>
+        <p className="text-[11px] text-muted-foreground">
           {t("sidebar.screensCount", { count: slides.length })}
         </p>
       </div>
@@ -132,8 +132,8 @@ export function Sidebar({
       <div className="border-t border-border/70 bg-background/50 p-3">
         <Button
           type="button"
-          className="w-full"
-          variant="default"
+          className="w-full border-dashed text-muted-foreground hover:border-ring hover:text-foreground"
+          variant="outline"
           onClick={() => onAdd(newSlide(device === "feature-graphic" ? "feature-graphic" : "device-bottom"))}
           disabled={disabled}
         >

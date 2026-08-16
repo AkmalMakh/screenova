@@ -77,7 +77,7 @@ export function SlideThumb({
       style={style}
       className={cn(
         "group relative flex items-stretch gap-2 rounded-lg border bg-card p-1.5 transition-all hover:border-foreground/30 hover:bg-accent",
-        active && "border-primary ring-1 ring-primary",
+        active && "border-primary ring-1 ring-primary shadow-card",
       )}
     >
       {onToggleDesignSelection && (

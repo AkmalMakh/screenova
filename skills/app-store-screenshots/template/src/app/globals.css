@@ -125,6 +125,16 @@
       box-shadow 200ms var(--ease-out),
       border-color 200ms var(--ease-out);
   }
+
+  /* Canvas stage backdrop: soft radial wash + faint dot grid for depth. */
+  .dot-grid {
+    background-image:
+      radial-gradient(70% 70% at 50% 35%, hsl(var(--background)) 0%, hsl(var(--muted)) 100%),
+      radial-gradient(circle, hsl(var(--muted-foreground) / 0.12) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      24px 24px;
+  }
 }
 
 @keyframes fade-up {

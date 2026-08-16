@@ -3,7 +3,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import JSZip from "jszip";
 import { toJpeg, toPng } from "html-to-image";
-import { Check, Eye, EyeOff, X } from "lucide-react";
+import { Check, Eye, EyeOff, MousePointerClick, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { loadDesignMessages, saveDesignMessages, saveDesignReferences } from "@/lib/chat-storage";
@@ -1210,9 +1210,12 @@ function Editor() {
               editable={!busy}
             />
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center text-sm text-muted-foreground">
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-sm text-muted-foreground">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 shadow-sm">
+                <MousePointerClick className="h-4 w-4" />
+              </span>
               <p className="font-medium text-foreground">{t("toasts.noScreenSelected")}</p>
-              <p>{t("toasts.addScreenHint")}</p>
+              <p className="text-xs">{t("toasts.addScreenHint")}</p>
             </div>
           )}
           {pendingDesign && (
@@ -1314,7 +1317,10 @@ function Editor() {
               }
             />
           ) : pendingDesign || generatingDesign ? (
-            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 text-primary shadow-sm">
+                <Sparkles className="h-4 w-4" />
+              </span>
               <p className="font-medium text-foreground">
                 {pendingDesign ? t("design.reviewProposal") : t("design.creatingRedesign")}
               </p>
@@ -1323,7 +1329,10 @@ function Editor() {
               </p>
             </div>
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 shadow-sm">
+                <SlidersHorizontal className="h-4 w-4" />
+              </span>
               <p className="font-medium text-foreground">{t("toasts.nothingToInspect")}</p>
               <p className="text-xs">{t("toasts.settingsWillAppear")}</p>
             </div>

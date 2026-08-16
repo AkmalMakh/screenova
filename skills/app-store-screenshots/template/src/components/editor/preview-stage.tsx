@@ -113,7 +113,7 @@ export function PreviewStage({
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden bg-[radial-gradient(70%_70%_at_50%_35%,_hsl(var(--background))_0%,_hsl(var(--muted))_100%)]"
+      className="dot-grid relative h-full w-full overflow-hidden"
     >
       <div ref={scrollerRef} className="h-full w-full overflow-auto p-12">
         <div
@@ -190,7 +190,7 @@ export function PreviewStage({
         )}
       </div>
 
-      <div className="absolute bottom-4 right-4 flex items-center gap-1.5 rounded-md bg-background/85 px-1.5 py-1 text-[10px] tabular-nums text-muted-foreground shadow-sm backdrop-blur">
+      <div className="absolute bottom-4 right-4 flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-1.5 py-1 text-[10px] tabular-nums text-muted-foreground shadow-sm backdrop-blur-md">
         <span className="px-1">{slides.length}× {cW}×{cH}</span>
         <span aria-hidden className="text-border">|</span>
         <Button
