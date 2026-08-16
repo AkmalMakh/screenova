@@ -291,6 +291,29 @@ export const de: Record<TranslationKey, string> = {
 
   // ---- toolbar: home link ----
   "toolbar.home": "Start",
+  "toolbar.commands": "Befehle",
+
+  // ---- command palette ----
+  "palette.title": "Befehle",
+  "palette.placeholder": "Befehle suchen…",
+  "palette.empty": "Keine passenden Befehle.",
+  "palette.on": "An",
+  "palette.off": "Aus",
+  "palette.current": "Aktuell",
+  "palette.group.navigate": "Navigieren",
+  "palette.group.view": "Ansicht",
+  "palette.group.device": "Gerät",
+  "palette.group.edit": "Bearbeiten",
+  "palette.action.home": "Zur Startseite",
+  "palette.action.newProject": "Neues Projekt",
+  "palette.action.export": "Bundle exportieren",
+  "palette.action.screens": "Screens-Panel",
+  "palette.action.settings": "Einstellungs-Panel",
+  "palette.action.connected": "Verbundene Leinwand",
+  "palette.action.undo": "Rückgängig",
+  "palette.action.redo": "Wiederholen",
+  "palette.action.duplicate": "Screen duplizieren",
+  "palette.action.delete": "Screen löschen",
 
   // ---- home page ----
   "home.loading": "Wird geladen…",

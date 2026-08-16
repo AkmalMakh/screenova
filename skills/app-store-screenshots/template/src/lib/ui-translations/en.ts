@@ -304,6 +304,29 @@ export const en = {
 
   // ---- toolbar: home link ----
   "toolbar.home": "Home",
+  "toolbar.commands": "Commands",
+
+  // ---- command palette ----
+  "palette.title": "Commands",
+  "palette.placeholder": "Search commands…",
+  "palette.empty": "No matching commands.",
+  "palette.on": "On",
+  "palette.off": "Off",
+  "palette.current": "Current",
+  "palette.group.navigate": "Navigate",
+  "palette.group.view": "View",
+  "palette.group.device": "Device",
+  "palette.group.edit": "Edit",
+  "palette.action.home": "Go to home page",
+  "palette.action.newProject": "New project",
+  "palette.action.export": "Export bundle",
+  "palette.action.screens": "Screens panel",
+  "palette.action.settings": "Settings panel",
+  "palette.action.connected": "Connected canvas",
+  "palette.action.undo": "Undo",
+  "palette.action.redo": "Redo",
+  "palette.action.duplicate": "Duplicate screen",
+  "palette.action.delete": "Delete screen",
 
   // ---- home page ----
   "home.loading": "Loading…",

@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import JSZip from "jszip";
 import { toJpeg, toPng } from "html-to-image";
 import { Check, Eye, EyeOff, X } from "lucide-react";
@@ -45,6 +46,7 @@ import type {
 import { Inspector } from "./inspector";
 import { DesignSidebar } from "./design-sidebar";
 import { NewProjectDialog } from "./new-project-dialog";
+import { CommandPalette, type PaletteGroup } from "./command-palette";
 import { PreviewStage } from "./preview-stage";
 import { fileToDataUrl, uploadDataUrl } from "./screenshot-picker";
 import { Sidebar } from "./sidebar";
@@ -54,6 +56,15 @@ import { DeckCanvas, getCanvas } from "./slide-canvas";
 import { Toolbar } from "./toolbar";
 
 type CopyPair = { headline: string; subheader: string };
+
+const PALETTE_DEVICES: Device[] = [
+  "iphone",
+  "ipad",
+  "android",
+  "android-7",
+  "android-10",
+  "feature-graphic",
+];
 type PendingDesign = {
   proposal: DesignProposal;
   state: ReturnType<typeof cloneProject>;
@@ -106,6 +117,7 @@ export function ScreenshotEditor() {
 
 function Editor() {
   const { t } = useT();
+  const router = useRouter();
   const {
     state,
     setState,
@@ -140,6 +152,7 @@ function Editor() {
   const [screensOpen, setScreensOpen] = React.useState(true);
   const [screenSettingsOpen, setScreenSettingsOpen] = React.useState(true);
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [importing, setImporting] = React.useState<string | null>(null);
   const exportRef = React.useRef<HTMLDivElement | null>(null);
   const designAbortRef = React.useRef<AbortController | null>(null);
@@ -764,6 +777,23 @@ function Editor() {
           (target as HTMLElement).isContentEditable);
       if (exporting || generatingDesign || pendingDesign) return;
 
+      // Command palette and panel toggles work everywhere, including inputs.
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "1") {
+        e.preventDefault();
+        setScreensOpen((open) => !open);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "2") {
+        e.preventDefault();
+        setScreenSettingsOpen((open) => !open);
+        return;
+      }
+
       if (e.key === "Escape") {
         setSelectedElement(null);
         if (target && "blur" in target && typeof target.blur === "function") target.blur();
@@ -1011,6 +1041,80 @@ function Editor() {
   const { cW, cH } = getCanvas(state.device, state.orientation);
   const busy = !!exporting || generatingDesign || !!pendingDesign || !!importing;
 
+  // ⌘K command palette — flat action list grouped for scanning.
+  const paletteGroups: PaletteGroup[] = [
+    {
+      label: t("palette.group.navigate"),
+      items: [
+        { id: "palette-home", label: t("palette.action.home"), run: () => router.push("/") },
+        {
+          id: "palette-new-project",
+          label: t("palette.action.newProject"),
+          run: () => setImportDialogOpen(true),
+        },
+        {
+          id: "palette-export",
+          label: t("palette.action.export"),
+          run: () => void exportAll(),
+          disabled: !!exporting || currentSlides.length === 0,
+        },
+      ],
+    },
+    {
+      label: t("palette.group.view"),
+      items: [
+        {
+          id: "palette-screens",
+          label: t("palette.action.screens"),
+          hint: screensOpen ? t("palette.on") : t("palette.off"),
+          run: () => setScreensOpen((open) => !open),
+        },
+        {
+          id: "palette-settings",
+          label: t("palette.action.settings"),
+          hint: screenSettingsOpen ? t("palette.on") : t("palette.off"),
+          run: () => setScreenSettingsOpen((open) => !open),
+        },
+        {
+          id: "palette-connected",
+          label: t("palette.action.connected"),
+          hint: state.connectedCanvas ? t("palette.on") : t("palette.off"),
+          run: () => setState((p) => ({ ...p, connectedCanvas: !p.connectedCanvas })),
+        },
+      ],
+    },
+    {
+      label: t("palette.group.device"),
+      items: PALETTE_DEVICES.map((device) => ({
+        id: `palette-device-${device}`,
+        label: deviceLabel(device, t),
+        hint: state.device === device ? t("palette.current") : undefined,
+        run: () => setState((p) => ({ ...p, device })),
+      })),
+    },
+    {
+      label: t("palette.group.edit"),
+      items: [
+        { id: "palette-undo", label: t("palette.action.undo"), hint: "⌘Z", run: undo },
+        { id: "palette-redo", label: t("palette.action.redo"), hint: "⇧⌘Z", run: redo },
+        {
+          id: "palette-duplicate",
+          label: t("palette.action.duplicate"),
+          hint: "⌘D",
+          run: () => activeSlide && duplicateSlide(activeSlide.id),
+          disabled: !activeSlide,
+        },
+        {
+          id: "palette-delete",
+          label: t("palette.action.delete"),
+          hint: "⌘⌫",
+          run: () => activeSlide && deleteSlide(activeSlide.id),
+          disabled: !activeSlide,
+        },
+      ],
+    },
+  ];
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <Toaster position="top-right" richColors closeButton />
@@ -1019,6 +1123,7 @@ function Editor() {
         activeProjectId={activeProjectId}
         onSwitchProject={switchProject}
         onCreateProject={() => setImportDialogOpen(true)}
+        onOpenPalette={() => setPaletteOpen(true)}
         onRenameProject={renameProject}
         onDuplicateProject={duplicateProject}
         onDeleteProject={deleteProject}
@@ -1273,6 +1378,12 @@ function Editor() {
           </div>
         )}
       </div>
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        groups={paletteGroups}
+      />
     </div>
   );
 }

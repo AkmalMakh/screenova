@@ -122,7 +122,7 @@ export function PreviewStage({
             height: cH * scale,
             position: "relative",
             flexShrink: 0,
-            filter: "drop-shadow(0 32px 42px rgba(15, 23, 42, 0.18))",
+            filter: "drop-shadow(0 24px 48px hsl(240 10% 8% / 0.14))",
           }}
         >
           <div
@@ -166,7 +166,7 @@ export function PreviewStage({
         </div>
       </div>
 
-      <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-1.5 rounded-md bg-background/80 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
+      <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur-md">
         <span className="font-medium text-foreground">{deviceLabel(device, t)}</span>
         {activeSlide && (
           <>

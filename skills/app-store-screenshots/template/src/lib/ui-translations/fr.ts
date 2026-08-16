@@ -291,6 +291,29 @@ export const fr: Record<TranslationKey, string> = {
 
   // ---- toolbar: home link ----
   "toolbar.home": "Accueil",
+  "toolbar.commands": "Commandes",
+
+  // ---- command palette ----
+  "palette.title": "Commandes",
+  "palette.placeholder": "Rechercher des commandes…",
+  "palette.empty": "Aucune commande correspondante.",
+  "palette.on": "Activé",
+  "palette.off": "Désactivé",
+  "palette.current": "Actuel",
+  "palette.group.navigate": "Naviguer",
+  "palette.group.view": "Affichage",
+  "palette.group.device": "Appareil",
+  "palette.group.edit": "Modifier",
+  "palette.action.home": "Aller à l'accueil",
+  "palette.action.newProject": "Nouveau projet",
+  "palette.action.export": "Exporter le bundle",
+  "palette.action.screens": "Panneau des écrans",
+  "palette.action.settings": "Panneau des réglages",
+  "palette.action.connected": "Toile connectée",
+  "palette.action.undo": "Annuler",
+  "palette.action.redo": "Rétablir",
+  "palette.action.duplicate": "Dupliquer l'écran",
+  "palette.action.delete": "Supprimer l'écran",
 
   // ---- home page ----
   "home.loading": "Chargement…",

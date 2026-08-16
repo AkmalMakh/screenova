@@ -64,6 +64,14 @@ const SUGGESTION_CHIPS: TranslationKey[] = [
   "home.chip5",
 ];
 
+// Decorative mini-deck shown under the hero — colors drawn from the app's
+// own themes (clean-light, dark-bold, ocean-fresh).
+const HERO_CARDS = [
+  { bg: "#F6F1EA", line: "#171717", accent: "#5B7CFA", fg: "#171717", tilt: -4 },
+  { bg: "#0B1020", line: "#F8FAFC", accent: "#8B5CF6", fg: "#F8FAFC", tilt: 0 },
+  { bg: "#E0F2FE", line: "#0C4A6E", accent: "#0284C7", fg: "#0C4A6E", tilt: 4 },
+];
+
 export function HomePage() {
   return (
     <LanguageProvider>
@@ -375,6 +383,34 @@ function Home() {
           <p className="mx-auto mt-5 max-w-xl text-pretty text-[15px] leading-relaxed text-muted-foreground">
             {t("home.subtitle")}
           </p>
+
+          <div aria-hidden className="mx-auto mt-12 flex max-w-md items-end justify-center gap-4">
+            {HERO_CARDS.map((card, index) => (
+              <div
+                key={index}
+                className="fade-up w-24 overflow-hidden rounded-xl border border-border/70 shadow-card"
+                style={{
+                  animationDelay: `${150 + index * 90}ms`,
+                  transform: `rotate(${card.tilt}deg)`,
+                }}
+              >
+                <div className="aspect-[9/19]" style={{ backgroundColor: card.bg }}>
+                  <div
+                    className="mx-auto mt-[16%] flex h-[40%] w-[58%] flex-col items-center justify-center gap-[8%] rounded-[14%] border"
+                    style={{ borderColor: card.line, opacity: 0.85 }}
+                  >
+                    <span className="h-[4%] w-[62%] rounded-full" style={{ backgroundColor: card.line }} />
+                    <span className="h-[4%] w-[40%] rounded-full" style={{ backgroundColor: card.line }} />
+                  </div>
+                  <div className="mx-auto mt-[12%] flex flex-col items-center gap-[6%]">
+                    <span className="h-1.5 w-12 rounded-full" style={{ backgroundColor: card.accent }} />
+                    <span className="h-2 w-16 rounded-full" style={{ backgroundColor: card.fg }} />
+                    <span className="h-2 w-10 rounded-full" style={{ backgroundColor: card.fg, opacity: 0.6 }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
 
         <ChatCard
@@ -565,6 +601,14 @@ function ChatCard({
   onToggleLocale: (code: string) => void;
 }) {
   const { t } = useT();
+  const draftRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Focus the description box on desktop so users can start typing right away.
+  React.useEffect(() => {
+    if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+      draftRef.current?.focus();
+    }
+  }, []);
 
   return (
     <section className="mx-auto max-w-3xl">
@@ -692,6 +736,7 @@ function ChatCard({
                 <Paperclip className="h-4 w-4" />
               </Button>
               <Textarea
+                ref={draftRef}
                 value={draft}
                 onChange={(event) => onDraftChange(event.target.value)}
                 onKeyDown={(event) => {

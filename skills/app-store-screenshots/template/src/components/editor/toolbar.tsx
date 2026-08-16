@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Check,
   Cloud,
+  Command,
   Download,
   FileText,
   Home,
@@ -45,6 +46,7 @@ type Props = {
   activeProjectId: string | null;
   onSwitchProject: (id: string) => void;
   onCreateProject: () => void;
+  onOpenPalette: () => void;
   onRenameProject: (id: string, name: string) => void;
   onDuplicateProject: (id: string) => void;
   onDeleteProject: (id: string) => void;
@@ -110,6 +112,20 @@ export function Toolbar(props: Props) {
         disabled={props.busy}
       >
         <Home className="h-4 w-4" />
+      </Button>
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-8 gap-1 px-2 text-xs text-muted-foreground"
+        onClick={props.onOpenPalette}
+        title={t("toolbar.commands")}
+        aria-label={t("toolbar.commands")}
+        disabled={props.busy}
+      >
+        <Command className="h-3.5 w-3.5" />
+        K
       </Button>
 
       <ProjectSwitcher
