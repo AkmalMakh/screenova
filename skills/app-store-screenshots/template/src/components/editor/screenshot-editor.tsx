@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import JSZip from "jszip";
 import { toJpeg, toPng } from "html-to-image";
 import {
+  BoxSelect,
   Check,
   Eye,
   EyeOff,
@@ -1201,6 +1202,8 @@ function Editor() {
               selectedElement={selectedElement}
               tool={canvasTool}
               onToolChange={setCanvasTool}
+              selectedIds={selectedSlideIds}
+              onSelectedIdsChange={setSelectedSlideIds}
               onScreenOffsetCommit={(slideId, offset) =>
                 patchSlide(slideId, { canvasOffset: offset ?? undefined })
               }
@@ -1278,6 +1281,18 @@ function Editor() {
             title={t("toolbar.toolSelect")}
           >
             <MousePointer2 className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant={canvasTool === "marquee" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-9 w-9 rounded-sm"
+            onClick={() => setCanvasTool("marquee")}
+            aria-pressed={canvasTool === "marquee"}
+            aria-label={t("toolbar.toolMarquee")}
+            title={t("toolbar.toolMarquee")}
+          >
+            <BoxSelect className="h-4 w-4" />
           </Button>
           <Button
             type="button"

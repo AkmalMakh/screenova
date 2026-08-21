@@ -141,6 +141,8 @@ type DeckCanvasProps = {
   /** Workspace-only per-screen positions (canvas px). Honored in isolated
       mode only — a connected canvas is one continuous artboard. */
   offsets?: Record<string, { x: number; y: number } | undefined>;
+  /** Screens marked by the marquee tool — shown with a selection ring. */
+  selectedScreenIds?: ReadonlySet<string>;
 };
 
 // ---------- Editable text helpers ----------
@@ -615,6 +617,7 @@ export function DeckCanvas({
   hideEmpty,
   showGuides = false,
   offsets,
+  selectedScreenIds,
 }: DeckCanvasProps) {
   const { cW, cH } = getCanvas(device, orientation);
   const totalW = Math.max(1, slides.length) * cW;
@@ -693,7 +696,15 @@ export function DeckCanvas({
                 boundsH={cH}
                 allowCrossScreen={false}
               />
-              {showGuides && <ScreenGuide cW={cW} cH={cH} index={index} active={active} />}
+              {showGuides && (
+                <ScreenGuide
+                  cW={cW}
+                  cH={cH}
+                  index={index}
+                  active={active}
+                  selected={!!selectedScreenIds?.has(slide.id)}
+                />
+              )}
             </div>
           );
         }
@@ -716,7 +727,15 @@ export function DeckCanvas({
             }}
           >
             <SlideBackground slide={slide} cW={cW} cH={cH} theme={theme} />
-            {showGuides && <ScreenGuide cW={cW} cH={cH} index={index} active={active} />}
+            {showGuides && (
+              <ScreenGuide
+                cW={cW}
+                cH={cH}
+                index={index}
+                active={active}
+                selected={!!selectedScreenIds?.has(slide.id)}
+              />
+            )}
           </div>
         );
       })}
@@ -827,12 +846,21 @@ function ScreenGuide({
   cH,
   index,
   active,
+  selected = false,
 }: {
   cW: number;
   cH: number;
   index: number;
   active: boolean;
+  selected?: boolean;
 }) {
+  // Workspace accent = systemBlue (--primary), matching the app chrome.
+  const emphasized = active || selected;
+  const ring = active
+    ? "rgba(0, 113, 230, 0.95)"
+    : selected
+      ? "rgba(0, 113, 230, 0.7)"
+      : "rgba(15, 23, 42, 0.22)";
   return (
     <div
       aria-hidden
@@ -840,13 +868,13 @@ function ScreenGuide({
         position: "absolute",
         inset: 0,
         pointerEvents: "none",
-        outline: `${active ? Math.max(4, cW * 0.003) : Math.max(2, cW * 0.0015)}px solid ${
-          active ? "rgba(91, 124, 250, 0.95)" : "rgba(15, 23, 42, 0.22)"
-        }`,
-        outlineOffset: active ? -Math.max(4, cW * 0.003) : -Math.max(2, cW * 0.0015),
+        outline: `${emphasized ? Math.max(4, cW * 0.003) : Math.max(2, cW * 0.0015)}px solid ${ring}`,
+        outlineOffset: emphasized ? -Math.max(4, cW * 0.003) : -Math.max(2, cW * 0.0015),
         boxShadow: active
-          ? "inset 0 0 0 9999px rgba(91, 124, 250, 0.03)"
-          : "inset 0 0 0 1px rgba(255, 255, 255, 0.22)",
+          ? "inset 0 0 0 9999px rgba(0, 113, 230, 0.03)"
+          : selected
+            ? "inset 0 0 0 9999px rgba(0, 113, 230, 0.06)"
+            : "inset 0 0 0 1px rgba(255, 255, 255, 0.22)",
       }}
     >
       <div
@@ -856,7 +884,7 @@ function ScreenGuide({
           top: cH * 0.024,
           borderRadius: cW * 0.018,
           padding: `${cH * 0.006}px ${cW * 0.018}px`,
-          background: active ? "rgba(91, 124, 250, 0.92)" : "rgba(15, 23, 42, 0.72)",
+          background: emphasized ? "rgba(0, 113, 230, 0.92)" : "rgba(15, 23, 42, 0.72)",
           color: "white",
           fontSize: Math.max(24, cW * 0.022),
           lineHeight: 1,

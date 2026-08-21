@@ -14,7 +14,7 @@ import type {
 } from "@/lib/types";
 import { DeckCanvas, getCanvas } from "./slide-canvas";
 
-export type CanvasTool = "select" | "pan";
+export type CanvasTool = "select" | "marquee" | "pan";
 
 type Offset = { x: number; y: number };
 
@@ -31,6 +31,10 @@ type Props = {
   selectedElement: SelectedElement | null;
   tool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
+  /** Screens marked on the canvas — shared with the AI "selected screens"
+      scope and the Screens panel checkmarks. */
+  selectedIds: ReadonlySet<string>;
+  onSelectedIdsChange: (ids: Set<string>) => void;
   onActiveSlideChange: (id: string) => void;
   onLabelChange: (slide: Slide, v: string) => void;
   onHeadlineChange: (slide: Slide, v: string) => void;
@@ -62,6 +66,8 @@ export function PreviewStage({
   selectedElement,
   tool,
   onToolChange,
+  selectedIds,
+  onSelectedIdsChange,
   onActiveSlideChange,
   onLabelChange,
   onHeadlineChange,
@@ -80,9 +86,16 @@ export function PreviewStage({
   const [zoom, setZoom] = React.useState(1);
   const [spaceHeld, setSpaceHeld] = React.useState(false);
   const [panning, setPanning] = React.useState(false);
-  // Live position of the screen being dragged — committed on release so the
+  // Live positions of the screens being dragged — committed on release so the
   // project store isn't written 60 times a second.
-  const [liveDrag, setLiveDrag] = React.useState<{ id: string; offset: Offset } | null>(null);
+  const [liveDrag, setLiveDrag] = React.useState<Record<string, Offset> | null>(null);
+  // Marquee rectangle in container coords while the mark tool is dragging.
+  const [marquee, setMarquee] = React.useState<{
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+  } | null>(null);
   const pendingZoomAnchorRef = React.useRef<{
     pointX: number;
     pointY: number;
@@ -101,9 +114,26 @@ export function PreviewStage({
     for (const slide of slides) {
       if (slide.canvasOffset) map[slide.id] = slide.canvasOffset;
     }
-    if (liveDrag) map[liveDrag.id] = liveDrag.offset;
+    if (liveDrag) Object.assign(map, liveDrag);
     return map;
   }, [slides, liveDrag]);
+
+  // Screen rectangles in client coordinates — the marquee's hit-test space.
+  const screenRects = React.useCallback(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return [];
+    const rect = wrap.getBoundingClientRect();
+    return slides.map((slide, index) => {
+      const off = (!connectedCanvas && slide.canvasOffset) || { x: 0, y: 0 };
+      return {
+        id: slide.id,
+        left: rect.left + (index * cW + off.x) * scale,
+        top: rect.top + off.y * scale,
+        width: cW * scale,
+        height: cH * scale,
+      };
+    });
+  }, [slides, connectedCanvas, cW, cH, scale]);
 
   React.useEffect(() => {
     const el = containerRef.current;
@@ -181,8 +211,32 @@ export function PreviewStage({
         setSpaceHeld(true);
       } else if (event.key === "v" || event.key === "V") {
         onToolChange("select");
+      } else if (event.key === "m" || event.key === "M") {
+        onToolChange("marquee");
       } else if (event.key === "h" || event.key === "H") {
         onToolChange("pan");
+      } else if (event.key === "Escape") {
+        if (selectedIds.size) onSelectedIdsChange(new Set());
+      } else if (
+        event.key.startsWith("Arrow") &&
+        selectedIds.size &&
+        !connectedCanvas &&
+        editable
+      ) {
+        // Nudge the marked screens: 16 canvas px, Shift = 64.
+        event.preventDefault();
+        const step = event.shiftKey ? 64 : 16;
+        const dx = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
+        const dy = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0;
+        for (const slide of slides) {
+          if (!selectedIds.has(slide.id)) continue;
+          const base = slide.canvasOffset ?? { x: 0, y: 0 };
+          const next = {
+            x: Math.min(cW * 1.5, Math.max(-cW * 1.5, base.x + dx)),
+            y: Math.min(cH, Math.max(-cH, base.y + dy)),
+          };
+          onScreenOffsetCommit(slide.id, next.x === 0 && next.y === 0 ? null : next);
+        }
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {
@@ -194,7 +248,17 @@ export function PreviewStage({
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [onToolChange]);
+  }, [
+    onToolChange,
+    selectedIds,
+    onSelectedIdsChange,
+    connectedCanvas,
+    editable,
+    slides,
+    cW,
+    cH,
+    onScreenOffsetCommit,
+  ]);
 
   React.useEffect(() => {
     if (suppressNextActiveScreenPanRef.current) {
@@ -222,13 +286,13 @@ export function PreviewStage({
     [activeSlideId, onActiveSlideChange],
   );
 
-  // One pointer handler covers both gestures: pan (hand tool, Space, or
-  // middle button) and screen dragging (select tool, isolated mode).
+  // One pointer handler covers all three gestures: pan (hand tool, Space,
+  // middle button), marquee marking, and screen dragging (single or group).
   const onPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const scroller = scrollerRef.current;
-      const wrap = wrapRef.current;
-      if (!scroller || !wrap) return;
+      const container = containerRef.current;
+      if (!scroller || !container) return;
 
       const pan = panMode || event.button === 1;
       if (!pan && event.button !== 0) return;
@@ -254,22 +318,120 @@ export function PreviewStage({
         return;
       }
 
-      // Screen dragging: only in isolated mode (a connected panorama is one
-      // artboard), and never from an element the user is editing.
-      if (!editable || connectedCanvas || tool !== "select") return;
+      // Mark tool: rubber-band over the canvas; screens touching the band
+      // become the selection. Shift adds to what's already marked.
+      if (tool === "marquee") {
+        event.preventDefault();
+        const containerRect = container.getBoundingClientRect();
+        const startX = event.clientX;
+        const startY = event.clientY;
+        const additive = event.shiftKey ? new Set(selectedIds) : new Set<string>();
+        const rects = screenRects();
+        let moved = false;
+
+        const apply = (clientX: number, clientY: number) => {
+          const left = Math.min(startX, clientX);
+          const top = Math.min(startY, clientY);
+          const right = Math.max(startX, clientX);
+          const bottom = Math.max(startY, clientY);
+          const next = new Set(additive);
+          for (const rect of rects) {
+            const hit =
+              rect.left < right &&
+              rect.left + rect.width > left &&
+              rect.top < bottom &&
+              rect.top + rect.height > top;
+            if (hit) next.add(rect.id);
+          }
+          onSelectedIdsChange(next);
+          setMarquee({
+            x0: left - containerRect.left,
+            y0: top - containerRect.top,
+            x1: right - containerRect.left,
+            y1: bottom - containerRect.top,
+          });
+        };
+
+        const onMove = (move: PointerEvent) => {
+          if (!moved && Math.hypot(move.clientX - startX, move.clientY - startY) < DRAG_THRESHOLD) {
+            return;
+          }
+          moved = true;
+          apply(move.clientX, move.clientY);
+        };
+        const onUp = (up: PointerEvent) => {
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+          setMarquee(null);
+          if (!moved) {
+            // A plain click marks the screen under the cursor (or clears).
+            const hit = [...rects].reverse().find(
+              (rect) =>
+                up.clientX >= rect.left &&
+                up.clientX <= rect.left + rect.width &&
+                up.clientY >= rect.top &&
+                up.clientY <= rect.top + rect.height,
+            );
+            const next = new Set(additive);
+            if (hit) {
+              if (event.shiftKey && selectedIds.has(hit.id)) next.delete(hit.id);
+              else next.add(hit.id);
+            }
+            onSelectedIdsChange(next);
+          }
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        return;
+      }
+
+      // Select tool. Never steal the pointer from an element being edited.
       const target = event.target as HTMLElement;
       if (target.closest(".rnd-editable, [contenteditable], textarea, input, button")) return;
       const screenEl = target.closest<HTMLElement>("[data-screen-id]");
       const slideId = screenEl?.dataset.screenId;
-      if (!slideId) return;
-      const slide = slides.find((item) => item.id === slideId);
-      if (!slide) return;
+
+      // Click on empty canvas clears the marked set.
+      if (!slideId) {
+        if (selectedIds.size) {
+          const sx = event.clientX;
+          const sy = event.clientY;
+          const onUp = (up: PointerEvent) => {
+            window.removeEventListener("pointerup", onUp);
+            if (Math.hypot(up.clientX - sx, up.clientY - sy) < DRAG_THRESHOLD) {
+              onSelectedIdsChange(new Set());
+            }
+          };
+          window.addEventListener("pointerup", onUp);
+        }
+        return;
+      }
+
+      // Shift+click toggles a screen in and out of the marked set.
+      if (event.shiftKey) {
+        const next = new Set(selectedIds);
+        if (next.has(slideId)) next.delete(slideId);
+        else next.add(slideId);
+        onSelectedIdsChange(next);
+        return;
+      }
+
+      // Screen dragging: isolated mode only (a connected panorama is one
+      // artboard). Dragging a marked screen moves the whole marked group.
+      if (!editable || connectedCanvas) return;
+      const groupIds =
+        selectedIds.has(slideId) && selectedIds.size > 0 ? [...selectedIds] : [slideId];
+      const bases = new Map<string, Offset>();
+      for (const id of groupIds) {
+        const slide = slides.find((item) => item.id === id);
+        if (slide) bases.set(id, slide.canvasOffset ?? { x: 0, y: 0 });
+      }
+      if (!bases.size) return;
 
       const startX = event.clientX;
       const startY = event.clientY;
-      const base = slide.canvasOffset ?? { x: 0, y: 0 };
       let moved = false;
-      let last = base;
+      let last: Record<string, Offset> = {};
 
       const onMove = (move: PointerEvent) => {
         const dx = (move.clientX - startX) / scale;
@@ -278,17 +440,23 @@ export function PreviewStage({
           return;
         }
         moved = true;
-        last = {
-          x: Math.min(cW * 1.5, Math.max(-cW * 1.5, base.x + dx)),
-          y: Math.min(cH, Math.max(-cH, base.y + dy)),
-        };
-        setLiveDrag({ id: slideId, offset: last });
+        const next: Record<string, Offset> = {};
+        for (const [id, base] of bases) {
+          next[id] = {
+            x: Math.min(cW * 1.5, Math.max(-cW * 1.5, base.x + dx)),
+            y: Math.min(cH, Math.max(-cH, base.y + dy)),
+          };
+        }
+        last = next;
+        setLiveDrag(next);
       };
       const onUp = () => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
         if (moved) {
-          onScreenOffsetCommit(slideId, last.x === 0 && last.y === 0 ? null : last);
+          for (const [id, offset] of Object.entries(last)) {
+            onScreenOffsetCommit(id, offset.x === 0 && offset.y === 0 ? null : offset);
+          }
         }
         setLiveDrag(null);
       };
@@ -297,9 +465,12 @@ export function PreviewStage({
     },
     [
       panMode,
+      tool,
+      selectedIds,
+      onSelectedIdsChange,
+      screenRects,
       editable,
       connectedCanvas,
-      tool,
       slides,
       scale,
       cW,
@@ -308,7 +479,8 @@ export function PreviewStage({
     ],
   );
 
-  const cursor = panning ? "grabbing" : panMode ? "grab" : undefined;
+  const stageEditable = editable && !panMode && tool !== "marquee";
+  const cursor = panning ? "grabbing" : panMode ? "grab" : tool === "marquee" ? "crosshair" : undefined;
 
   return (
     <div
@@ -351,13 +523,14 @@ export function PreviewStage({
                 appName={appName}
                 appIcon={appIcon}
                 connectedCanvas={connectedCanvas}
-                editable={editable && !panMode}
+                editable={stageEditable}
                 previewScale={scale}
                 selectedElement={selectedElement}
                 activeSlideId={activeSlide?.id || null}
                 showGuides
                 offsets={offsets}
-                edit={editable && !panMode ? {
+                selectedScreenIds={selectedIds}
+                edit={stageEditable ? {
                   onLabelChange: (slideId, value) => {
                     const slide = slides.find((s) => s.id === slideId);
                     if (slide) onLabelChange(slide, value);
@@ -376,6 +549,19 @@ export function PreviewStage({
           </div>
         </div>
       </div>
+
+      {marquee && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute z-20 rounded-xs border border-primary/70 bg-primary/10"
+          style={{
+            left: marquee.x0,
+            top: marquee.y0,
+            width: marquee.x1 - marquee.x0,
+            height: marquee.y1 - marquee.y0,
+          }}
+        />
+      )}
 
       {/* Context HUD lives bottom-left: the floating design chat owns top-left. */}
       <div className="pointer-events-none absolute bottom-4 left-4 hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-caption text-muted-foreground shadow-sm backdrop-blur-md md:flex">
