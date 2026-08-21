@@ -363,7 +363,7 @@ function Home() {
             </span>
             <span className="text-sm font-semibold tracking-tight">{t("home.brand")}</span>
           </button>
-          <span className="hidden text-[11px] text-muted-foreground sm:block">
+          <span className="hidden text-caption text-muted-foreground sm:block">
             {t("home.tagline")}
           </span>
         </div>
@@ -371,7 +371,7 @@ function Home() {
 
       <main className="mx-auto max-w-5xl px-4 pb-16">
         <section className="mx-auto max-w-3xl pb-10 pt-16 text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-white/70 px-3.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-white/70 px-3.5 py-1 text-caption font-medium text-muted-foreground shadow-sm">
             <Sparkles className="h-3 w-3 text-primary" />
             {t("home.badge")}
           </span>
@@ -380,7 +380,7 @@ function Home() {
             <br />
             {t("home.title2")}
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-pretty text-[15px] leading-relaxed text-muted-foreground">
+          <p className="mx-auto mt-5 max-w-xl text-pretty text-subhead leading-relaxed text-muted-foreground">
             {t("home.subtitle")}
           </p>
 
@@ -493,7 +493,7 @@ function Home() {
                     )}
                   </Button>
                 </div>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                <p className="text-caption leading-relaxed text-muted-foreground">
                   {t("home.linkHint")}
                 </p>
                 {linkError && <p className="text-xs text-destructive">{linkError}</p>}
@@ -531,12 +531,12 @@ function Home() {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  className="rounded-full border border-border/80 bg-white/70 px-3 py-1 text-[11px] font-medium text-foreground shadow-sm transition-[background-color,transform] duration-150 ease-[var(--ease-out)] hover:bg-accent active:scale-[0.97]"
+                  className="rounded-full border border-border/80 bg-white/70 px-3 py-1 text-caption font-medium text-foreground shadow-sm transition-[background-color,transform] duration-150 ease-[var(--ease-out)] hover:bg-accent active:scale-[0.97]"
                   onClick={startBlank}
                 >
                   {t("home.blankCardTitle")}
                 </button>
-                <span className="text-[11px] text-muted-foreground">{t("home.recentHint")}</span>
+                <span className="text-caption text-muted-foreground">{t("home.recentHint")}</span>
               </div>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -549,7 +549,7 @@ function Home() {
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{project.name}</p>
-                    <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <p className="mt-0.5 flex items-center gap-1 text-caption text-muted-foreground">
                       <Clock className="h-3 w-3" />
                       {formatUpdatedAt(project.updatedAt, t)}
                     </p>
@@ -621,7 +621,7 @@ function ChatCard({
           </span>
           <div>
             <h2 className="text-[13px] font-semibold tracking-tight">{t("home.chatTitle")}</h2>
-            <p className="text-[11px] text-muted-foreground">{t("home.chatSubtitle")}</p>
+            <p className="text-caption text-muted-foreground">{t("home.chatSubtitle")}</p>
           </div>
         </div>
 
@@ -706,10 +706,10 @@ function ChatCard({
                 ))}
               </div>
             )}
-            {attachError && <p className="mb-1.5 text-[11px] text-destructive">{attachError}</p>}
+            {attachError && <p className="mb-1.5 text-caption text-destructive">{attachError}</p>}
 
             <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-              <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-caption font-medium text-muted-foreground">
                 {t("home.device")}
                 <DevicePicker
                   value={device}
@@ -718,7 +718,7 @@ function ChatCard({
                   disabled={loading}
                 />
               </span>
-              <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-caption font-medium text-muted-foreground">
                 {t("home.languages")}
                 <LocalePicker selected={locales} onToggle={onToggleLocale} disabled={loading} />
               </span>
@@ -816,11 +816,11 @@ function DeckPreview({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-semibold">{t("home.deckTitle")}</h2>
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-caption text-muted-foreground">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: theme.accent }} />
             {t("home.deckTheme", { theme: theme.name })}
           </span>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-caption text-muted-foreground">
             {t("home.deckScreens", { count: deck.slides.length })}
           </span>
         </div>
@@ -879,7 +879,7 @@ function DeckPreview({
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
-        <p className="mt-2 text-[10px] text-muted-foreground">{t("home.languagesHint")}</p>
+        <p className="mt-2 text-caption text-muted-foreground">{t("home.languagesHint")}</p>
       </div>
     </div>
   );
@@ -938,7 +938,7 @@ function LookupResult({
                 href={app.trackViewUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex shrink-0 items-center gap-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
                 title={t("home.viewOnAppStore")}
                 aria-label={t("home.viewOnAppStore")}
               >
@@ -949,7 +949,7 @@ function LookupResult({
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {[app.sellerName, app.primaryGenreName].filter(Boolean).join(" · ")}
           </p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-caption text-muted-foreground">
             {app.averageUserRating > 0 && (
               <span className="inline-flex items-center gap-1">
                 <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
@@ -983,7 +983,7 @@ function LookupResult({
               />
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             {t("home.screenshotCount", { count: previewScreens.length })}
           </p>
         </div>
@@ -996,7 +996,7 @@ function LookupResult({
       <div className="space-y-1.5">
         <Label className="text-xs">{t("home.languages")}</Label>
         <LocalePicker selected={locales} onToggle={onToggleLocale} disabled={busy} />
-        <p className="text-[10px] text-muted-foreground">{t("home.languagesHint")}</p>
+        <p className="text-caption text-muted-foreground">{t("home.languagesHint")}</p>
       </div>
 
       {importError && <p className="text-xs text-destructive">{importError}</p>}
@@ -1113,7 +1113,7 @@ function DevicePicker({
           type="button"
           size="sm"
           variant={value === device ? "default" : "outline"}
-          className="h-7 rounded-full px-2.5 text-[10px]"
+          className="h-8 rounded-md px-3 text-footnote"
           aria-pressed={value === device}
           disabled={disabled}
           onClick={() => onChange(device)}
@@ -1144,7 +1144,7 @@ function LocalePicker({
             type="button"
             size="sm"
             variant={on ? "default" : "outline"}
-            className="h-7 rounded-full px-2.5 text-[10px]"
+            className="h-8 rounded-md px-3 text-footnote"
             aria-pressed={on}
             disabled={disabled}
             onClick={() => onToggle(language.code)}
