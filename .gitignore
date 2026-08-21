@@ -56,3 +56,6 @@ skills/app-store-screenshots/template/public/screenshots/**/*.png
 *.temp
 .cache/
 .gstack/
+
+# Graphify knowledge-graph output (generated)
+graphify-out/

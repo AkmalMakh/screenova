@@ -1,7 +1,9 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: ["class"],
+  // Dark mode is scoped to the Screenova marketing landing (`.screenova-dark`
+  // on the landing wrapper) so the editor and app pages keep their light theme.
+  darkMode: ["selector", ".screenova-dark"],
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     container: { center: true, padding: "2rem", screens: { "2xl": "1400px" } },

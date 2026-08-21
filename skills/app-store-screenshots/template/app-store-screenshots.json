@@ -1,16 +1,18 @@
 {
   "version": 1,
-  "activeId": "p_msuhpa6s_j",
+  "activeId": "p_msubwbzw_i",
   "order": [
+    "p_msvrn4rq_i",
     "p_msubwbzw_i",
     "p_msubwluk_i",
     "p_msue24g8_j",
     "p_msuhpa6s_j",
     "p_msvbkq6s_i",
-    "p_msvcx8pq_i"
+    "p_msvcx8pq_i",
+    "p_msvsnxco_i"
   ],
   "projects": {
-    "p_msubwbzw_i": {
+    "p_msvrn4rq_i": {
       "schemaVersion": 4,
       "appName": "MoteCalendar",
       "themeId": "mote-calendar",
@@ -24,6 +26,1042 @@
         "es"
       ],
       "locale": "en",
+      "device": "iphone",
+      "orientation": "portrait",
+      "appIcon": "",
+      "slidesByDevice": {
+        "iphone": [
+          {
+            "id": "mote_b_01_all_in_one",
+            "layout": "device-bottom",
+            "label": {
+              "en": "ALL-IN-ONE CALENDAR",
+              "ko": "올인원 캘린더",
+              "fr": "CALENDRIER TOUT-EN-UN",
+              "de": "ALLES-IN-EINEM KALENDER",
+              "ru": "КАЛЕНДАРЬ ВСЕ В ОДНОМ",
+              "es": "CALENDARIO TODO EN UNO"
+            },
+            "headline": {
+              "en": "Your whole life.\nOne calendar.",
+              "ko": "삶 전체를\n하나의 캘린더에",
+              "fr": "Toute votre vie.\nUn calendrier.",
+              "de": "Dein ganzes Leben.\nEin Kalender.",
+              "ru": "Вся жизнь в Одном календаре.",
+              "es": "Toda tu vida.\nUn calendario."
+            },
+            "screenshot": "/screenshots/localized/{locale}/calendar-month-work-tasks-light.png",
+            "transforms": {
+              "caption": {
+                "x": 97.58324998041519,
+                "y": 89.24446508301905,
+                "width": 1105,
+                "height": 803,
+                "rotation": 0,
+                "zIndex": 4
+              }
+            },
+            "textElements": [
+              {
+                "id": "caption",
+                "text": {
+                  "en": "Tasks, money, diary, cycle, shifts - finally in one place",
+                  "ko": "할 일, 돈, 일기, 생리, 교대를 드디어 한곳에",
+                  "fr": "Tâches, argent, journal, cycle, services - enfin au même endroit",
+                  "de": "Aufgaben, Geld, Tagebuch, Zyklus, Schichten - endlich an einem Ort",
+                  "ru": "Задачи, деньги, дневник, цикл, смены - наконец в одном месте",
+                  "es": "Tareas, dinero, diario, ciclo y turnos - por fin en un solo lugar"
+                },
+                "transform": {
+                  "x": 122.00558659217877,
+                  "y": 538.0837988826818,
+                  "width": 1084,
+                  "height": 118,
+                  "rotation": 0,
+                  "zIndex": 7
+                },
+                "fontSize": 46,
+                "fontWeight": 600,
+                "color": "#3A3A3C",
+                "align": "center"
+              },
+              {
+                "id": "work",
+                "text": {
+                  "en": "Work",
+                  "ko": "업무",
+                  "fr": "Pro",
+                  "de": "Arbeit",
+                  "ru": "Работа",
+                  "es": "Trabajo"
+                },
+                "transform": {
+                  "x": 206.0000497134327,
+                  "y": 656.0000038647087,
+                  "width": 254,
+                  "height": 78,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 47,
+                "fontWeight": 800,
+                "color": "#4361EE",
+                "align": "center"
+              },
+              {
+                "id": "personal",
+                "text": {
+                  "en": "Personal",
+                  "ko": "개인",
+                  "fr": "Perso",
+                  "de": "Privat",
+                  "ru": "Личное",
+                  "es": "Personal"
+                },
+                "transform": {
+                  "x": 502.0391074902368,
+                  "y": 656.0000038647087,
+                  "width": 238,
+                  "height": 78,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 47,
+                "fontWeight": 800,
+                "color": "#34C759",
+                "align": "center"
+              },
+              {
+                "id": "repeat",
+                "text": {
+                  "en": "Both",
+                  "ko": "반복",
+                  "fr": "Répéter",
+                  "de": "Wiederholt",
+                  "ru": "Повторы",
+                  "es": "Repite"
+                },
+                "transform": {
+                  "x": 733.9999093921613,
+                  "y": 656.0000038647087,
+                  "width": 334,
+                  "height": 78,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 47,
+                "fontWeight": 800,
+                "color": "#FF9500",
+                "align": "center"
+              },
+              {
+                "id": "b_icon_strip",
+                "text": {
+                  "en": "Tasks  Money  Diary  Cycle  Shifts  Wellness",
+                  "ko": "할 일  돈  일기  생리  교대  웰니스",
+                  "fr": "Tâches  Argent  Journal  Cycle  Services  Bien-être",
+                  "de": "Aufgaben  Geld  Tagebuch  Zyklus  Schichten  Wellness",
+                  "ru": "Задачи  Деньги  Дневник  Цикл  Смены  Здоровье",
+                  "es": "Tareas  Dinero  Diario  Ciclo  Turnos  Bienestar"
+                },
+                "transform": {
+                  "x": 93.96648044692736,
+                  "y": 437.70391061452574,
+                  "width": 1084,
+                  "height": 84,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 30,
+                "fontWeight": 800,
+                "color": "#4361EE",
+                "align": "center"
+              }
+            ]
+          },
+          {
+            "id": "s_mqns8h57_i",
+            "layout": "hero",
+            "label": {
+              "en": "EFFORTLESS CAPTURE",
+              "ko": "쉬운 입력",
+              "fr": "AJOUT SANS EFFORT",
+              "de": "MÜHELOS ERFASSEN",
+              "ru": "ЛЕГКО ДОБАВЛЯТЬ",
+              "es": "CAPTURA SIN ESFUERZO"
+            },
+            "headline": {
+              "en": "Adding things\nis effortless",
+              "ko": "추가하는 일이\n쉬워져요",
+              "fr": "Ajouter devient\nsimple",
+              "de": "Eintragen geht\nganz leicht",
+              "ru": "Добавлять\nочень легко",
+              "es": "Añadir cosas\nes fácil"
+            },
+            "screenshot": "/screenshots/localized/{locale}/voice-auto-file-result-sheet.png",
+            "transforms": {
+              "caption": {
+                "x": 96,
+                "y": 118,
+                "width": 1128,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 6
+              },
+              "device": {
+                "x": 244.98882681564248,
+                "y": 815.9944134078219,
+                "width": 814,
+                "height": 1658,
+                "rotation": 0,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "s_mqns8h57_j",
+                "text": {
+                  "en": "Or just say it - MoteCalendar files it for you automatically",
+                  "ko": "그냥 말해도 MoteCalendar가 자동으로 정리해요",
+                  "fr": "Ou dites-le simplement - MoteCalendar le classe automatiquement",
+                  "de": "Oder sag es einfach - MoteCalendar sortiert es automatisch ein",
+                  "ru": "Или просто скажите - MoteCalendar сам все разложит",
+                  "es": "O solo dilo - MoteCalendar lo archiva automáticamente"
+                },
+                "transform": {
+                  "x": 118,
+                  "y": 478,
+                  "width": 1084,
+                  "height": 118,
+                  "rotation": 0,
+                  "zIndex": 7
+                },
+                "fontSize": 47,
+                "fontWeight": 600,
+                "color": "#3A3A3C",
+                "align": "center"
+              },
+              {
+                "id": "s_mqns8h57_k",
+                "text": {
+                  "en": "Voice -> Task",
+                  "ko": "음성 -> 할 일",
+                  "fr": "Voix -> Tâche",
+                  "de": "Stimme -> Aufgabe",
+                  "ru": "Голос -> Задача",
+                  "es": "Voz -> Tarea"
+                },
+                "transform": {
+                  "x": 248.128446854942,
+                  "y": 652.0167740126947,
+                  "width": 804,
+                  "height": 92,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 75,
+                "fontWeight": 800,
+                "color": "#4361EE",
+                "align": "center"
+              }
+            ]
+          },
+          {
+            "id": "s_mqns8key_l",
+            "layout": "device-bottom",
+            "label": {
+              "en": "PLAN IN COLOR",
+              "ko": "색으로 계획하기",
+              "fr": "PLANIFIEZ EN COULEURS",
+              "de": "PLANEN MIT FARBEN",
+              "ru": "ПЛАНИРУЙТЕ В ЦВЕТЕ",
+              "es": "PLANIFICA CON COLORES"
+            },
+            "headline": {
+              "en": "Plan your day\nin color",
+              "ko": "하루를 색으로\n계획하세요",
+              "fr": "Planifiez votre journée\nen couleurs",
+              "de": "Plane deinen Tag\nmit Farben",
+              "ru": "Ярко планируйте свой день",
+              "es": "Planifica tu día\ncon colores"
+            },
+            "screenshot": "/screenshots/uploaded/7a54a8cbbf52a852.png",
+            "transforms": {
+              "caption": {
+                "x": 97.58883254531348,
+                "y": 81.23329608931189,
+                "width": 1109,
+                "height": 330,
+                "rotation": 0,
+                "zIndex": 4
+              },
+              "device": {
+                "x": 153.18224783861672,
+                "y": 745.68,
+                "width": 1013.6355043227666,
+                "height": 2064.96,
+                "rotation": 0,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "s_mqnsa3e1_n",
+                "text": {
+                  "en": "Color-coded tasks, repeats, reminders,\nwork vs personal",
+                  "ko": "색으로 구분한 할 일, 반복, 알림,\n업무와 개인 일정",
+                  "fr": "Tâches en couleur, répétitions, rappels,\nvie pro et perso",
+                  "de": "Farbcodierte Aufgaben, Wiederholungen, Erinnerungen,\nBeruf und Privatleben",
+                  "ru": "Цветные задачи, повторы, напоминания,\nработа и личное",
+                  "es": "Tareas por colores, repeticiones, recordatorios,\ntrabajo y vida personal"
+                },
+                "transform": {
+                  "x": 81.38212265389674,
+                  "y": 379.4091606029799,
+                  "width": 1102,
+                  "height": 344,
+                  "rotation": 0,
+                  "zIndex": 6
+                },
+                "fontSize": 51,
+                "fontWeight": 800,
+                "align": "center"
+              }
+            ]
+          },
+          {
+            "id": "mote_b_05_money",
+            "layout": "two-devices",
+            "label": {
+              "en": "MONEY CALENDAR",
+              "ko": "돈 캘린더",
+              "fr": "ARGENT AU CALENDRIER",
+              "de": "GELD IM KALENDER",
+              "ru": "ДЕНЬГИ В КАЛЕНДАРЕ",
+              "es": "DINERO EN TU CALENDARIO"
+            },
+            "headline": {
+              "en": "Money, on the\nsame calendar",
+              "ko": "돈 관리도\n같은 캘린더에서",
+              "fr": "L’argent, dans\nle même calendrier",
+              "de": "Geld im\ngleichen Kalender",
+              "ru": "Ваши финансы в одном календаре",
+              "es": "Dinero, en el\nmismo calendario"
+            },
+            "screenshot": "/screenshots/localized/{locale}/calendar-month-expense-summary.png",
+            "screenshotSecondary": "/screenshots/localized/{locale}/budget-dashboard-spending-progress.png",
+            "transforms": {
+              "caption": {
+                "x": 23.93838895192257,
+                "y": 113.99441212742545,
+                "width": 1244,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 3
+              },
+              "deviceSecondary": {
+                "x": 62,
+                "y": 890.9106145251392,
+                "width": 642,
+                "height": 1308,
+                "rotation": -5,
+                "zIndex": 1
+              },
+              "device": {
+                "x": 604.0055865921788,
+                "y": 900,
+                "width": 700,
+                "height": 1426,
+                "rotation": 4,
+                "zIndex": 2
+              }
+            },
+            "textElements": [
+              {
+                "id": "caption",
+                "text": {
+                  "en": "Track income and expenses with monthly budgets - no separate app",
+                  "ko": "수입과 지출, 월 예산까지 별도 앱 없이 관리",
+                  "fr": "Suivez revenus et dépenses avec budgets mensuels - sans autre app",
+                  "de": "Einnahmen und Ausgaben mit Monatsbudgets - ohne extra App",
+                  "ru": "Доходы, расходы и месячные бюджеты - без отдельного приложения",
+                  "es": "Registra ingresos y gastos con presupuestos mensuales - sin otra app"
+                },
+                "transform": {
+                  "x": 118,
+                  "y": 478,
+                  "width": 1084,
+                  "height": 118,
+                  "rotation": 0,
+                  "zIndex": 4
+                },
+                "fontSize": 40,
+                "fontWeight": 600,
+                "color": "#3A3A3C",
+                "align": "center"
+              },
+              {
+                "id": "s_mqnb4i4w_i",
+                "text": {
+                  "en": "Speak->Expense",
+                  "es": "Gasto",
+                  "fr": "Parler → Dépense",
+                  "de": "Sprechen → Ausgabe",
+                  "ru": "Диктуй → расход"
+                },
+                "transform": {
+                  "x": 181.74517349402103,
+                  "y": 475.5432480789404,
+                  "width": 1009,
+                  "height": 344,
+                  "rotation": 0,
+                  "zIndex": 5
+                },
+                "fontSize": 86,
+                "fontWeight": 800,
+                "align": "center"
+              },
+              {
+                "id": "s_mqnb5n5h_j",
+                "text": {
+                  "en": "today spent 2$ on coffee ",
+                  "es": "Presupuesto",
+                  "fr": "Aujourd’hui, j’ai dépensé 2 $ pour un café.",
+                  "de": "Heute habe ich 2 $ für Kaffee ausgegeben.",
+                  "ru": "Сегодня я потратил 2 $ на кофе."
+                },
+                "transform": {
+                  "x": 59.97486033519553,
+                  "y": 595.7108379888024,
+                  "width": 1242,
+                  "height": 344,
+                  "rotation": 0,
+                  "zIndex": 6
+                },
+                "fontSize": 54,
+                "fontWeight": 800,
+                "color": "#db5d1a",
+                "align": "center"
+              }
+            ]
+          },
+          {
+            "id": "mote_b_06_routines",
+            "layout": "two-devices",
+            "label": {
+              "en": "ROUTINES TOGETHER",
+              "ko": "루틴을 한눈에",
+              "fr": "ROUTINES ENSEMBLE",
+              "de": "ROUTINEN ZUSAMMEN",
+              "ru": "ВСЕ ПРИВЫЧКИ ВМЕСТЕ",
+              "es": "RUTINAS EN UNA VISTA"
+            },
+            "headline": {
+              "en": "Every routine,\none view",
+              "ko": "모든 루틴을\n한 화면에",
+              "fr": "Chaque routine,\nune vue",
+              "de": "Jede Routine,\neine Ansicht",
+              "ru": "Все привычки\nв одном виде",
+              "es": "Cada rutina,\nuna vista"
+            },
+            "screenshot": "/screenshots/localized/{locale}/cycle-calendar-period-tracker.png",
+            "screenshotSecondary": "/screenshots/localized/{locale}/shift-selection-sheet.png",
+            "transforms": {
+              "caption": {
+                "x": 96,
+                "y": 190.1005586592177,
+                "width": 1128,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 6
+              },
+              "deviceSecondary": {
+                "x": 45,
+                "y": 965,
+                "width": 650,
+                "height": 1324,
+                "rotation": -4,
+                "zIndex": 2
+              },
+              "device": {
+                "x": 610,
+                "y": 880,
+                "width": 692,
+                "height": 1410,
+                "rotation": 4,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "caption",
+                "text": {
+                  "en": "Cycle, shifts, wellness, diary - all tracked together",
+                  "ko": "생리, 교대, 웰니스, 일기를 함께 기록",
+                  "fr": "Cycle, services, bien-être, journal - tout suivi ensemble",
+                  "de": "Zyklus, Schichten, Wellness, Tagebuch - alles zusammen",
+                  "ru": "Цикл, смены, самочувствие, дневник - все вместе",
+                  "es": "Ciclo, turnos, bienestar y diario - todo junto"
+                },
+                "transform": {
+                  "x": 0.0000014646545596213564,
+                  "y": 478.00000590662296,
+                  "width": 1300,
+                  "height": 242,
+                  "rotation": 0,
+                  "zIndex": 7
+                },
+                "fontSize": 40,
+                "fontWeight": 600,
+                "color": "#3A3A3C",
+                "align": "center"
+              }
+            ]
+          },
+          {
+            "id": "mote_b_07_widgets",
+            "layout": "device-bottom",
+            "label": {
+              "en": "WIDGETS",
+              "ko": "위젯",
+              "fr": "WIDGETS",
+              "de": "WIDGETS",
+              "ru": "ВИДЖЕТЫ",
+              "es": "WIDGETS"
+            },
+            "headline": {
+              "en": "Your day,\non your home screen",
+              "ko": "홈 화면에서\n바로 확인",
+              "fr": "Votre journée\nsur l’écran d’accueil",
+              "de": "Dein Tag\nauf dem Homescreen",
+              "ru": "Ваш день\nна главном экране",
+              "es": "Tu día\nen la pantalla de inicio"
+            },
+            "screenshot": "/screenshots/shared/home-screen-widget-preview.png",
+            "transforms": {
+              "caption": {
+                "x": 81.56648044692884,
+                "y": 133.3059217877095,
+                "width": 1108.8,
+                "height": 803.0400000000001,
+                "rotation": 0,
+                "zIndex": 4
+              },
+              "device": {
+                "x": 149.1767632410938,
+                "y": 744.6799894896949,
+                "width": 1014,
+                "height": 2066,
+                "rotation": 0,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "s_mqnbapcq_j",
+                "text": {
+                  "en": "Glanceable widgets with real calendar colors",
+                  "ko": "실제 캘린더 색을 담은 위젯",
+                  "fr": "Des widgets lisibles avec les vraies couleurs du calendrier",
+                  "de": "Übersichtliche Widgets mit echten Kalenderfarben",
+                  "ru": "Наглядные виджеты с реальными цветами календаря",
+                  "es": "Widgets claros con los colores reales del calendario"
+                },
+                "transform": {
+                  "x": 113.42671644753864,
+                  "y": 447.5041114841383,
+                  "width": 1065,
+                  "height": 344,
+                  "rotation": 0,
+                  "zIndex": 6
+                },
+                "fontSize": 40,
+                "fontWeight": 800,
+                "align": "center"
+              }
+            ]
+          },
+          {
+            "id": "mote_b_08_sync",
+            "layout": "two-devices",
+            "label": {
+              "en": "SYNC & TRUST",
+              "ko": "동기화와 신뢰",
+              "fr": "SYNC & CONFIANCE",
+              "de": "SYNC & VERTRAUEN",
+              "ru": "СИНХРОНИЗАЦИЯ",
+              "es": "SYNC Y CONFIANZA"
+            },
+            "headline": {
+              "en": "Synced everywhere,\ninstantly",
+              "ko": "모든 기기에서\n즉시 동기화",
+              "fr": "Synchronisé partout,\ninstantanément",
+              "de": "Überall synchron,\nsofort",
+              "ru": "Синхронизация\nмгновенно",
+              "es": "Sincronizado\nal instante"
+            },
+            "screenshot": "/screenshots/localized/en/settings-cloud-sync-panel-dark.png",
+            "screenshotByLocale": {
+              "ko": "/screenshots/localized/ko/onboarding-sign-in-benefits.png",
+              "de": "/screenshots/localized/de/onboarding-sign-in-benefits.png",
+              "ru": "/screenshots/localized/ru/calendar-month-dark-mode.png",
+              "es": "/screenshots/localized/es/onboarding-sign-in-benefits.png"
+            },
+            "screenshotSecondary": "/screenshots/localized/en/settings-cloud-sync-panel-light.png",
+            "screenshotSecondaryByLocale": {
+              "ko": "/screenshots/localized/ko/settings-cloud-sync-panel-light.png",
+              "ru": "/screenshots/localized/ru/settings-cloud-sync-panel-light.png"
+            },
+            "transforms": {
+              "caption": {
+                "x": 96,
+                "y": 118,
+                "width": 1128,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 6
+              },
+              "deviceSecondary": {
+                "x": 105,
+                "y": 930,
+                "width": 620,
+                "height": 1264,
+                "rotation": -7,
+                "zIndex": 2
+              },
+              "device": {
+                "x": 571.9888268156428,
+                "y": 850,
+                "width": 760,
+                "height": 1548,
+                "rotation": 5,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "caption",
+                "text": {
+                  "en": "Secure cloud sync across all your devices",
+                  "ko": "안전한 클라우드 동기화",
+                  "fr": "Synchronisation cloud sécurisée sur tous vos appareils",
+                  "de": "Sichere Cloud-Synchronisierung auf allen Geräten",
+                  "ru": "Безопасная облачная синхронизация на всех устройствах",
+                  "es": "Sincronización segura en la nube para todos tus dispositivos"
+                },
+                "transform": {
+                  "x": 105.98324022346424,
+                  "y": 534.0782122905026,
+                  "width": 1084,
+                  "height": 118,
+                  "rotation": 0,
+                  "zIndex": 7
+                },
+                "fontSize": 40,
+                "fontWeight": 600,
+                "color": "#3A3A3C",
+                "align": "center"
+              },
+              {
+                "id": "cloud",
+                "text": {
+                  "en": "iPhone  |  iPad  |  Cloud",
+                  "ko": "iPhone  |  iPad  |  클라우드",
+                  "fr": "iPhone  |  iPad  |  Cloud",
+                  "de": "iPhone  |  iPad  |  Cloud",
+                  "ru": "iPhone  |  iPad  |  Облако",
+                  "es": "iPhone  |  iPad  |  Nube"
+                },
+                "transform": {
+                  "x": 220,
+                  "y": 665,
+                  "width": 880,
+                  "height": 92,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 55,
+                "fontWeight": 800,
+                "color": "#4361EE",
+                "align": "center"
+              }
+            ]
+          },
+          {
+            "id": "mote_b_09_dark",
+            "layout": "device-bottom",
+            "label": {
+              "en": "DESIGNED FOR IOS",
+              "ko": "iOS다운 디자인",
+              "fr": "CONÇU POUR IOS",
+              "de": "FÜR IOS GEMACHT",
+              "ru": "СОЗДАНО ДЛЯ IOS",
+              "es": "DISEÑADO PARA IOS"
+            },
+            "headline": {
+              "en": "Beautiful in\nlight or dark",
+              "ko": "라이트도 다크도\n아름답게",
+              "fr": "Beau en clair\ncomme en sombre",
+              "de": "Schön in Hell\nund Dunkel",
+              "ru": "Красиво в светлой\nи темной теме",
+              "es": "Bonito en claro\ny oscuro"
+            },
+            "screenshot": "/screenshots/localized/{locale}/calendar-month-dark-mode.png",
+            "inverted": true,
+            "transforms": {
+              "caption": {
+                "x": 96,
+                "y": 118,
+                "width": 1128,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 6
+              },
+              "device": {
+                "x": 243.97765363127655,
+                "y": 923.9776536312847,
+                "width": 800,
+                "height": 1630,
+                "rotation": 0,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "caption",
+                "text": {
+                  "en": "Designed for iOS - themes, multi-language, fast",
+                  "ko": "iOS답게 빠르고 다국어와 테마 지원",
+                  "fr": "Conçu pour iOS - thèmes, multilingue, rapide",
+                  "de": "Für iOS gemacht - Themes, mehrsprachig, schnell",
+                  "ru": "Для iOS - темы, много языков, быстрая работа",
+                  "es": "Diseñado para iOS - temas, multiidioma y rápido"
+                },
+                "transform": {
+                  "x": 118,
+                  "y": 534.078212290503,
+                  "width": 1084,
+                  "height": 118,
+                  "rotation": 0,
+                  "zIndex": 7
+                },
+                "fontSize": 40,
+                "fontWeight": 600,
+                "color": "rgba(255,255,255,0.76)",
+                "align": "center"
+              },
+              {
+                "id": "light",
+                "text": {
+                  "en": "Light",
+                  "ko": "라이트",
+                  "fr": "Clair",
+                  "de": "Hell",
+                  "ru": "Светлая",
+                  "es": "Claro"
+                },
+                "transform": {
+                  "x": 352,
+                  "y": 690,
+                  "width": 250,
+                  "height": 78,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 47,
+                "fontWeight": 800,
+                "color": "#E3F2FD",
+                "align": "center"
+              },
+              {
+                "id": "dark",
+                "text": {
+                  "en": "Dark",
+                  "ko": "다크",
+                  "fr": "Sombre",
+                  "de": "Dunkel",
+                  "ru": "Темная",
+                  "es": "Oscuro"
+                },
+                "transform": {
+                  "x": 718,
+                  "y": 690,
+                  "width": 250,
+                  "height": 78,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 47,
+                "fontWeight": 800,
+                "color": "#FFFFFF",
+                "align": "center"
+              }
+            ]
+          },
+          {
+            "id": "mote_b_10_cta",
+            "layout": "hero",
+            "label": {
+              "en": "DOWNLOAD FREE",
+              "ko": "무료 다운로드",
+              "fr": "TÉLÉCHARGEMENT GRATUIT",
+              "de": "KOSTENLOS LADEN",
+              "ru": "СКАЧАТЬ БЕСПЛАТНО",
+              "es": "DESCARGA GRATIS"
+            },
+            "headline": {
+              "en": "Get it all\nin one place",
+              "ko": "모든 것을\n한곳에",
+              "fr": "Tout réunir\nau même endroit",
+              "de": "Alles an\neinem Ort",
+              "ru": "Все в одном\nместе",
+              "es": "Todo en\nun solo lugar"
+            },
+            "screenshot": "/screenshots/localized/{locale}/onboarding-sign-in-benefits.png",
+            "screenshotByLocale": {
+              "ru": "/screenshots/localized/ru/calendar-month-dark-mode.png"
+            },
+            "transforms": {
+              "caption": {
+                "x": 96,
+                "y": 118,
+                "width": 1128,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 6
+              },
+              "device": {
+                "x": 228.10612566396344,
+                "y": 648.027937259744,
+                "width": 892,
+                "height": 1817,
+                "rotation": 0,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "caption",
+                "text": {
+                  "en": "Download free - set up your whole life in minutes",
+                  "ko": "무료로 다운로드하고 몇 분 만에 삶 전체를 정리하세요",
+                  "fr": "Téléchargez gratuitement - organisez votre vie en quelques minutes",
+                  "de": "Kostenlos laden - richte dein Leben in Minuten ein",
+                  "ru": "Скачайте бесплатно - настройте всю жизнь за минуты",
+                  "es": "Descarga gratis - organiza toda tu vida en minutos"
+                },
+                "transform": {
+                  "x": 118,
+                  "y": 478,
+                  "width": 1084,
+                  "height": 118,
+                  "rotation": 0,
+                  "zIndex": 7
+                },
+                "fontSize": 40,
+                "fontWeight": 600,
+                "color": "#3A3A3C",
+                "align": "center"
+              },
+              {
+                "id": "cta",
+                "text": {
+                  "en": "Start in minutes",
+                  "ko": "몇 분 만에 시작",
+                  "fr": "Commencer en minutes",
+                  "de": "In Minuten starten",
+                  "ru": "Начать за минуты",
+                  "es": "Empieza en minutos"
+                },
+                "transform": {
+                  "x": 390,
+                  "y": 2480,
+                  "width": 540,
+                  "height": 105,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 42,
+                "fontWeight": 800,
+                "color": "#4361EE",
+                "align": "center"
+              }
+            ]
+          }
+        ],
+        "android": [
+          {
+            "id": "s_mqn9htz7_5",
+            "layout": "hero",
+            "label": {
+              "en": "MEET YOUR APP"
+            },
+            "headline": {
+              "en": "Sell one\nidea per slide."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_6",
+            "layout": "device-bottom",
+            "label": {
+              "en": "FEATURE 01"
+            },
+            "headline": {
+              "en": "Your headline\nlives here."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_7",
+            "layout": "two-devices",
+            "label": {
+              "en": "FEATURE 02"
+            },
+            "headline": {
+              "en": "Show two\nscreens at once."
+            },
+            "screenshot": "",
+            "screenshotSecondary": ""
+          },
+          {
+            "id": "s_mqn9htz7_8",
+            "layout": "device-top",
+            "label": {
+              "en": "FEATURE 03"
+            },
+            "headline": {
+              "en": "Flip the contrast\nfor visual rhythm."
+            },
+            "screenshot": "",
+            "inverted": true
+          },
+          {
+            "id": "s_mqn9htz7_9",
+            "layout": "no-device",
+            "label": {
+              "en": "MORE"
+            },
+            "headline": {
+              "en": "And so\nmuch more."
+            },
+            "screenshot": ""
+          }
+        ],
+        "ipad": [
+          {
+            "id": "s_mqn9htz7_a",
+            "layout": "hero",
+            "label": {
+              "en": "MEET YOUR APP"
+            },
+            "headline": {
+              "en": "Made for\nthe big screen."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_b",
+            "layout": "device-bottom",
+            "label": {
+              "en": "FEATURE 01"
+            },
+            "headline": {
+              "en": "Built for\nfocus."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_c",
+            "layout": "device-top",
+            "label": {
+              "en": "FEATURE 02"
+            },
+            "headline": {
+              "en": "Always within reach."
+            },
+            "screenshot": "",
+            "inverted": true
+          }
+        ],
+        "android-7": [
+          {
+            "id": "s_mqn9htz7_d",
+            "layout": "hero",
+            "label": {
+              "en": "MEET YOUR APP"
+            },
+            "headline": {
+              "en": "Pocket-sized\npower."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_e",
+            "layout": "split-landscape",
+            "label": {
+              "en": "FEATURE 01"
+            },
+            "headline": {
+              "en": "Wide canvas,\nbigger ideas."
+            },
+            "screenshot": ""
+          }
+        ],
+        "android-10": [
+          {
+            "id": "s_mqn9htz7_f",
+            "layout": "hero",
+            "label": {
+              "en": "MEET YOUR APP"
+            },
+            "headline": {
+              "en": "Made for\nthe big screen."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_g",
+            "layout": "split-landscape",
+            "label": {
+              "en": "FEATURE 01"
+            },
+            "headline": {
+              "en": "Wide canvas,\nbigger ideas."
+            },
+            "screenshot": ""
+          }
+        ],
+        "feature-graphic": [
+          {
+            "id": "s_mqn9htz7_h",
+            "layout": "feature-graphic",
+            "label": {},
+            "headline": {
+              "en": "Your tagline goes here."
+            },
+            "screenshot": ""
+          }
+        ]
+      },
+      "id": "p_msvrn4rq_i",
+      "name": "MoteCalendar",
+      "updatedAt": 1786927527427
+    },
+    "p_msubwbzw_i": {
+      "schemaVersion": 4,
+      "appName": "MoteCalendar",
+      "themeId": "mote-calendar",
+      "connectedCanvas": false,
+      "locales": [
+        "en",
+        "ko",
+        "fr",
+        "de",
+        "ru",
+        "es"
+      ],
+      "locale": "ko",
       "device": "iphone",
       "orientation": "portrait",
       "appIcon": "",
@@ -160,19 +1198,29 @@
             "id": "s_msu2vp60_i",
             "layout": "split-landscape",
             "label": {
-              "en": "WORKOUTS, ON YOUR SCHEDULE"
+              "en": "WORKOUTS, ON YOUR SCHEDULE",
+              "ko": "내 일정에 맞춘 운동",
+              "fr": "ENTRAÎNEZ-VOUS À VOTRE RYTHME",
+              "de": "TRAININGS, NACH DEINEM ZEITPLAN",
+              "ru": "ТРЕНИРОВКИ В ВАШЕМ РИТМЕ",
+              "es": "ENTRENA A TU RITMO"
             },
             "headline": {
-              "en": "Make progress.\nSee it build."
+              "en": "Make progress.\nSee it build.",
+              "ko": "꾸준한 변화.\n눈으로 확인하세요.",
+              "fr": "Progressez.\nVoyez vos efforts payer.",
+              "de": "Fortschritt machen.\nWachsen sehen.",
+              "ru": "Достигайте целей.\nСледите за прогрессом.",
+              "es": "Avanza.\nMira cómo creces."
             },
             "headlineFontFamily": "editorial",
             "screenshot": "/screenshots/localized/{locale}/manual-s_msu2vp60_i-primary.png",
             "inverted": true,
             "transforms": {
               "caption": {
-                "x": 78,
-                "y": 156,
-                "width": 920,
+                "x": 78.00000012074321,
+                "y": 156.00000024148642,
+                "width": 1203,
                 "height": 430,
                 "rotation": 0,
                 "zIndex": 4
@@ -190,7 +1238,12 @@
               {
                 "id": "workout-detail",
                 "text": {
-                  "en": "Keep every session moving forward."
+                  "en": "Keep every session moving forward.",
+                  "ko": "매 운동의 성과를 꾸준히 쌓아가세요.",
+                  "fr": "Chaque séance vous fait avancer.",
+                  "de": "Jede Einheit bringt dich weiter.",
+                  "ru": "Каждая тренировка приближает к цели.",
+                  "es": "Haz que cada sesión te acerque a tu meta."
                 },
                 "transform": {
                   "x": 82,
@@ -211,8 +1264,8 @@
                 "id": "workout-kinetic-panel",
                 "kind": "rounded-rectangle",
                 "transform": {
-                  "x": -300,
-                  "y": -90,
+                  "x": 0,
+                  "y": 0,
                   "width": 1010,
                   "height": 2080,
                   "rotation": -11,
@@ -234,7 +1287,7 @@
                 "id": "workout-progress-halo",
                 "kind": "ellipse",
                 "transform": {
-                  "x": 270,
+                  "x": 210,
                   "y": 980,
                   "width": 1110,
                   "height": 1100,
@@ -1453,7 +2506,7 @@
       },
       "id": "p_msubwbzw_i",
       "name": "MoteCalendar",
-      "updatedAt": 1786795485116
+      "updatedAt": 1786929071637
     },
     "p_msubwluk_i": {
       "schemaVersion": 4,
@@ -5872,6 +6925,1016 @@
       "name": "AI Voice Calendar:MoteCalendar",
       "id": "p_msvcx8pq_i",
       "updatedAt": 1786857688772
+    },
+    "p_msvsnxco_i": {
+      "schemaVersion": 4,
+      "appName": "MoteCalendar",
+      "themeId": "mote-calendar",
+      "connectedCanvas": false,
+      "locales": [
+        "en",
+        "ko",
+        "fr",
+        "de",
+        "ru",
+        "es"
+      ],
+      "locale": "en",
+      "device": "iphone",
+      "orientation": "portrait",
+      "appIcon": "",
+      "slidesByDevice": {
+        "iphone": [
+          {
+            "id": "mote_b_01_all_in_one",
+            "layout": "device-bottom",
+            "label": {
+              "en": "ONE CALENDAR",
+              "ko": "올인원 캘린더",
+              "fr": "CALENDRIER TOUT-EN-UN",
+              "de": "ALLES-IN-EINEM KALENDER",
+              "ru": "КАЛЕНДАРЬ ВСЕ В ОДНОМ",
+              "es": "CALENDARIO TODO EN UNO"
+            },
+            "headline": {
+              "en": "Everything.\nIn one place.",
+              "ko": "삶 전체를\n하나의 캘린더에",
+              "fr": "Toute votre vie.\nUn calendrier.",
+              "de": "Dein ganzes Leben.\nEin Kalender.",
+              "ru": "Вся жизнь в Одном календаре.",
+              "es": "Toda tu vida.\nUn calendario."
+            },
+            "screenshot": "/screenshots/localized/{locale}/calendar-month-work-tasks-light.png",
+            "transforms": {
+              "caption": {
+                "x": 98,
+                "y": 89,
+                "width": 1104,
+                "height": 803,
+                "rotation": 0,
+                "zIndex": 4
+              }
+            },
+            "inverted": true,
+            "decorations": [
+              {
+                "id": "top-indigo-halo",
+                "kind": "ellipse",
+                "transform": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 1320,
+                  "height": 930,
+                  "rotation": 0,
+                  "zIndex": 0
+                },
+                "fill": {
+                  "type": "linear-gradient",
+                  "colors": [
+                    "#384B85",
+                    "#10172B"
+                  ],
+                  "angle": 90
+                },
+                "opacity": 0.68,
+                "blur": 80
+              },
+              {
+                "id": "device-ambient-glow",
+                "kind": "ellipse",
+                "transform": {
+                  "x": 65,
+                  "y": 1610,
+                  "width": 1190,
+                  "height": 1180,
+                  "rotation": 0,
+                  "zIndex": 1
+                },
+                "fill": {
+                  "type": "linear-gradient",
+                  "colors": [
+                    "#5B55B8",
+                    "#10172B"
+                  ],
+                  "angle": 90
+                },
+                "opacity": 0.3,
+                "blur": 70
+              },
+              {
+                "id": "top-accent-line",
+                "kind": "line",
+                "transform": {
+                  "x": 538,
+                  "y": 61,
+                  "width": 244,
+                  "height": 4,
+                  "rotation": 0,
+                  "zIndex": 2
+                },
+                "fill": {
+                  "type": "solid",
+                  "colors": [
+                    "#8C7CFF"
+                  ]
+                },
+                "opacity": 0.9,
+                "borderRadius": 2
+              }
+            ],
+            "headlineFontFamily": "editorial"
+          },
+          {
+            "id": "s_mqns8h57_i",
+            "layout": "hero",
+            "label": {
+              "en": "EFFORTLESS CAPTURE",
+              "ko": "쉬운 입력",
+              "fr": "AJOUT SANS EFFORT",
+              "de": "MÜHELOS ERFASSEN",
+              "ru": "ЛЕГКО ДОБАВЛЯТЬ",
+              "es": "CAPTURA SIN ESFUERZO"
+            },
+            "headline": {
+              "en": "Adding things\nis effortless",
+              "ko": "추가하는 일이\n쉬워져요",
+              "fr": "Ajouter devient\nsimple",
+              "de": "Eintragen geht\nganz leicht",
+              "ru": "Добавлять\nочень легко",
+              "es": "Añadir cosas\nes fácil"
+            },
+            "screenshot": "/screenshots/localized/{locale}/voice-auto-file-result-sheet.png",
+            "transforms": {
+              "caption": {
+                "x": 96,
+                "y": 118,
+                "width": 1128,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 6
+              },
+              "device": {
+                "x": 244.98882681564248,
+                "y": 815.9944134078219,
+                "width": 814,
+                "height": 1658,
+                "rotation": 0,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "s_mqns8h57_j",
+                "text": {
+                  "en": "Or just say it - MoteCalendar files it for you automatically",
+                  "ko": "그냥 말해도 MoteCalendar가 자동으로 정리해요",
+                  "fr": "Ou dites-le simplement - MoteCalendar le classe automatiquement",
+                  "de": "Oder sag es einfach - MoteCalendar sortiert es automatisch ein",
+                  "ru": "Или просто скажите - MoteCalendar сам все разложит",
+                  "es": "O solo dilo - MoteCalendar lo archiva automáticamente"
+                },
+                "transform": {
+                  "x": 118,
+                  "y": 478,
+                  "width": 1084,
+                  "height": 118,
+                  "rotation": 0,
+                  "zIndex": 7
+                },
+                "fontSize": 47,
+                "fontWeight": 600,
+                "color": "#FFFFFF",
+                "align": "center"
+              },
+              {
+                "id": "s_mqns8h57_k",
+                "text": {
+                  "en": "Voice -> Task",
+                  "ko": "음성 -> 할 일",
+                  "fr": "Voix -> Tâche",
+                  "de": "Stimme -> Aufgabe",
+                  "ru": "Голос -> Задача",
+                  "es": "Voz -> Tarea"
+                },
+                "transform": {
+                  "x": 248.128446854942,
+                  "y": 652.0167740126947,
+                  "width": 804,
+                  "height": 92,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 75,
+                "fontWeight": 800,
+                "color": "#FFFFFF",
+                "align": "center"
+              }
+            ],
+            "headlineFontFamily": "editorial"
+          },
+          {
+            "id": "s_mqns8key_l",
+            "layout": "device-bottom",
+            "label": {
+              "en": "PLAN IN COLOR",
+              "ko": "색으로 계획하기",
+              "fr": "PLANIFIEZ EN COULEURS",
+              "de": "PLANEN MIT FARBEN",
+              "ru": "ПЛАНИРУЙТЕ В ЦВЕТЕ",
+              "es": "PLANIFICA CON COLORES"
+            },
+            "headline": {
+              "en": "Plan your day\nin color",
+              "ko": "하루를 색으로\n계획하세요",
+              "fr": "Planifiez votre journée\nen couleurs",
+              "de": "Plane deinen Tag\nmit Farben",
+              "ru": "Ярко планируйте свой день",
+              "es": "Planifica tu día\ncon colores"
+            },
+            "screenshot": "/screenshots/uploaded/7a54a8cbbf52a852.png",
+            "transforms": {
+              "caption": {
+                "x": 97.58883254531348,
+                "y": 81.23329608931189,
+                "width": 1109,
+                "height": 330,
+                "rotation": 0,
+                "zIndex": 4
+              },
+              "device": {
+                "x": 153.18224783861672,
+                "y": 745.68,
+                "width": 1013.6355043227666,
+                "height": 2064.96,
+                "rotation": 0,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "s_mqnsa3e1_n",
+                "text": {
+                  "en": "Color-coded tasks, repeats, reminders,\nwork vs personal",
+                  "ko": "색으로 구분한 할 일, 반복, 알림,\n업무와 개인 일정",
+                  "fr": "Tâches en couleur, répétitions, rappels,\nvie pro et perso",
+                  "de": "Farbcodierte Aufgaben, Wiederholungen, Erinnerungen,\nBeruf und Privatleben",
+                  "ru": "Цветные задачи, повторы, напоминания,\nработа и личное",
+                  "es": "Tareas por colores, repeticiones, recordatorios,\ntrabajo y vida personal"
+                },
+                "transform": {
+                  "x": 81.38212265389674,
+                  "y": 379.4091606029799,
+                  "width": 1102,
+                  "height": 344,
+                  "rotation": 0,
+                  "zIndex": 6
+                },
+                "fontSize": 51,
+                "fontWeight": 800,
+                "color": "#FFFFFF",
+                "align": "center"
+              }
+            ],
+            "headlineFontFamily": "editorial"
+          },
+          {
+            "id": "mote_b_05_money",
+            "layout": "two-devices",
+            "label": {
+              "en": "MONEY CALENDAR",
+              "ko": "돈 캘린더",
+              "fr": "ARGENT AU CALENDRIER",
+              "de": "GELD IM KALENDER",
+              "ru": "ДЕНЬГИ В КАЛЕНДАРЕ",
+              "es": "DINERO EN TU CALENDARIO"
+            },
+            "headline": {
+              "en": "Money, on the\nsame calendar",
+              "ko": "돈 관리도\n같은 캘린더에서",
+              "fr": "L’argent, dans\nle même calendrier",
+              "de": "Geld im\ngleichen Kalender",
+              "ru": "Ваши финансы в одном календаре",
+              "es": "Dinero, en el\nmismo calendario"
+            },
+            "screenshot": "/screenshots/localized/{locale}/calendar-month-expense-summary.png",
+            "screenshotSecondary": "/screenshots/localized/{locale}/budget-dashboard-spending-progress.png",
+            "transforms": {
+              "caption": {
+                "x": 23.93838895192257,
+                "y": 113.99441212742545,
+                "width": 1244,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 3
+              },
+              "deviceSecondary": {
+                "x": 62,
+                "y": 890.9106145251392,
+                "width": 642,
+                "height": 1308,
+                "rotation": -5,
+                "zIndex": 1
+              },
+              "device": {
+                "x": 604.0055865921788,
+                "y": 900,
+                "width": 700,
+                "height": 1426,
+                "rotation": 4,
+                "zIndex": 2
+              }
+            },
+            "textElements": [
+              {
+                "id": "caption",
+                "text": {
+                  "en": "Track income and expenses with monthly budgets - no separate app",
+                  "ko": "수입과 지출, 월 예산까지 별도 앱 없이 관리",
+                  "fr": "Suivez revenus et dépenses avec budgets mensuels - sans autre app",
+                  "de": "Einnahmen und Ausgaben mit Monatsbudgets - ohne extra App",
+                  "ru": "Доходы, расходы и месячные бюджеты - без отдельного приложения",
+                  "es": "Registra ingresos y gastos con presupuestos mensuales - sin otra app"
+                },
+                "transform": {
+                  "x": 118,
+                  "y": 478,
+                  "width": 1084,
+                  "height": 118,
+                  "rotation": 0,
+                  "zIndex": 4
+                },
+                "fontSize": 40,
+                "fontWeight": 600,
+                "color": "#FFFFFF",
+                "align": "center"
+              },
+              {
+                "id": "s_mqnb4i4w_i",
+                "text": {
+                  "en": "Speak->Expense",
+                  "es": "Gasto",
+                  "fr": "Parler → Dépense",
+                  "de": "Sprechen → Ausgabe",
+                  "ru": "Диктуй → расход"
+                },
+                "transform": {
+                  "x": 181.74517349402103,
+                  "y": 475.5432480789404,
+                  "width": 1009,
+                  "height": 344,
+                  "rotation": 0,
+                  "zIndex": 5
+                },
+                "fontSize": 86,
+                "fontWeight": 800,
+                "color": "#FFFFFF",
+                "align": "center"
+              },
+              {
+                "id": "s_mqnb5n5h_j",
+                "text": {
+                  "en": "today spent 2$ on coffee ",
+                  "es": "Presupuesto",
+                  "fr": "Aujourd’hui, j’ai dépensé 2 $ pour un café.",
+                  "de": "Heute habe ich 2 $ für Kaffee ausgegeben.",
+                  "ru": "Сегодня я потратил 2 $ на кофе."
+                },
+                "transform": {
+                  "x": 59.97486033519553,
+                  "y": 595.7108379888024,
+                  "width": 1242,
+                  "height": 344,
+                  "rotation": 0,
+                  "zIndex": 6
+                },
+                "fontSize": 54,
+                "fontWeight": 800,
+                "color": "#FFFFFF",
+                "align": "center"
+              }
+            ],
+            "headlineFontFamily": "editorial"
+          },
+          {
+            "id": "mote_b_06_routines",
+            "layout": "two-devices",
+            "label": {
+              "en": "ROUTINES TOGETHER",
+              "ko": "루틴을 한눈에",
+              "fr": "ROUTINES ENSEMBLE",
+              "de": "ROUTINEN ZUSAMMEN",
+              "ru": "ВСЕ ПРИВЫЧКИ ВМЕСТЕ",
+              "es": "RUTINAS EN UNA VISTA"
+            },
+            "headline": {
+              "en": "Every routine,\none view",
+              "ko": "모든 루틴을\n한 화면에",
+              "fr": "Chaque routine,\nune vue",
+              "de": "Jede Routine,\neine Ansicht",
+              "ru": "Все привычки\nв одном виде",
+              "es": "Cada rutina,\nuna vista"
+            },
+            "screenshot": "/screenshots/localized/{locale}/cycle-calendar-period-tracker.png",
+            "screenshotSecondary": "/screenshots/localized/{locale}/shift-selection-sheet.png",
+            "transforms": {
+              "caption": {
+                "x": 96,
+                "y": 190.1005586592177,
+                "width": 1128,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 6
+              },
+              "deviceSecondary": {
+                "x": 45,
+                "y": 965,
+                "width": 650,
+                "height": 1324,
+                "rotation": -4,
+                "zIndex": 2
+              },
+              "device": {
+                "x": 610,
+                "y": 880,
+                "width": 692,
+                "height": 1410,
+                "rotation": 4,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "caption",
+                "text": {
+                  "en": "Cycle, shifts, wellness, diary - all tracked together",
+                  "ko": "생리, 교대, 웰니스, 일기를 함께 기록",
+                  "fr": "Cycle, services, bien-être, journal - tout suivi ensemble",
+                  "de": "Zyklus, Schichten, Wellness, Tagebuch - alles zusammen",
+                  "ru": "Цикл, смены, самочувствие, дневник - все вместе",
+                  "es": "Ciclo, turnos, bienestar y diario - todo junto"
+                },
+                "transform": {
+                  "x": 0.0000014646545596213564,
+                  "y": 478.00000590662296,
+                  "width": 1300,
+                  "height": 242,
+                  "rotation": 0,
+                  "zIndex": 7
+                },
+                "fontSize": 40,
+                "fontWeight": 600,
+                "color": "#FFFFFF",
+                "align": "center"
+              }
+            ],
+            "headlineFontFamily": "editorial"
+          },
+          {
+            "id": "mote_b_07_widgets",
+            "layout": "device-bottom",
+            "label": {
+              "en": "WIDGETS",
+              "ko": "위젯",
+              "fr": "WIDGETS",
+              "de": "WIDGETS",
+              "ru": "ВИДЖЕТЫ",
+              "es": "WIDGETS"
+            },
+            "headline": {
+              "en": "Your day,\non your home screen",
+              "ko": "홈 화면에서\n바로 확인",
+              "fr": "Votre journée\nsur l’écran d’accueil",
+              "de": "Dein Tag\nauf dem Homescreen",
+              "ru": "Ваш день\nна главном экране",
+              "es": "Tu día\nen la pantalla de inicio"
+            },
+            "screenshot": "/screenshots/shared/home-screen-widget-preview.png",
+            "transforms": {
+              "caption": {
+                "x": 81.56648044692884,
+                "y": 133.3059217877095,
+                "width": 1108.8,
+                "height": 803.0400000000001,
+                "rotation": 0,
+                "zIndex": 4
+              },
+              "device": {
+                "x": 149.1767632410938,
+                "y": 744.6799894896949,
+                "width": 1014,
+                "height": 2066,
+                "rotation": 0,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "s_mqnbapcq_j",
+                "text": {
+                  "en": "Glanceable widgets with real calendar colors",
+                  "ko": "실제 캘린더 색을 담은 위젯",
+                  "fr": "Des widgets lisibles avec les vraies couleurs du calendrier",
+                  "de": "Übersichtliche Widgets mit echten Kalenderfarben",
+                  "ru": "Наглядные виджеты с реальными цветами календаря",
+                  "es": "Widgets claros con los colores reales del calendario"
+                },
+                "transform": {
+                  "x": 113.42671644753864,
+                  "y": 447.5041114841383,
+                  "width": 1065,
+                  "height": 344,
+                  "rotation": 0,
+                  "zIndex": 6
+                },
+                "fontSize": 40,
+                "fontWeight": 800,
+                "color": "#FFFFFF",
+                "align": "center"
+              }
+            ],
+            "headlineFontFamily": "editorial"
+          },
+          {
+            "id": "mote_b_08_sync",
+            "layout": "two-devices",
+            "label": {
+              "en": "SYNC & TRUST",
+              "ko": "동기화와 신뢰",
+              "fr": "SYNC & CONFIANCE",
+              "de": "SYNC & VERTRAUEN",
+              "ru": "СИНХРОНИЗАЦИЯ",
+              "es": "SYNC Y CONFIANZA"
+            },
+            "headline": {
+              "en": "Synced everywhere,\ninstantly",
+              "ko": "모든 기기에서\n즉시 동기화",
+              "fr": "Synchronisé partout,\ninstantanément",
+              "de": "Überall synchron,\nsofort",
+              "ru": "Синхронизация\nмгновенно",
+              "es": "Sincronizado\nal instante"
+            },
+            "screenshot": "/screenshots/localized/en/settings-cloud-sync-panel-dark.png",
+            "screenshotByLocale": {
+              "ko": "/screenshots/localized/ko/onboarding-sign-in-benefits.png",
+              "de": "/screenshots/localized/de/onboarding-sign-in-benefits.png",
+              "ru": "/screenshots/localized/ru/calendar-month-dark-mode.png",
+              "es": "/screenshots/localized/es/onboarding-sign-in-benefits.png"
+            },
+            "screenshotSecondary": "/screenshots/localized/en/settings-cloud-sync-panel-light.png",
+            "screenshotSecondaryByLocale": {
+              "ko": "/screenshots/localized/ko/settings-cloud-sync-panel-light.png",
+              "ru": "/screenshots/localized/ru/settings-cloud-sync-panel-light.png"
+            },
+            "transforms": {
+              "caption": {
+                "x": 96,
+                "y": 118,
+                "width": 1128,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 6
+              },
+              "deviceSecondary": {
+                "x": 105,
+                "y": 930,
+                "width": 620,
+                "height": 1264,
+                "rotation": -7,
+                "zIndex": 2
+              },
+              "device": {
+                "x": 571.9888268156428,
+                "y": 850,
+                "width": 760,
+                "height": 1548,
+                "rotation": 5,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "caption",
+                "text": {
+                  "en": "Secure cloud sync across all your devices",
+                  "ko": "안전한 클라우드 동기화",
+                  "fr": "Synchronisation cloud sécurisée sur tous vos appareils",
+                  "de": "Sichere Cloud-Synchronisierung auf allen Geräten",
+                  "ru": "Безопасная облачная синхронизация на всех устройствах",
+                  "es": "Sincronización segura en la nube para todos tus dispositivos"
+                },
+                "transform": {
+                  "x": 105.98324022346424,
+                  "y": 534.0782122905026,
+                  "width": 1084,
+                  "height": 118,
+                  "rotation": 0,
+                  "zIndex": 7
+                },
+                "fontSize": 40,
+                "fontWeight": 600,
+                "color": "#FFFFFF",
+                "align": "center"
+              },
+              {
+                "id": "cloud",
+                "text": {
+                  "en": "iPhone  |  iPad  |  Cloud",
+                  "ko": "iPhone  |  iPad  |  클라우드",
+                  "fr": "iPhone  |  iPad  |  Cloud",
+                  "de": "iPhone  |  iPad  |  Cloud",
+                  "ru": "iPhone  |  iPad  |  Облако",
+                  "es": "iPhone  |  iPad  |  Nube"
+                },
+                "transform": {
+                  "x": 220,
+                  "y": 665,
+                  "width": 880,
+                  "height": 92,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 55,
+                "fontWeight": 800,
+                "color": "#FFFFFF",
+                "align": "center"
+              }
+            ],
+            "headlineFontFamily": "editorial"
+          },
+          {
+            "id": "mote_b_09_dark",
+            "layout": "device-bottom",
+            "label": {
+              "en": "DESIGNED FOR IOS",
+              "ko": "iOS다운 디자인",
+              "fr": "CONÇU POUR IOS",
+              "de": "FÜR IOS GEMACHT",
+              "ru": "СОЗДАНО ДЛЯ IOS",
+              "es": "DISEÑADO PARA IOS"
+            },
+            "headline": {
+              "en": "Beautiful in\nlight or dark",
+              "ko": "라이트도 다크도\n아름답게",
+              "fr": "Beau en clair\ncomme en sombre",
+              "de": "Schön in Hell\nund Dunkel",
+              "ru": "Красиво в светлой\nи темной теме",
+              "es": "Bonito en claro\ny oscuro"
+            },
+            "screenshot": "/screenshots/localized/{locale}/calendar-month-dark-mode.png",
+            "inverted": true,
+            "transforms": {
+              "caption": {
+                "x": 96,
+                "y": 118,
+                "width": 1128,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 6
+              },
+              "device": {
+                "x": 243.97765363127655,
+                "y": 923.9776536312847,
+                "width": 800,
+                "height": 1630,
+                "rotation": 0,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "caption",
+                "text": {
+                  "en": "Designed for iOS - themes, multi-language, fast",
+                  "ko": "iOS답게 빠르고 다국어와 테마 지원",
+                  "fr": "Conçu pour iOS - thèmes, multilingue, rapide",
+                  "de": "Für iOS gemacht - Themes, mehrsprachig, schnell",
+                  "ru": "Для iOS - темы, много языков, быстрая работа",
+                  "es": "Diseñado para iOS - temas, multiidioma y rápido"
+                },
+                "transform": {
+                  "x": 118,
+                  "y": 534.078212290503,
+                  "width": 1084,
+                  "height": 118,
+                  "rotation": 0,
+                  "zIndex": 7
+                },
+                "fontSize": 40,
+                "fontWeight": 600,
+                "color": "#FFFFFF",
+                "align": "center"
+              },
+              {
+                "id": "light",
+                "text": {
+                  "en": "Light",
+                  "ko": "라이트",
+                  "fr": "Clair",
+                  "de": "Hell",
+                  "ru": "Светлая",
+                  "es": "Claro"
+                },
+                "transform": {
+                  "x": 352,
+                  "y": 690,
+                  "width": 250,
+                  "height": 78,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 47,
+                "fontWeight": 800,
+                "color": "#FFFFFF",
+                "align": "center"
+              },
+              {
+                "id": "dark",
+                "text": {
+                  "en": "Dark",
+                  "ko": "다크",
+                  "fr": "Sombre",
+                  "de": "Dunkel",
+                  "ru": "Темная",
+                  "es": "Oscuro"
+                },
+                "transform": {
+                  "x": 718,
+                  "y": 690,
+                  "width": 250,
+                  "height": 78,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 47,
+                "fontWeight": 800,
+                "color": "#FFFFFF",
+                "align": "center"
+              }
+            ],
+            "headlineFontFamily": "editorial"
+          },
+          {
+            "id": "mote_b_10_cta",
+            "layout": "hero",
+            "label": {
+              "en": "DOWNLOAD FREE",
+              "ko": "무료 다운로드",
+              "fr": "TÉLÉCHARGEMENT GRATUIT",
+              "de": "KOSTENLOS LADEN",
+              "ru": "СКАЧАТЬ БЕСПЛАТНО",
+              "es": "DESCARGA GRATIS"
+            },
+            "headline": {
+              "en": "Get it all\nin one place",
+              "ko": "모든 것을\n한곳에",
+              "fr": "Tout réunir\nau même endroit",
+              "de": "Alles an\neinem Ort",
+              "ru": "Все в одном\nместе",
+              "es": "Todo en\nun solo lugar"
+            },
+            "screenshot": "/screenshots/localized/{locale}/onboarding-sign-in-benefits.png",
+            "screenshotByLocale": {
+              "ru": "/screenshots/localized/ru/calendar-month-dark-mode.png"
+            },
+            "transforms": {
+              "caption": {
+                "x": 96,
+                "y": 118,
+                "width": 1128,
+                "height": 470,
+                "rotation": 0,
+                "zIndex": 6
+              },
+              "device": {
+                "x": 228.10612566396344,
+                "y": 648.027937259744,
+                "width": 892,
+                "height": 1817,
+                "rotation": 0,
+                "zIndex": 3
+              }
+            },
+            "textElements": [
+              {
+                "id": "caption",
+                "text": {
+                  "en": "Download free - set up your whole life in minutes",
+                  "ko": "무료로 다운로드하고 몇 분 만에 삶 전체를 정리하세요",
+                  "fr": "Téléchargez gratuitement - organisez votre vie en quelques minutes",
+                  "de": "Kostenlos laden - richte dein Leben in Minuten ein",
+                  "ru": "Скачайте бесплатно - настройте всю жизнь за минуты",
+                  "es": "Descarga gratis - organiza toda tu vida en minutos"
+                },
+                "transform": {
+                  "x": 118,
+                  "y": 478,
+                  "width": 1084,
+                  "height": 118,
+                  "rotation": 0,
+                  "zIndex": 7
+                },
+                "fontSize": 40,
+                "fontWeight": 600,
+                "color": "#FFFFFF",
+                "align": "center"
+              },
+              {
+                "id": "cta",
+                "text": {
+                  "en": "Start in minutes",
+                  "ko": "몇 분 만에 시작",
+                  "fr": "Commencer en minutes",
+                  "de": "In Minuten starten",
+                  "ru": "Начать за минуты",
+                  "es": "Empieza en minutos"
+                },
+                "transform": {
+                  "x": 390,
+                  "y": 2480,
+                  "width": 540,
+                  "height": 105,
+                  "rotation": 0,
+                  "zIndex": 8
+                },
+                "fontSize": 42,
+                "fontWeight": 800,
+                "color": "#FFFFFF",
+                "align": "center"
+              }
+            ],
+            "headlineFontFamily": "editorial"
+          }
+        ],
+        "android": [
+          {
+            "id": "s_mqn9htz7_5",
+            "layout": "hero",
+            "label": {
+              "en": "MEET YOUR APP"
+            },
+            "headline": {
+              "en": "Sell one\nidea per slide."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_6",
+            "layout": "device-bottom",
+            "label": {
+              "en": "FEATURE 01"
+            },
+            "headline": {
+              "en": "Your headline\nlives here."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_7",
+            "layout": "two-devices",
+            "label": {
+              "en": "FEATURE 02"
+            },
+            "headline": {
+              "en": "Show two\nscreens at once."
+            },
+            "screenshot": "",
+            "screenshotSecondary": ""
+          },
+          {
+            "id": "s_mqn9htz7_8",
+            "layout": "device-top",
+            "label": {
+              "en": "FEATURE 03"
+            },
+            "headline": {
+              "en": "Flip the contrast\nfor visual rhythm."
+            },
+            "screenshot": "",
+            "inverted": true
+          },
+          {
+            "id": "s_mqn9htz7_9",
+            "layout": "no-device",
+            "label": {
+              "en": "MORE"
+            },
+            "headline": {
+              "en": "And so\nmuch more."
+            },
+            "screenshot": ""
+          }
+        ],
+        "ipad": [
+          {
+            "id": "s_mqn9htz7_a",
+            "layout": "hero",
+            "label": {
+              "en": "MEET YOUR APP"
+            },
+            "headline": {
+              "en": "Made for\nthe big screen."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_b",
+            "layout": "device-bottom",
+            "label": {
+              "en": "FEATURE 01"
+            },
+            "headline": {
+              "en": "Built for\nfocus."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_c",
+            "layout": "device-top",
+            "label": {
+              "en": "FEATURE 02"
+            },
+            "headline": {
+              "en": "Always within reach."
+            },
+            "screenshot": "",
+            "inverted": true
+          }
+        ],
+        "android-7": [
+          {
+            "id": "s_mqn9htz7_d",
+            "layout": "hero",
+            "label": {
+              "en": "MEET YOUR APP"
+            },
+            "headline": {
+              "en": "Pocket-sized\npower."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_e",
+            "layout": "split-landscape",
+            "label": {
+              "en": "FEATURE 01"
+            },
+            "headline": {
+              "en": "Wide canvas,\nbigger ideas."
+            },
+            "screenshot": ""
+          }
+        ],
+        "android-10": [
+          {
+            "id": "s_mqn9htz7_f",
+            "layout": "hero",
+            "label": {
+              "en": "MEET YOUR APP"
+            },
+            "headline": {
+              "en": "Made for\nthe big screen."
+            },
+            "screenshot": ""
+          },
+          {
+            "id": "s_mqn9htz7_g",
+            "layout": "split-landscape",
+            "label": {
+              "en": "FEATURE 01"
+            },
+            "headline": {
+              "en": "Wide canvas,\nbigger ideas."
+            },
+            "screenshot": ""
+          }
+        ],
+        "feature-graphic": [
+          {
+            "id": "s_mqn9htz7_h",
+            "layout": "feature-graphic",
+            "label": {},
+            "headline": {
+              "en": "Your tagline goes here."
+            },
+            "screenshot": ""
+          }
+        ]
+      },
+      "customThemesByDevice": {
+        "iphone": {
+          "id": "ai-custom-iphone",
+          "name": "Premium Midnight",
+          "bg": "#10172B",
+          "bgAlt": "#192442",
+          "fg": "#F7F9FF",
+          "fgAlt": "#BEC9E4",
+          "accent": "#8C7CFF",
+          "muted": "#72809E"
+        }
+      },
+      "id": "p_msvsnxco_i",
+      "name": "MoteCalendar",
+      "updatedAt": 1786884112536
     }
   }
 }

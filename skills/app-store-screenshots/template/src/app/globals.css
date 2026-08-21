@@ -229,3 +229,66 @@
   box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.45);
   border-radius: 2px;
 }
+
+/* ---------------------------------------------------------------------------
+   Screenova marketing landing — design tokens and shared classes.
+   Scoped to the `.screenova-landing` wrapper so the app pages (editor, studio)
+   keep their own theme. Values mirror the design-html preview build.
+--------------------------------------------------------------------------- */
+
+.screenova-landing {
+  /* Light editorial palette: warm off-white paper, near-black ink, one violet. */
+  --font-serif: "Newsreader", "Playfair Display", Georgia, serif;
+  --font-sans:
+    "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --bg: #faf9f6;
+  --bg-raised: #fff;
+  --bg-inset: #f1f0ec;
+  --line: #0a0a0a14;
+  --line-strong: #0a0a0a26;
+  --ink: #0a0a0a;
+  --ink-muted: #0a0a0a99;
+  --ink-faint: #0a0a0a61;
+  --violet: #6e5ce0;
+  --violet-strong: #5241c4;
+  --violet-soft: #6e5ce01a;
+  font-family: var(--font-sans);
+}
+
+/* Dark override — activates the `dark:` Tailwind variants inside the landing. */
+.screenova-dark {
+  --bg: #07080a;
+  --bg-raised: #0c0d10;
+  --bg-inset: #101114;
+  --line: #f5f4f214;
+  --line-strong: #f5f4f229;
+  --ink: #f4f3f0;
+  --ink-muted: #f4f3f094;
+  --ink-faint: #f4f3f05c;
+  --violet: #8477ec;
+  --violet-strong: #a89bff;
+  --violet-soft: #8477ec24;
+}
+
+.screenova-landing ::selection {
+  background-color: rgb(132 119 236 / 0.3);
+  color: #c9c1fb;
+}
+
+/* Editorial serif display face for headlines and numerals. */
+.font-serif-headline {
+  font-family: Newsreader, "Playfair Display", Georgia, serif;
+}
+
+/* Button press feedback — shared by every landing CTA. */
+.btn-press {
+  transition:
+    transform 0.15s var(--ease-out),
+    background-color 0.2s var(--ease-out),
+    border-color 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out);
+}
+.btn-press:active {
+  transform: scale(0.97);
+}
