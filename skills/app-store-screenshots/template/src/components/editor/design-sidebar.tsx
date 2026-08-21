@@ -5,7 +5,6 @@ import {
   Loader2,
   Paperclip,
   Send,
-  Sparkles,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,19 +18,78 @@ import { useT } from "@/lib/ui-i18n";
 import type { TranslationKey } from "@/lib/ui-translations/en";
 import { cn } from "@/lib/utils";
 
-type Props = {
-  messages: DesignConversationMessage[];
-  scope: DesignScope;
-  onScopeChange: (scope: DesignScope) => void;
-  targetCount: number;
-  generating: boolean;
-  onSubmit: (prompt: string, references: DesignReference[]) => Promise<void>;
-  onCancel: () => void;
-  disabled?: boolean;
-};
+/* The design-with-AI surface is split Stitch-style: the chat log floats as a
+   collapsible panel over the canvas, and the composer is a separate floating
+   bar at the bottom center. They share nothing but the shell's handlers. */
 
-export function DesignSidebar({
+export function DesignChatLog({
   messages,
+  generating,
+}: {
+  messages: DesignConversationMessage[];
+  generating: boolean;
+}) {
+  const { t } = useT();
+  const messageEndRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, generating]);
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      {messages.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-4">
+          <p className="text-caption font-medium">{t("designSidebar.tryDirection")}</p>
+          <div className="mt-2 space-y-1.5 text-caption leading-relaxed text-muted-foreground">
+            <p>{t("designSidebar.prompt1")}</p>
+            <p>{t("designSidebar.prompt2")}</p>
+            <p>{t("designSidebar.prompt3")}</p>
+            <p>{t("designSidebar.prompt4")}</p>
+            <p>{t("designSidebar.prompt5")}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={cn(
+                "max-w-[92%] rounded-lg px-3 py-2.5 text-footnote leading-relaxed",
+                message.role === "user"
+                  ? "ml-auto bg-primary text-primary-foreground"
+                  : "border border-border/80 bg-background text-foreground",
+              )}
+            >
+              <p className="whitespace-pre-wrap">{message.text}</p>
+              {message.referenceNames?.length ? (
+                <p className="mt-1.5 truncate text-caption opacity-70">
+                  {message.referenceNames.join(", ")}
+                </p>
+              ) : null}
+              {message.proposalStatus && (
+                <p className="mt-1.5 text-caption font-semibold uppercase tracking-wide opacity-65">
+                  {t(
+                    `design.proposalStatus.${message.proposalStatus}` as TranslationKey,
+                  )}
+                </p>
+              )}
+            </div>
+          ))}
+          {generating && (
+            <div className="flex max-w-[92%] items-center gap-2 rounded-lg border border-border/80 bg-background px-3 py-2.5 text-footnote text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {t("designSidebar.generating")}
+            </div>
+          )}
+        </div>
+      )}
+      <div ref={messageEndRef} />
+    </div>
+  );
+}
+
+export function DesignComposer({
   scope,
   onScopeChange,
   targetCount,
@@ -39,17 +97,20 @@ export function DesignSidebar({
   onSubmit,
   onCancel,
   disabled,
-}: Props) {
+}: {
+  scope: DesignScope;
+  onScopeChange: (scope: DesignScope) => void;
+  targetCount: number;
+  generating: boolean;
+  onSubmit: (prompt: string, references: DesignReference[]) => Promise<void>;
+  onCancel: () => void;
+  disabled?: boolean;
+}) {
   const { t } = useT();
   const [prompt, setPrompt] = React.useState("");
   const [references, setReferences] = React.useState<DesignReference[]>([]);
   const [attachmentError, setAttachmentError] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
-  const messageEndRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, generating]);
 
   async function submit() {
     const value = prompt.trim();
@@ -87,173 +148,125 @@ export function DesignSidebar({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-transparent">
-      <div className="border-b border-border/70 px-3 py-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Sparkles className="h-3.5 w-3.5" />
-          </div>
-          <div>
-            <h2 className="text-[13px] font-semibold tracking-tight">{t("designSidebar.title")}</h2>
-            <p className="text-[11px] text-muted-foreground">{t("designSidebar.subtitle")}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        {messages.length === 0 ? (
-          <div className="rounded-xl border border-dashed bg-muted/25 p-4">
-            <p className="text-xs font-medium">{t("designSidebar.tryDirection")}</p>
-            <div className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-muted-foreground">
-              <p>{t("designSidebar.prompt1")}</p>
-              <p>{t("designSidebar.prompt2")}</p>
-              <p>{t("designSidebar.prompt3")}</p>
-              <p>{t("designSidebar.prompt4")}</p>
-              <p>{t("designSidebar.prompt5")}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "max-w-[92%] rounded-xl px-3 py-2.5 text-xs leading-relaxed",
-                  message.role === "user"
-                    ? "ml-auto bg-primary text-primary-foreground"
-                    : "border bg-background text-foreground",
-                )}
+    <div className="rounded-xl border border-border/80 bg-card p-2 shadow-pop transition-[border-color] focus-within:border-primary/40">
+      {references.length > 0 && (
+        <div className="mb-1 flex gap-1.5 overflow-x-auto px-1 pt-1">
+          {references.map((reference) => (
+            <div
+              key={reference.id}
+              className="group relative h-12 w-12 shrink-0 overflow-hidden rounded-sm border border-border/70"
+            >
+              <img src={reference.dataUrl} alt={reference.name} className="h-full w-full object-cover" />
+              <button
+                type="button"
+                className="absolute right-0 top-0 rounded-bl-sm bg-black/70 p-0.5 text-white"
+                onClick={() => setReferences((items) => items.filter((item) => item.id !== reference.id))}
+                aria-label={t("designSidebar.removeReference", { name: reference.name })}
               >
-                <p className="whitespace-pre-wrap">{message.text}</p>
-                {message.referenceNames?.length ? (
-                  <p className="mt-1.5 truncate text-[10px] opacity-70">
-                    {message.referenceNames.join(", ")}
-                  </p>
-                ) : null}
-                {message.proposalStatus && (
-                  <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide opacity-65">
-                    {t(
-                      `design.proposalStatus.${message.proposalStatus}` as TranslationKey,
-                    )}
-                  </p>
-                )}
-              </div>
-            ))}
-            {generating && (
-              <div className="flex max-w-[92%] items-center gap-2 rounded-xl border bg-background px-3 py-2.5 text-xs text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                {t("designSidebar.generating")}
-              </div>
-            )}
-          </div>
-        )}
-        <div ref={messageEndRef} />
-      </div>
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
-      <div className="border-t p-3">
-        <div className="mb-2 flex flex-wrap gap-1">
+      <Textarea
+        value={prompt}
+        onChange={(event) => setPrompt(event.target.value.slice(0, 4000))}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+            event.preventDefault();
+            void submit();
+          }
+        }}
+        rows={2}
+        className="min-h-12 resize-none border-0 p-2 text-subhead shadow-none focus-visible:ring-0"
+        placeholder={t("designSidebar.composerPlaceholder")}
+        aria-label={t("designSidebar.composerPlaceholder")}
+        disabled={generating || disabled}
+      />
+
+      {attachmentError && (
+        <p className="px-2 pb-1 text-caption text-destructive">{attachmentError}</p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 px-1 pb-1 pt-1.5">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 shrink-0 rounded-sm"
+          onClick={() => fileRef.current?.click()}
+          disabled={generating || disabled || references.length >= 3}
+          aria-label={t("designSidebar.attachHint")}
+        >
+          <Paperclip className="h-4 w-4" />
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          multiple
+          hidden
+          onChange={(event) => void addFiles(event.target.files)}
+        />
+
+        <div
+          role="group"
+          aria-label={t("designSidebar.scopeLabel")}
+          className="inline-flex h-9 min-w-0 max-w-full items-center gap-0.5 overflow-x-auto rounded-sm bg-muted/70 p-0.5"
+        >
           {(["current", "selected", "deck"] as DesignScope[]).map((item) => (
-            <Button
+            <button
               key={item}
               type="button"
-              size="sm"
-              variant={scope === item ? "default" : "outline"}
-              className="h-7 rounded-full px-2.5 text-[10px] capitalize"
+              aria-pressed={scope === item}
               onClick={() => onScopeChange(item)}
               disabled={generating || disabled}
+              className={cn(
+                "h-8 shrink-0 whitespace-nowrap rounded-xs px-2.5 text-footnote font-medium capitalize transition-colors disabled:opacity-50",
+                scope === item
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
               {item === "deck"
                 ? t("designSidebar.scopeDeck")
                 : item === "selected"
                   ? t("designSidebar.scopeSelected")
                   : t("designSidebar.scopeCurrent")}
-            </Button>
+            </button>
           ))}
         </div>
-        <div className="rounded-xl border bg-background p-2 shadow-sm focus-within:ring-1 focus-within:ring-ring">
-          <Textarea
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value.slice(0, 4000))}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void submit();
-              }
-            }}
-            rows={3}
-            className="min-h-16 resize-none border-0 p-1 text-xs shadow-none focus-visible:ring-0"
-            placeholder={t("designSidebar.composerPlaceholder")}
-            disabled={generating || disabled}
-          />
-          {references.length > 0 && (
-            <div className="mb-2 flex gap-1.5 overflow-x-auto">
-              {references.map((reference) => (
-                <div key={reference.id} className="group relative h-10 w-10 shrink-0 overflow-hidden rounded-md border">
-                  <img src={reference.dataUrl} alt={reference.name} className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    className="absolute right-0 top-0 rounded-bl bg-black/70 p-0.5 text-white"
-                    onClick={() => setReferences((items) => items.filter((item) => item.id !== reference.id))}
-                    aria-label={t("designSidebar.removeReference", { name: reference.name })}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          {attachmentError && <p className="mb-1 text-[10px] text-destructive">{attachmentError}</p>}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => fileRef.current?.click()}
-                disabled={generating || disabled || references.length >= 3}
-                title={t("designSidebar.attachHint")}
-                aria-label={t("designSidebar.attachHint")}
-              >
-                <Paperclip className="h-3.5 w-3.5" />
-              </Button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                multiple
-                hidden
-                onChange={(event) => void addFiles(event.target.files)}
-              />
-              <span className="text-[10px] text-muted-foreground">
-                {t("designSidebar.targets", { count: targetCount })}
-                {references.length > 0
-                  ? t("designSidebar.attachments", { count: references.length })
-                  : ""}
-              </span>
-            </div>
-            {generating ? (
-              <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={onCancel}>
-                {t("designSidebar.cancel")}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                size="icon"
-                className="h-7 w-7 rounded-full"
-                onClick={() => void submit()}
-                disabled={!prompt.trim() || (targetCount === 0 && references.length === 0) || disabled}
-                aria-label={t("designSidebar.generateRedesign")}
-                title={t("designSidebar.generateRedesign")}
-              >
-                <Send className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-        </div>
-        <p className="mt-2 text-[9px] leading-relaxed text-muted-foreground">
-          {t("designSidebar.footnote")}
-        </p>
+
+        <span className="hidden text-caption text-muted-foreground md:inline">
+          {t("designSidebar.targets", { count: targetCount })}
+          {references.length > 0
+            ? t("designSidebar.attachments", { count: references.length })
+            : ""}
+        </span>
+
+        {generating ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="ml-auto h-9 shrink-0 rounded-sm px-3 text-footnote"
+            onClick={onCancel}
+          >
+            {t("designSidebar.cancel")}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            size="icon"
+            className="ml-auto h-9 w-9 shrink-0 rounded-full"
+            onClick={() => void submit()}
+            disabled={!prompt.trim() || (targetCount === 0 && references.length === 0) || disabled}
+            aria-label={t("designSidebar.generateRedesign")}
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );

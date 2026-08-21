@@ -166,6 +166,9 @@ export const de: Record<TranslationKey, string> = {
 
   // ---- design sidebar ----
   "designSidebar.title": "Mit KI gestalten",
+  "designSidebar.collapse": "Design-Chat ausblenden",
+  "designSidebar.expand": "Mit KI gestalten",
+  "designSidebar.scopeLabel": "Gilt für",
   "designSidebar.subtitle": "Beschreiben, Vorschau ansehen, anwenden.",
   "designSidebar.tryDirection": "Eine Richtung ausprobieren",
   "designSidebar.prompt1": "„Lass es sich wie eine ruhige Premium-Wellness-App anfühlen.“",

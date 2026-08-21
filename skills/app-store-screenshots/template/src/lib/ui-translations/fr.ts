@@ -166,6 +166,9 @@ export const fr: Record<TranslationKey, string> = {
 
   // ---- design sidebar ----
   "designSidebar.title": "Concevoir avec l'IA",
+  "designSidebar.collapse": "Masquer le chat de design",
+  "designSidebar.expand": "Concevoir avec l'IA",
+  "designSidebar.scopeLabel": "S'applique à",
   "designSidebar.subtitle": "Décrivez, prévisualisez, puis appliquez.",
   "designSidebar.tryDirection": "Essayez une direction",
   "designSidebar.prompt1": "« Donnez-lui l'ambiance d'une app bien-être premium et apaisante. »",

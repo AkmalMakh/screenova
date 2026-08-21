@@ -179,6 +179,9 @@ export const en = {
 
   // ---- design sidebar ----
   "designSidebar.title": "Design with AI",
+  "designSidebar.collapse": "Hide design chat",
+  "designSidebar.expand": "Design with AI",
+  "designSidebar.scopeLabel": "Applies to",
   "designSidebar.subtitle": "Describe it, preview it, then apply.",
   "designSidebar.tryDirection": "Try a direction",
   "designSidebar.prompt1": "“Make this feel like a calm premium wellness app.”",

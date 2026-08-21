@@ -9,10 +9,7 @@ import {
   Download,
   FileText,
   Home,
-  Images,
   Languages,
-  PanelRightClose,
-  PanelRightOpen,
   RotateCcw,
   UnfoldHorizontal,
   Upload,
@@ -69,10 +66,6 @@ type Props = {
   savedAt: number | null;
   saveError: string | null;
   busy: boolean;
-  screensOpen: boolean;
-  onScreensOpenChange: (open: boolean) => void;
-  screenSettingsOpen: boolean;
-  onScreenSettingsOpenChange: (open: boolean) => void;
 };
 
 export function Toolbar(props: Props) {
@@ -274,38 +267,6 @@ export function Toolbar(props: Props) {
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <SaveStatus savedAt={props.savedAt} saveError={props.saveError} />
         <span aria-hidden className="h-5 w-px bg-border" />
-        <Button
-          type="button"
-          variant={props.screensOpen ? "secondary" : "outline"}
-          size="sm"
-          className="h-8 gap-1.5 px-2 text-xs"
-          onClick={() => props.onScreensOpenChange(!props.screensOpen)}
-          aria-pressed={props.screensOpen}
-          aria-controls="screens-panel"
-          title={props.screensOpen ? t("toolbar.hideScreens") : t("toolbar.showScreens")}
-        >
-          <Images className="h-4 w-4" />
-          {t("toolbar.screens")}
-        </Button>
-        <Button
-          type="button"
-          variant={props.screenSettingsOpen ? "secondary" : "outline"}
-          size="sm"
-          className="h-8 gap-1.5 px-2 text-xs"
-          onClick={() => props.onScreenSettingsOpenChange(!props.screenSettingsOpen)}
-          aria-pressed={props.screenSettingsOpen}
-          aria-controls="screen-settings-panel"
-          title={
-            props.screenSettingsOpen ? t("toolbar.hideSettings") : t("toolbar.showSettings")
-          }
-        >
-          {props.screenSettingsOpen ? (
-            <PanelRightClose className="h-4 w-4" />
-          ) : (
-            <PanelRightOpen className="h-4 w-4" />
-          )}
-          {t("toolbar.settings")}
-        </Button>
         <Button
           variant="outline"
           size="sm"

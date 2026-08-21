@@ -166,7 +166,8 @@ export function PreviewStage({
         </div>
       </div>
 
-      <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur-md">
+      {/* Context HUD lives bottom-left: the floating design chat owns top-left. */}
+      <div className="pointer-events-none absolute bottom-4 left-4 hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-caption text-muted-foreground shadow-sm backdrop-blur-md md:flex">
         <span className="font-medium text-foreground">{deviceLabel(device, t)}</span>
         {activeSlide && (
           <>
@@ -190,7 +191,8 @@ export function PreviewStage({
         )}
       </div>
 
-      <div className="absolute bottom-4 right-4 flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-1.5 py-1 text-[10px] tabular-nums text-muted-foreground shadow-sm backdrop-blur-md">
+      {/* Zoom cluster clears the floating composer on small screens. */}
+      <div className="absolute bottom-36 right-3 flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-1.5 py-1 text-caption tabular-nums text-muted-foreground shadow-sm backdrop-blur-md sm:bottom-4 sm:right-16">
         <span className="px-1">{slides.length}× {cW}×{cH}</span>
         <span aria-hidden className="text-border">|</span>
         <Button

@@ -3,7 +3,17 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import JSZip from "jszip";
 import { toJpeg, toPng } from "html-to-image";
-import { Check, Eye, EyeOff, MousePointerClick, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import {
+  Check,
+  Eye,
+  EyeOff,
+  Images,
+  MousePointerClick,
+  PanelLeftClose,
+  SlidersHorizontal,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { loadDesignMessages, saveDesignMessages, saveDesignReferences } from "@/lib/chat-storage";
@@ -44,7 +54,7 @@ import type {
   Slide,
 } from "@/lib/types";
 import { Inspector } from "./inspector";
-import { DesignSidebar } from "./design-sidebar";
+import { DesignChatLog, DesignComposer } from "./design-sidebar";
 import { NewProjectDialog } from "./new-project-dialog";
 import { CommandPalette, type PaletteGroup } from "./command-palette";
 import { PreviewStage } from "./preview-stage";
@@ -149,8 +159,12 @@ function Editor() {
   const [generatingDesign, setGeneratingDesign] = React.useState(false);
   const [pendingDesign, setPendingDesign] = React.useState<PendingDesign | null>(null);
   const [showProposal, setShowProposal] = React.useState(true);
-  const [screensOpen, setScreensOpen] = React.useState(true);
-  const [screenSettingsOpen, setScreenSettingsOpen] = React.useState(true);
+  const [screensOpen, setScreensOpen] = React.useState(false);
+  const [screenSettingsOpen, setScreenSettingsOpen] = React.useState(false);
+  // Chat panel: open where there's room, collapsed to a pill on small screens.
+  const [chatOpen, setChatOpen] = React.useState(() =>
+    typeof window === "undefined" ? true : window.matchMedia("(min-width: 1024px)").matches,
+  );
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [importing, setImporting] = React.useState<string | null>(null);
@@ -1154,10 +1168,6 @@ function Editor() {
         savedAt={savedAt}
         saveError={saveError}
         busy={busy}
-        screensOpen={screensOpen}
-        onScreensOpenChange={setScreensOpen}
-        screenSettingsOpen={screenSettingsOpen}
-        onScreenSettingsOpenChange={setScreenSettingsOpen}
       />
 
       <NewProjectDialog
@@ -1171,24 +1181,9 @@ function Editor() {
         onSubmit={handleCreateProject}
       />
 
-      <div className="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
-        <aside className="glass h-[58vh] min-h-[460px] max-h-[620px] w-full shrink-0 overflow-hidden border-r border-border/70 lg:h-auto lg:min-h-0 lg:max-h-none lg:w-80 xl:w-96">
-          <DesignSidebar
-            messages={designMessages}
-            scope={designScope}
-            onScopeChange={(scope) => {
-              setDesignScope(scope);
-              if (scope === "selected") setScreensOpen(true);
-            }}
-            targetCount={targetSlideIds.length}
-            generating={generatingDesign}
-            onSubmit={generateDesign}
-            onCancel={() => designAbortRef.current?.abort()}
-            disabled={busy}
-          />
-        </aside>
-
-        <main className="relative flex h-[72vh] min-h-[520px] w-full shrink-0 items-stretch overflow-hidden bg-muted/40 lg:h-auto lg:min-h-0 lg:flex-1">
+      <div className="relative flex-1 overflow-hidden">
+        {/* Full-bleed deck canvas — everything else floats above it. */}
+        <main className="absolute inset-0">
           {activeSlide && currentSlides.length > 0 ? (
             <PreviewStage
               slides={displaySlides}
@@ -1210,7 +1205,7 @@ function Editor() {
               editable={!busy}
             />
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-sm text-muted-foreground">
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-sm text-muted-foreground">
               <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 shadow-sm">
                 <MousePointerClick className="h-4 w-4" />
               </span>
@@ -1218,127 +1213,227 @@ function Editor() {
               <p className="text-xs">{t("toasts.addScreenHint")}</p>
             </div>
           )}
-          {pendingDesign && (
-            <div className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-1 rounded-xl border bg-background/95 p-1.5 shadow-xl backdrop-blur">
-              <div className="mr-1 hidden items-center gap-1.5 px-2 text-[11px] font-medium sm:flex">
-                <Eye className="h-3.5 w-3.5" /> {t("design.aiPreview")}
+        </main>
+
+        {/* Design chat — floating, collapsible (Stitch's agent panel). */}
+        {chatOpen ? (
+          <section
+            aria-label={t("designSidebar.title")}
+            className="absolute inset-x-3 top-3 z-30 flex max-h-[45vh] flex-col overflow-hidden rounded-xl border border-border/80 bg-card/95 shadow-pop backdrop-blur-md sm:inset-x-auto sm:left-4 sm:top-4 sm:w-80 sm:max-h-[min(64vh,560px)]"
+          >
+            <div className="flex shrink-0 items-center gap-2 border-b border-border/70 px-3 py-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary text-primary-foreground">
+                <Sparkles className="h-3.5 w-3.5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-footnote font-semibold tracking-tight">
+                  {t("designSidebar.title")}
+                </h2>
+                <p className="truncate text-caption text-muted-foreground">
+                  {t("designSidebar.subtitle")}
+                </p>
               </div>
               <Button
                 type="button"
-                size="sm"
-                variant={!showProposal ? "default" : "ghost"}
-                className="h-7 text-xs"
-                onClick={() => setShowProposal(false)}
-              >
-                <EyeOff className="h-3.5 w-3.5" /> {t("design.before")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={showProposal ? "default" : "ghost"}
-                className="h-7 text-xs"
-                onClick={() => setShowProposal(true)}
-              >
-                <Eye className="h-3.5 w-3.5" /> {t("design.after")}
-              </Button>
-              <span className="mx-1 h-5 w-px bg-border" />
-              <Button type="button" size="sm" className="h-7 text-xs" onClick={applyPendingDesign}>
-                <Check className="h-3.5 w-3.5" /> {t("design.apply")}
-              </Button>
-              <Button
-                type="button"
-                size="icon"
                 variant="ghost"
-                className="h-7 w-7"
-                onClick={discardPendingDesign}
-                title={t("design.discardRedesign")}
-                aria-label={t("design.discardRedesign")}
+                size="icon"
+                className="h-8 w-8 shrink-0 rounded-sm"
+                onClick={() => setChatOpen(false)}
+                aria-label={t("designSidebar.collapse")}
               >
-                <X className="h-3.5 w-3.5" />
+                <PanelLeftClose className="h-4 w-4" />
               </Button>
             </div>
-          )}
-        </main>
-
-        {screensOpen && (
-          <aside
-            id="screens-panel"
-            className="glass h-[58vh] min-h-[460px] w-full shrink-0 overflow-hidden border-l border-border/70 lg:h-auto lg:min-h-0 lg:w-80"
+            <DesignChatLog messages={designMessages} generating={generatingDesign} />
+          </section>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setChatOpen(true)}
+            className="absolute left-4 top-4 z-30 inline-flex h-10 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-4 text-footnote font-medium shadow-pop backdrop-blur-md transition-colors hover:bg-card"
           >
-            <Sidebar
-              slides={displaySlides}
-              activeId={activeSlide?.id || null}
-              device={state.device}
-              orientation={state.orientation}
-              theme={theme}
-              locale={state.locale}
-              appName={state.appName}
-              appIcon={state.appIcon}
-              connectedCanvas={state.connectedCanvas}
-              disabled={busy}
-              selectedForDesign={selectedSlideIds}
-              onToggleDesignSelection={(id) =>
-                setSelectedSlideIds((current) => {
-                  const next = new Set(current);
-                  if (next.has(id)) next.delete(id);
-                  else next.add(id);
-                  return next;
-                })
-              }
-              onReorder={reorderSlides}
-              onSelect={setActiveSlideId}
-              onDelete={deleteSlide}
-              onDuplicate={duplicateSlide}
-              onAdd={addSlide}
-            />
-          </aside>
+            <Sparkles className="h-4 w-4 text-primary" />
+            {t("designSidebar.expand")}
+          </button>
         )}
 
-        {screenSettingsOpen && (
-        <aside
-          id="screen-settings-panel"
-          className="glass h-[70vh] min-h-[520px] w-full shrink-0 overflow-hidden border-l border-border/70 lg:h-auto lg:min-h-0 lg:w-80"
-        >
-          {activeSlide && !pendingDesign && !generatingDesign ? (
-            <Inspector
-              slide={activeSlide}
-              device={state.device}
-              orientation={state.orientation}
-              locale={state.locale}
-              locales={state.locales}
-              selectedElementId={
-                selectedElement?.slideId === activeSlide.id ? selectedElement.elementId : null
-              }
-              onChange={(patch) => patchSlide(activeSlide.id, patch)}
-              onSelectElement={(elementId) =>
-                setSelectedElement(
-                  elementId ? { slideId: activeSlide.id, elementId } : null,
-                )
-              }
-            />
-          ) : pendingDesign || generatingDesign ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 text-primary shadow-sm">
-                <Sparkles className="h-4 w-4" />
-              </span>
-              <p className="font-medium text-foreground">
-                {pendingDesign ? t("design.reviewProposal") : t("design.creatingRedesign")}
-              </p>
-              <p className="text-xs">
-                {pendingDesign ? t("design.reviewHint") : t("design.pausedHint")}
-              </p>
-            </div>
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 shadow-sm">
-                <SlidersHorizontal className="h-4 w-4" />
-              </span>
-              <p className="font-medium text-foreground">{t("toasts.nothingToInspect")}</p>
-              <p className="text-xs">{t("toasts.settingsWillAppear")}</p>
-            </div>
-          )}
-        </aside>
+        {/* Tool rail — right edge, vertically centered (Stitch's toolbar). */}
+        <div className="absolute right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-border/80 bg-card/95 p-1 shadow-pop backdrop-blur-md">
+          <Button
+            type="button"
+            variant={screensOpen ? "secondary" : "ghost"}
+            size="icon"
+            className="h-9 w-9 rounded-sm"
+            onClick={() => setScreensOpen(!screensOpen)}
+            aria-pressed={screensOpen}
+            aria-controls="screens-panel"
+            aria-label={screensOpen ? t("toolbar.hideScreens") : t("toolbar.showScreens")}
+            title={screensOpen ? t("toolbar.hideScreens") : t("toolbar.showScreens")}
+          >
+            <Images className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant={screenSettingsOpen ? "secondary" : "ghost"}
+            size="icon"
+            className="h-9 w-9 rounded-sm"
+            onClick={() => setScreenSettingsOpen(!screenSettingsOpen)}
+            aria-pressed={screenSettingsOpen}
+            aria-controls="screen-settings-panel"
+            aria-label={
+              screenSettingsOpen ? t("toolbar.hideSettings") : t("toolbar.showSettings")
+            }
+            title={screenSettingsOpen ? t("toolbar.hideSettings") : t("toolbar.showSettings")}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Floating right panels, anchored beside the rail. */}
+        {(screensOpen || screenSettingsOpen) && (
+          <div className="absolute bottom-32 right-14 top-3 z-20 flex flex-row-reverse gap-3 sm:top-4">
+            {screensOpen && (
+              <section
+                id="screens-panel"
+                aria-label={t("toolbar.screens")}
+                className="flex w-72 max-w-[78vw] flex-col overflow-hidden rounded-xl border border-border/80 bg-card/95 shadow-pop backdrop-blur-md"
+              >
+                <Sidebar
+                  slides={displaySlides}
+                  activeId={activeSlide?.id || null}
+                  device={state.device}
+                  orientation={state.orientation}
+                  theme={theme}
+                  locale={state.locale}
+                  appName={state.appName}
+                  appIcon={state.appIcon}
+                  connectedCanvas={state.connectedCanvas}
+                  disabled={busy}
+                  selectedForDesign={selectedSlideIds}
+                  onToggleDesignSelection={(id) =>
+                    setSelectedSlideIds((current) => {
+                      const next = new Set(current);
+                      if (next.has(id)) next.delete(id);
+                      else next.add(id);
+                      return next;
+                    })
+                  }
+                  onReorder={reorderSlides}
+                  onSelect={setActiveSlideId}
+                  onDelete={deleteSlide}
+                  onDuplicate={duplicateSlide}
+                  onAdd={addSlide}
+                />
+              </section>
+            )}
+            {screenSettingsOpen && (
+              <section
+                id="screen-settings-panel"
+                aria-label={t("toolbar.settings")}
+                className="flex w-80 max-w-[78vw] flex-col overflow-hidden rounded-xl border border-border/80 bg-card/95 shadow-pop backdrop-blur-md"
+              >
+                {activeSlide && !pendingDesign && !generatingDesign ? (
+                  <Inspector
+                    slide={activeSlide}
+                    device={state.device}
+                    orientation={state.orientation}
+                    locale={state.locale}
+                    locales={state.locales}
+                    selectedElementId={
+                      selectedElement?.slideId === activeSlide.id
+                        ? selectedElement.elementId
+                        : null
+                    }
+                    onChange={(patch) => patchSlide(activeSlide.id, patch)}
+                    onSelectElement={(elementId) =>
+                      setSelectedElement(
+                        elementId ? { slideId: activeSlide.id, elementId } : null,
+                      )
+                    }
+                  />
+                ) : pendingDesign || generatingDesign ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 text-primary shadow-sm">
+                      <Sparkles className="h-4 w-4" />
+                    </span>
+                    <p className="font-medium text-foreground">
+                      {pendingDesign ? t("design.reviewProposal") : t("design.creatingRedesign")}
+                    </p>
+                    <p className="text-xs">
+                      {pendingDesign ? t("design.reviewHint") : t("design.pausedHint")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 shadow-sm">
+                      <SlidersHorizontal className="h-4 w-4" />
+                    </span>
+                    <p className="font-medium text-foreground">{t("toasts.nothingToInspect")}</p>
+                    <p className="text-xs">{t("toasts.settingsWillAppear")}</p>
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
         )}
+
+        {/* AI proposal review — floats top-center, above everything. */}
+        {pendingDesign && (
+          <div className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-border/80 bg-background/95 p-1.5 shadow-pop backdrop-blur">
+            <div className="mr-1 hidden items-center gap-1.5 px-2 text-caption font-medium sm:flex">
+              <Eye className="h-3.5 w-3.5" /> {t("design.aiPreview")}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant={!showProposal ? "default" : "ghost"}
+              className="h-8 text-footnote"
+              onClick={() => setShowProposal(false)}
+            >
+              <EyeOff className="h-3.5 w-3.5" /> {t("design.before")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={showProposal ? "default" : "ghost"}
+              className="h-8 text-footnote"
+              onClick={() => setShowProposal(true)}
+            >
+              <Eye className="h-3.5 w-3.5" /> {t("design.after")}
+            </Button>
+            <span className="mx-1 h-5 w-px bg-border" />
+            <Button type="button" size="sm" className="h-8 text-footnote" onClick={applyPendingDesign}>
+              <Check className="h-3.5 w-3.5" /> {t("design.apply")}
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={discardPendingDesign}
+              title={t("design.discardRedesign")}
+              aria-label={t("design.discardRedesign")}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+
+        {/* Composer — floating bottom center (Stitch's prompt bar). */}
+        <div className="absolute inset-x-3 bottom-3 z-30 sm:inset-x-auto sm:left-1/2 sm:bottom-5 sm:w-[min(62vw,640px)] sm:-translate-x-1/2">
+          <DesignComposer
+            scope={designScope}
+            onScopeChange={(scope) => {
+              setDesignScope(scope);
+              if (scope === "selected") setScreensOpen(true);
+            }}
+            targetCount={targetSlideIds.length}
+            generating={generatingDesign}
+            onSubmit={generateDesign}
+            onCancel={() => designAbortRef.current?.abort()}
+            disabled={busy}
+          />
+        </div>
       </div>
 
       {/* Off-screen export container — full-resolution canvases for html-to-image. */}
