@@ -43,10 +43,29 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      // Apple HIG type ramp. Named roles, not pixel guesses — see
+      // design-md/apple/DESIGN.md. Floor is 12px (caption); any control a user
+      // reads to make a choice is `footnote` (13px) or larger.
+      fontSize: {
+        caption: ["12px", { lineHeight: "1.4" }],
+        footnote: ["13px", { lineHeight: "1.4", letterSpacing: "0" }],
+        subhead: ["15px", { lineHeight: "1.45" }],
+        body: ["17px", { lineHeight: "1.5" }],
+        title3: ["17px", { lineHeight: "1.3", letterSpacing: "-0.01em" }],
+        title2: ["21px", { lineHeight: "1.25", letterSpacing: "-0.015em" }],
+        title1: ["28px", { lineHeight: "1.2", letterSpacing: "-0.02em" }],
+        display: ["54px", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
+      },
+      // Explicit radius hierarchy. The old scale derived md/sm from --radius,
+      // which made `rounded-lg` and Tailwind's stock `rounded-xl` both resolve
+      // to 12px — two names, one size, and no way to read intent from the code.
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        xs: "6px",
+        sm: "8px",
+        md: "10px",
+        lg: "12px",
+        xl: "14px",
+        "2xl": "18px",
       },
       boxShadow: {
         // Tinted, layered shadows — never pure black (single light source from above).
