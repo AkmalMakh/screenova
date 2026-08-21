@@ -307,6 +307,8 @@ export const en = {
 
   // ---- toolbar: home link ----
   "toolbar.home": "Home",
+  "toolbar.toolSelect": "Select — V",
+  "toolbar.toolPan": "Pan — H, or hold Space",
   "toolbar.commands": "Commands",
 
   // ---- command palette ----

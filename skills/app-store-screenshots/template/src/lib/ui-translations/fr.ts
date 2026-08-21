@@ -294,6 +294,8 @@ export const fr: Record<TranslationKey, string> = {
 
   // ---- toolbar: home link ----
   "toolbar.home": "Accueil",
+  "toolbar.toolSelect": "Sélectionner — V",
+  "toolbar.toolPan": "Déplacer — H ou maintenir Espace",
   "toolbar.commands": "Commandes",
 
   // ---- command palette ----

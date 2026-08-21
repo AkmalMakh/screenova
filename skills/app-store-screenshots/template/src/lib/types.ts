@@ -99,6 +99,9 @@ export type Slide = {
   textElements?: TextElement[];
   decorations?: DecorationElement[];
   visualAsset?: VisualAsset;
+  // Workspace-only position of the screen on the editor canvas (canvas px,
+  // relative to the screen's slot in the strip). Never affects export.
+  canvasOffset?: { x: number; y: number };
 };
 
 export type ThemeId =

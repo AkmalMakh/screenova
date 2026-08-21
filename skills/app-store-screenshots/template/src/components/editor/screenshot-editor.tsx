@@ -7,7 +7,9 @@ import {
   Check,
   Eye,
   EyeOff,
+  Hand,
   Images,
+  MousePointer2,
   MousePointerClick,
   PanelLeftClose,
   SlidersHorizontal,
@@ -57,7 +59,7 @@ import { Inspector } from "./inspector";
 import { DesignChatLog, DesignComposer } from "./design-sidebar";
 import { NewProjectDialog } from "./new-project-dialog";
 import { CommandPalette, type PaletteGroup } from "./command-palette";
-import { PreviewStage } from "./preview-stage";
+import { PreviewStage, type CanvasTool } from "./preview-stage";
 import { fileToDataUrl, uploadDataUrl } from "./screenshot-picker";
 import { Sidebar } from "./sidebar";
 import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides";
@@ -161,6 +163,7 @@ function Editor() {
   const [showProposal, setShowProposal] = React.useState(true);
   const [screensOpen, setScreensOpen] = React.useState(false);
   const [screenSettingsOpen, setScreenSettingsOpen] = React.useState(false);
+  const [canvasTool, setCanvasTool] = React.useState<CanvasTool>("select");
   // Chat panel: open where there's room, collapsed to a pill on small screens.
   const [chatOpen, setChatOpen] = React.useState(() =>
     typeof window === "undefined" ? true : window.matchMedia("(min-width: 1024px)").matches,
@@ -1196,6 +1199,11 @@ function Editor() {
               appIcon={state.appIcon}
               connectedCanvas={state.connectedCanvas}
               selectedElement={selectedElement}
+              tool={canvasTool}
+              onToolChange={setCanvasTool}
+              onScreenOffsetCommit={(slideId, offset) =>
+                patchSlide(slideId, { canvasOffset: offset ?? undefined })
+              }
               onActiveSlideChange={setActiveSlideId}
               onLabelChange={(slide, v) => patchLocalized(slide, "label", v)}
               onHeadlineChange={(slide, v) => patchLocalized(slide, "headline", v)}
@@ -1259,6 +1267,31 @@ function Editor() {
 
         {/* Tool rail — right edge, vertically centered (Stitch's toolbar). */}
         <div className="absolute right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-border/80 bg-card/95 p-1 shadow-pop backdrop-blur-md">
+          <Button
+            type="button"
+            variant={canvasTool === "select" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-9 w-9 rounded-sm"
+            onClick={() => setCanvasTool("select")}
+            aria-pressed={canvasTool === "select"}
+            aria-label={t("toolbar.toolSelect")}
+            title={t("toolbar.toolSelect")}
+          >
+            <MousePointer2 className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant={canvasTool === "pan" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-9 w-9 rounded-sm"
+            onClick={() => setCanvasTool("pan")}
+            aria-pressed={canvasTool === "pan"}
+            aria-label={t("toolbar.toolPan")}
+            title={t("toolbar.toolPan")}
+          >
+            <Hand className="h-4 w-4" />
+          </Button>
+          <span aria-hidden className="mx-1 my-0.5 h-px bg-border" />
           <Button
             type="button"
             variant={screensOpen ? "secondary" : "ghost"}

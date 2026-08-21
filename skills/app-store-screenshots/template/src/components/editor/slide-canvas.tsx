@@ -138,6 +138,9 @@ type DeckCanvasProps = {
   previewScale?: number;
   hideEmpty?: boolean;
   showGuides?: boolean;
+  /** Workspace-only per-screen positions (canvas px). Honored in isolated
+      mode only — a connected canvas is one continuous artboard. */
+  offsets?: Record<string, { x: number; y: number } | undefined>;
 };
 
 // ---------- Editable text helpers ----------
@@ -611,9 +614,12 @@ export function DeckCanvas({
   previewScale = 1,
   hideEmpty,
   showGuides = false,
+  offsets,
 }: DeckCanvasProps) {
   const { cW, cH } = getCanvas(device, orientation);
   const totalW = Math.max(1, slides.length) * cW;
+  const offsetFor = (id: string) =>
+    (!connectedCanvas && offsets?.[id]) || { x: 0, y: 0 };
 
   return (
     <div
@@ -621,7 +627,9 @@ export function DeckCanvas({
         width: totalW,
         height: cH,
         position: "relative",
-        overflow: "hidden",
+        // Freeform screens may sit outside their strip slot; only the
+        // connected panorama needs (and wants) hard clipping.
+        overflow: connectedCanvas ? "hidden" : "visible",
       }}
     >
       {slides.map((slide, index) => {
@@ -644,6 +652,7 @@ export function DeckCanvas({
           return (
             <div
               key={`${slide.id}-feature`}
+              data-screen-id={slide.id}
               onMouseDown={(e) => {
                 if (!editable || e.defaultPrevented) return;
                 edit?.onSelectScreen?.(slide.id);
@@ -651,8 +660,8 @@ export function DeckCanvas({
               }}
               style={{
                 position: "absolute",
-                left: screenX,
-                top: 0,
+                left: screenX + offsetFor(slide.id).x,
+                top: offsetFor(slide.id).y,
                 width: cW,
                 height: cH,
                 overflow: "hidden",
@@ -691,6 +700,7 @@ export function DeckCanvas({
         return (
           <div
             key={`${slide.id}-bg`}
+            data-screen-id={slide.id}
             onMouseDown={(e) => {
               if (!editable || e.defaultPrevented) return;
               edit?.onSelectScreen?.(slide.id);
@@ -698,8 +708,8 @@ export function DeckCanvas({
             }}
             style={{
               position: "absolute",
-              left: screenX,
-              top: 0,
+              left: screenX + offsetFor(slide.id).x,
+              top: offsetFor(slide.id).y,
               width: cW,
               height: cH,
               overflow: "hidden",
@@ -751,10 +761,11 @@ export function DeckCanvas({
         return (
           <div
             key={`${slide.id}-elements-isolated`}
+            data-screen-id={slide.id}
             style={{
               position: "absolute",
-              left: index * cW,
-              top: 0,
+              left: index * cW + offsetFor(slide.id).x,
+              top: offsetFor(slide.id).y,
               width: cW,
               height: cH,
               overflow: "hidden",

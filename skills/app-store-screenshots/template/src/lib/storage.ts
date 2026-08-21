@@ -191,7 +191,17 @@ function migrateSlide(slide: Slide): Slide {
     ...(textElements && textElements.length > 0 ? { textElements } : { textElements: undefined }),
     ...(decorations && decorations.length > 0 ? { decorations } : { decorations: undefined }),
     visualAsset: cleanVisualAsset(slide.visualAsset),
+    canvasOffset: cleanCanvasOffset(slide.canvasOffset),
   };
+}
+
+// Workspace position must be finite; a zero offset is stored as absence.
+function cleanCanvasOffset(
+  offset: Slide["canvasOffset"],
+): Slide["canvasOffset"] {
+  if (!offset || !Number.isFinite(offset.x) || !Number.isFinite(offset.y)) return undefined;
+  if (offset.x === 0 && offset.y === 0) return undefined;
+  return { x: offset.x, y: offset.y };
 }
 
 export function mergeWithDefaults(parsed: Partial<ProjectState>): ProjectState {
