@@ -80,6 +80,37 @@
     outline-offset: 2px;
   }
 
+  /* Touch targets: HIG asks for 44pt minimum, and a dense toolbar control
+     can stay visually compact as long as its HIT AREA is not. On coarse
+     pointers only, grow the tap area with a centered pseudo-element so the
+     layout keeps its density and nothing reflows on desktop. */
+  @media (pointer: coarse) {
+    button,
+    a[href],
+    [role="button"],
+    summary,
+    input[type="checkbox"],
+    input[type="radio"] {
+      position: relative;
+    }
+    button::after,
+    a[href]::after,
+    [role="button"]::after,
+    summary::after,
+    input[type="checkbox"]::after,
+    input[type="radio"]::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+      /* Hit area only — never paints, never intercepts hover styling. */
+      pointer-events: auto;
+    }
+  }
+
   /* Apple-style overlay scrollbars: thin, translucent, no track chrome. */
   * {
     scrollbar-width: thin;
@@ -159,15 +190,35 @@
   }
 }
 
-/* Fewer and gentler animations for reduced motion — fades stay, movement goes. */
+/* Reduced motion. This used to name two utility classes, which left every
+   Tailwind transition, spinner, and press-scale in the app running at full
+   amplitude — the preference was being honored in spirit and ignored in fact.
+   Now it is a blanket rule: motion stops, opacity changes survive. */
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Movement specifically — these carry transforms rather than durations. */
   .fade-up {
-    animation: none;
+    animation: none !important;
   }
   .lift-hover,
-  .lift-hover:hover {
-    transform: none;
-    transition: none;
+  .lift-hover:hover,
+  .btn-press:active,
+  .rnd-rotate-handle:hover {
+    transform: none !important;
+  }
+
+  /* A spinner that cannot spin reads as frozen, so keep it turning — just
+     slowly enough that it informs without pulsing in someone's periphery. */
+  .animate-spin {
+    animation: spin 2.4s linear infinite !important;
   }
 }
 
