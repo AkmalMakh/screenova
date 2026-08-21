@@ -222,6 +222,12 @@
   }
 }
 
+/* Editor canvas: screens read as grabbable objects under the select tool.
+   Editable elements inside keep their own cursors (rnd sets move/resize). */
+.dot-grid[data-tool="select"][data-freeform="true"] [data-screen-id] {
+  cursor: grab;
+}
+
 /* react-rnd editable element hint: subtle outline + visible resize handles on hover */
 .rnd-editable {
   cursor: move;

@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { flushSync } from "react-dom";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deviceLabel, layoutLabel, useT } from "@/lib/ui-i18n";
@@ -86,16 +87,12 @@ export function PreviewStage({
   const [zoom, setZoom] = React.useState(1);
   const [spaceHeld, setSpaceHeld] = React.useState(false);
   const [panning, setPanning] = React.useState(false);
-  // Live positions of the screens being dragged — committed on release so the
-  // project store isn't written 60 times a second.
-  const [liveDrag, setLiveDrag] = React.useState<Record<string, Offset> | null>(null);
-  // Marquee rectangle in container coords while the mark tool is dragging.
-  const [marquee, setMarquee] = React.useState<{
-    x0: number;
-    y0: number;
-    x1: number;
-    y1: number;
-  } | null>(null);
+  // Hot paths (screen drag, marquee band) bypass React entirely: pointermove
+  // writes transforms and overlay geometry straight to the DOM at rAF rate,
+  // and state is committed exactly once on release. Rendering the 9-screen
+  // deck per mousemove is what made dragging feel heavy.
+  const marqueeBandRef = React.useRef<HTMLDivElement>(null);
+  const markOverlayRef = React.useRef<HTMLDivElement>(null);
   const pendingZoomAnchorRef = React.useRef<{
     pointX: number;
     pointY: number;
@@ -114,9 +111,8 @@ export function PreviewStage({
     for (const slide of slides) {
       if (slide.canvasOffset) map[slide.id] = slide.canvasOffset;
     }
-    if (liveDrag) Object.assign(map, liveDrag);
     return map;
-  }, [slides, liveDrag]);
+  }, [slides]);
 
   // Screen rectangles in client coordinates — the marquee's hit-test space.
   const screenRects = React.useCallback(() => {
@@ -319,66 +315,98 @@ export function PreviewStage({
       }
 
       // Mark tool: rubber-band over the canvas; screens touching the band
-      // become the selection. Shift adds to what's already marked.
+      // become the selection. The band and the live highlight rings are drawn
+      // directly into the DOM — React only hears about it once, on release.
       if (tool === "marquee") {
         event.preventDefault();
         const containerRect = container.getBoundingClientRect();
+        const band = marqueeBandRef.current;
+        const overlay = markOverlayRef.current;
         const startX = event.clientX;
         const startY = event.clientY;
         const additive = event.shiftKey ? new Set(selectedIds) : new Set<string>();
         const rects = screenRects();
+        let hits = new Set(additive);
         let moved = false;
+        let raf = 0;
+        let lastX = startX;
+        let lastY = startY;
 
-        const apply = (clientX: number, clientY: number) => {
-          const left = Math.min(startX, clientX);
-          const top = Math.min(startY, clientY);
-          const right = Math.max(startX, clientX);
-          const bottom = Math.max(startY, clientY);
-          const next = new Set(additive);
+        const paintFrame = () => {
+          raf = 0;
+          const left = Math.min(startX, lastX);
+          const top = Math.min(startY, lastY);
+          const right = Math.max(startX, lastX);
+          const bottom = Math.max(startY, lastY);
+
+          hits = new Set(additive);
           for (const rect of rects) {
             const hit =
               rect.left < right &&
               rect.left + rect.width > left &&
               rect.top < bottom &&
               rect.top + rect.height > top;
-            if (hit) next.add(rect.id);
+            if (hit) hits.add(rect.id);
           }
-          onSelectedIdsChange(next);
-          setMarquee({
-            x0: left - containerRect.left,
-            y0: top - containerRect.top,
-            x1: right - containerRect.left,
-            y1: bottom - containerRect.top,
-          });
+
+          if (band) {
+            band.style.display = "block";
+            band.style.left = `${left - containerRect.left}px`;
+            band.style.top = `${top - containerRect.top}px`;
+            band.style.width = `${right - left}px`;
+            band.style.height = `${bottom - top}px`;
+          }
+          if (overlay) {
+            // One highlight box per hit screen, rebuilt per frame (cheap: <10 nodes).
+            overlay.replaceChildren(
+              ...[...hits].flatMap((id) => {
+                const rect = rects.find((item) => item.id === id);
+                if (!rect) return [];
+                const box = document.createElement("div");
+                box.style.cssText =
+                  "position:absolute;pointer-events:none;border:2px solid rgba(0,113,230,0.75);" +
+                  "background:rgba(0,113,230,0.05);border-radius:2px;";
+                box.style.left = `${rect.left - containerRect.left}px`;
+                box.style.top = `${rect.top - containerRect.top}px`;
+                box.style.width = `${rect.width}px`;
+                box.style.height = `${rect.height}px`;
+                return [box];
+              }),
+            );
+          }
         };
 
         const onMove = (move: PointerEvent) => {
-          if (!moved && Math.hypot(move.clientX - startX, move.clientY - startY) < DRAG_THRESHOLD) {
-            return;
-          }
+          lastX = move.clientX;
+          lastY = move.clientY;
+          if (!moved && Math.hypot(lastX - startX, lastY - startY) < DRAG_THRESHOLD) return;
           moved = true;
-          apply(move.clientX, move.clientY);
+          if (!raf) raf = requestAnimationFrame(paintFrame);
         };
         const onUp = (up: PointerEvent) => {
           window.removeEventListener("pointermove", onMove);
           window.removeEventListener("pointerup", onUp);
-          setMarquee(null);
-          if (!moved) {
-            // A plain click marks the screen under the cursor (or clears).
-            const hit = [...rects].reverse().find(
-              (rect) =>
-                up.clientX >= rect.left &&
-                up.clientX <= rect.left + rect.width &&
-                up.clientY >= rect.top &&
-                up.clientY <= rect.top + rect.height,
-            );
-            const next = new Set(additive);
-            if (hit) {
-              if (event.shiftKey && selectedIds.has(hit.id)) next.delete(hit.id);
-              else next.add(hit.id);
-            }
-            onSelectedIdsChange(next);
+          if (raf) cancelAnimationFrame(raf);
+          if (band) band.style.display = "none";
+          overlay?.replaceChildren();
+          if (moved) {
+            onSelectedIdsChange(hits);
+            return;
           }
+          // A plain click marks the screen under the cursor (or clears).
+          const hit = [...rects].reverse().find(
+            (rect) =>
+              up.clientX >= rect.left &&
+              up.clientX <= rect.left + rect.width &&
+              up.clientY >= rect.top &&
+              up.clientY <= rect.top + rect.height,
+          );
+          const next = new Set(additive);
+          if (hit) {
+            if (event.shiftKey && selectedIds.has(hit.id)) next.delete(hit.id);
+            else next.add(hit.id);
+          }
+          onSelectedIdsChange(next);
         };
         window.addEventListener("pointermove", onMove);
         window.addEventListener("pointerup", onUp);
@@ -418,6 +446,9 @@ export function PreviewStage({
 
       // Screen dragging: isolated mode only (a connected panorama is one
       // artboard). Dragging a marked screen moves the whole marked group.
+      // The move itself is pure compositor work: rAF-throttled translate()
+      // on the screen nodes, with will-change and a shadow lift. React sees
+      // one flushSync commit on release, timed so there is no snap-back frame.
       if (!editable || connectedCanvas) return;
       const groupIds =
         selectedIds.has(slideId) && selectedIds.size > 0 ? [...selectedIds] : [slideId];
@@ -428,37 +459,90 @@ export function PreviewStage({
       }
       if (!bases.size) return;
 
+      // Rigid-group clamp: limit the shared delta so no member crosses the
+      // canvas bounds — the group never tears apart at the edges.
+      let minDx = -Infinity, maxDx = Infinity, minDy = -Infinity, maxDy = Infinity;
+      for (const base of bases.values()) {
+        minDx = Math.max(minDx, -cW * 1.5 - base.x);
+        maxDx = Math.min(maxDx, cW * 1.5 - base.x);
+        minDy = Math.max(minDy, -cH - base.y);
+        maxDy = Math.min(maxDy, cH - base.y);
+      }
+
+      const nodes = new Map<string, HTMLElement[]>();
+      for (const id of bases.keys()) {
+        nodes.set(id, [
+          ...container.querySelectorAll<HTMLElement>(`[data-screen-id="${id}"]`),
+        ]);
+      }
+
       const startX = event.clientX;
       const startY = event.clientY;
       let moved = false;
-      let last: Record<string, Offset> = {};
+      let raf = 0;
+      let lastX = startX;
+      let lastY = startY;
+      let dx = 0;
+      let dy = 0;
+
+      const lift = () => {
+        document.body.style.cursor = "grabbing";
+        for (const els of nodes.values()) {
+          for (const el of els) {
+            el.style.willChange = "transform";
+            el.style.zIndex = "5";
+          }
+          // Shadow on the first node (the background card) is enough lift.
+          const first = els[0];
+          if (first) first.style.filter = "drop-shadow(0 24px 48px rgba(10,12,20,0.28))";
+        }
+      };
+
+      const paintFrame = () => {
+        raf = 0;
+        dx = Math.min(maxDx, Math.max(minDx, (lastX - startX) / scale));
+        dy = Math.min(maxDy, Math.max(minDy, (lastY - startY) / scale));
+        for (const els of nodes.values()) {
+          for (const el of els) {
+            el.style.transform = `translate(${dx}px, ${dy}px)`;
+          }
+        }
+      };
 
       const onMove = (move: PointerEvent) => {
-        const dx = (move.clientX - startX) / scale;
-        const dy = (move.clientY - startY) / scale;
-        if (!moved && Math.hypot(move.clientX - startX, move.clientY - startY) < DRAG_THRESHOLD) {
-          return;
+        lastX = move.clientX;
+        lastY = move.clientY;
+        if (!moved) {
+          if (Math.hypot(lastX - startX, lastY - startY) < DRAG_THRESHOLD) return;
+          moved = true;
+          lift();
         }
-        moved = true;
-        const next: Record<string, Offset> = {};
-        for (const [id, base] of bases) {
-          next[id] = {
-            x: Math.min(cW * 1.5, Math.max(-cW * 1.5, base.x + dx)),
-            y: Math.min(cH, Math.max(-cH, base.y + dy)),
-          };
-        }
-        last = next;
-        setLiveDrag(next);
+        if (!raf) raf = requestAnimationFrame(paintFrame);
       };
       const onUp = () => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
+        if (raf) cancelAnimationFrame(raf);
+        document.body.style.cursor = "";
         if (moved) {
-          for (const [id, offset] of Object.entries(last)) {
-            onScreenOffsetCommit(id, offset.x === 0 && offset.y === 0 ? null : offset);
+          paintFrame();
+          // Commit synchronously so the new left/top land in the same frame
+          // the inline transforms are cleared — no double-offset flash.
+          flushSync(() => {
+            for (const [id, base] of bases) {
+              const next = { x: base.x + dx, y: base.y + dy };
+              onScreenOffsetCommit(id, next.x === 0 && next.y === 0 ? null : next);
+            }
+          });
+        }
+        for (const els of nodes.values()) {
+          for (const el of els) {
+            el.style.transform = "";
+            el.style.willChange = "";
+            el.style.zIndex = "";
+            el.style.filter = "";
           }
         }
-        setLiveDrag(null);
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
@@ -485,6 +569,8 @@ export function PreviewStage({
   return (
     <div
       ref={containerRef}
+      data-tool={tool}
+      data-freeform={!connectedCanvas && editable ? "true" : undefined}
       className="dot-grid relative h-full w-full overflow-hidden"
       style={{ cursor }}
     >
@@ -550,18 +636,15 @@ export function PreviewStage({
         </div>
       </div>
 
-      {marquee && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute z-20 rounded-xs border border-primary/70 bg-primary/10"
-          style={{
-            left: marquee.x0,
-            top: marquee.y0,
-            width: marquee.x1 - marquee.x0,
-            height: marquee.y1 - marquee.y0,
-          }}
-        />
-      )}
+      {/* Direct-DOM layers for the mark tool: live highlight rings + band.
+          Painted at rAF rate during a drag; React never renders mid-gesture. */}
+      <div ref={markOverlayRef} aria-hidden className="pointer-events-none absolute inset-0 z-20" />
+      <div
+        ref={marqueeBandRef}
+        aria-hidden
+        className="pointer-events-none absolute z-20 hidden rounded-xs border border-primary/70 bg-primary/10"
+        style={{ display: "none" }}
+      />
 
       {/* Context HUD lives bottom-left: the floating design chat owns top-left. */}
       <div className="pointer-events-none absolute bottom-4 left-4 hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-caption text-muted-foreground shadow-sm backdrop-blur-md md:flex">
