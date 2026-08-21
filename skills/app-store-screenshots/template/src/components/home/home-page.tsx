@@ -3,23 +3,19 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  ChevronRight,
-  Clock,
   Download,
   ExternalLink,
   Loader2,
-  MessageSquare,
-  Paperclip,
-  Send,
-  Sparkles,
+  Menu,
+  Plus,
   Star,
-  Wand2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { StudioComposer, StudioSidebar, STUDIO_TEMPLATES } from "@/components/home/studio-shell";
 import { fileToDataUrl, uploadDataUrl } from "@/components/editor/screenshot-picker";
 import type { AppStoreLookupResult } from "@/lib/app-store";
 import { LAYOUT_LABEL, themeById } from "@/lib/constants";
@@ -64,13 +60,6 @@ const SUGGESTION_CHIPS: TranslationKey[] = [
   "home.chip5",
 ];
 
-// Decorative mini-deck shown under the hero — colors drawn from the app's
-// own themes (clean-light, dark-bold, ocean-fresh).
-const HERO_CARDS = [
-  { bg: "#F6F1EA", line: "#171717", accent: "#5B7CFA", fg: "#171717", tilt: -4 },
-  { bg: "#0B1020", line: "#F8FAFC", accent: "#8B5CF6", fg: "#F8FAFC", tilt: 0 },
-  { bg: "#E0F2FE", line: "#0C4A6E", accent: "#0284C7", fg: "#0C4A6E", tilt: 4 },
-];
 
 export function HomePage() {
   return (
@@ -83,8 +72,21 @@ export function HomePage() {
 function Home() {
   const { t, lang } = useT();
   const router = useRouter();
-  const { hydrated, projects, createProject, switchProject, deleteProject, setState } =
-    useProject();
+  const {
+    hydrated,
+    projects,
+    activeProjectId,
+    createProject,
+    switchProject,
+    deleteProject,
+    setState,
+  } = useProject();
+
+  // Workspace chrome: the rail is a sheet below lg, and the App Store import
+  // is a disclosure rather than a permanent section competing with the composer.
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [importOpen, setImportOpen] = React.useState(false);
+  const draftRef = React.useRef<HTMLTextAreaElement>(null);
 
   // App Store link flow (secondary).
   const [link, setLink] = React.useState("");
@@ -331,6 +333,21 @@ function Home() {
     router.push("/editor");
   }
 
+  // Locale toggles keep at least one language selected — an empty set would
+  // produce a deck with no copy.
+  function toggleLocale(code: string, current: string[]): string[] {
+    if (!current.includes(code)) return [...current, code];
+    return current.length === 1 ? current : current.filter((entry) => entry !== code);
+  }
+
+  function toggleChatLocale(code: string) {
+    setChatLocales((current) => toggleLocale(code, current));
+  }
+
+  function toggleImportLocale(code: string) {
+    setImportLocales((current) => toggleLocale(code, current));
+  }
+
   function startBlank() {
     createProject();
     router.push("/editor");
@@ -348,438 +365,268 @@ function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="glass sticky top-0 z-40 border-b border-border/70">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Persistent workspace rail. Hidden below lg, where it becomes a sheet. */}
+      <aside className="hidden w-[264px] shrink-0 border-r border-border/70 lg:block">
+        <StudioSidebar
+          projects={projects}
+          activeId={activeProjectId}
+          onOpenProject={openProject}
+          onNewDeck={startBlank}
+          onOpenTemplate={() => startBlank()}
+          formatUpdatedAt={formatUpdatedAt}
+        />
+      </aside>
+
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            className="flex items-center gap-2"
-            onClick={() => {
-              resetLookup();
-            }}
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Wand2 className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-semibold tracking-tight">{t("home.brand")}</span>
-          </button>
-          <span className="hidden text-caption text-muted-foreground sm:block">
-            {t("home.tagline")}
-          </span>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-5xl px-4 pb-16">
-        <section className="mx-auto max-w-3xl pb-10 pt-16 text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-white/70 px-3.5 py-1 text-caption font-medium text-muted-foreground shadow-sm">
-            <Sparkles className="h-3 w-3 text-primary" />
-            {t("home.badge")}
-          </span>
-          <h1 className="mx-auto mt-6 max-w-2xl text-balance text-[42px] font-semibold leading-[1.05] tracking-[-0.02em] sm:text-[54px]">
-            {t("home.title1")}
-            <br />
-            {t("home.title2")}
-          </h1>
-          <p className="mx-auto mt-5 max-w-xl text-pretty text-subhead leading-relaxed text-muted-foreground">
-            {t("home.subtitle")}
-          </p>
-
-          <div aria-hidden className="mx-auto mt-12 flex max-w-md items-end justify-center gap-4">
-            {HERO_CARDS.map((card, index) => (
-              <div
-                key={index}
-                className="fade-up w-24 overflow-hidden rounded-xl border border-border/70 shadow-card"
-                style={{
-                  animationDelay: `${150 + index * 90}ms`,
-                  transform: `rotate(${card.tilt}deg)`,
-                }}
-              >
-                <div className="aspect-[9/19]" style={{ backgroundColor: card.bg }}>
-                  <div
-                    className="mx-auto mt-[16%] flex h-[40%] w-[58%] flex-col items-center justify-center gap-[8%] rounded-[14%] border"
-                    style={{ borderColor: card.line, opacity: 0.85 }}
-                  >
-                    <span className="h-[4%] w-[62%] rounded-full" style={{ backgroundColor: card.line }} />
-                    <span className="h-[4%] w-[40%] rounded-full" style={{ backgroundColor: card.line }} />
-                  </div>
-                  <div className="mx-auto mt-[12%] flex flex-col items-center gap-[6%]">
-                    <span className="h-1.5 w-12 rounded-full" style={{ backgroundColor: card.accent }} />
-                    <span className="h-2 w-16 rounded-full" style={{ backgroundColor: card.fg }} />
-                    <span className="h-2 w-10 rounded-full" style={{ backgroundColor: card.fg, opacity: 0.6 }} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <ChatCard
-          messages={chatMessages}
-          draft={chatDraft}
-          onDraftChange={setChatDraft}
-          loading={chatLoading}
-          onSubmit={(text) => void submitChat(text)}
-          scrollRef={chatScrollRef}
-          attachments={attachments}
-          attachError={attachError}
-          onAddFiles={(list) => void addFiles(list)}
-          onRemoveAttachment={removeAttachment}
-          fileRef={fileRef}
-          device={chatDevice}
-          onDeviceChange={setChatDevice}
-          locales={chatLocales}
-          onToggleLocale={(code) =>
-            setChatLocales((current) =>
-              current.includes(code)
-                ? current.length === 1
-                  ? current
-                  : current.filter((entry) => entry !== code)
-                : [...current, code],
-            )
-          }
-        />
-
-        {deck && (
-          <DeckPreview
-            deck={deck}
-            paths={deckPaths}
-            appName={deckAppName}
-            onAppNameChange={setDeckAppName}
-            device={chatDevice}
-            onDeviceChange={setChatDevice}
-            locales={chatLocales}
-            onToggleLocale={(code) =>
-              setChatLocales((current) =>
-                current.includes(code)
-                  ? current.length === 1
-                    ? current
-                    : current.filter((entry) => entry !== code)
-                  : [...current, code],
-              )
-            }
-            loading={chatLoading}
-            onOpenEditor={openDeckInEditor}
+            aria-label={t("home.openMenu")}
+            className="absolute inset-0 bg-foreground/20 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
           />
-        )}
-
-        <section className="mx-auto mt-14 max-w-2xl">
-          <h2 className="mb-3 text-title3 font-semibold tracking-tight">
-            {t("home.linkSectionTitle")}
-          </h2>
-          <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-card">
-            {!lookupApp ? (
-              <form onSubmit={submitLookup} className="space-y-3">
-                <div className="flex gap-2">
-                  <Input
-                    value={link}
-                    onChange={(event) => setLink(event.target.value)}
-                    placeholder={t("home.linkPlaceholder")}
-                    className="h-10 flex-1 text-sm"
-                    aria-label={t("home.linkLabel")}
-                    disabled={linkLoading}
-                  />
-                  <Button
-                    type="submit"
-                    className="h-10 shrink-0 px-4"
-                    disabled={linkLoading || !link.trim()}
-                  >
-                    {linkLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {t("home.fetching")}
-                      </>
-                    ) : (
-                      t("home.fetch")
-                    )}
-                  </Button>
-                </div>
-                <p className="text-caption leading-relaxed text-muted-foreground">
-                  {t("home.linkHint")}
-                </p>
-                {linkError && <p className="text-xs text-destructive">{linkError}</p>}
-              </form>
-            ) : (
-              <LookupResult
-                app={lookupApp}
-                device={importDevice}
-                onDeviceChange={setImportDevice}
-                locales={importLocales}
-                onToggleLocale={(code) =>
-                  setImportLocales((current) =>
-                    current.includes(code)
-                      ? current.length === 1
-                        ? current
-                        : current.filter((entry) => entry !== code)
-                      : [...current, code],
-                  )
-                }
-                importing={importing}
-                importError={importError}
-                onImport={() => void importApp()}
-                onReset={resetLookup}
-              />
-            )}
-          </div>
-        </section>
-
-        {projects.length > 0 && (
-          <section className="mx-auto mt-14 max-w-2xl">
-            <div className="mb-3 flex items-baseline justify-between">
-              <h2 className="text-title3 font-semibold tracking-tight">
-                {t("home.recentTitle")}
-              </h2>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  className="rounded-full border border-border/80 bg-white/70 px-3 py-1 text-caption font-medium text-foreground shadow-sm transition-[background-color,transform] duration-150 ease-[var(--ease-out)] hover:bg-accent active:scale-[0.97]"
-                  onClick={startBlank}
-                >
-                  {t("home.blankCardTitle")}
-                </button>
-                <span className="text-caption text-muted-foreground">{t("home.recentHint")}</span>
-              </div>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {projects.map((project) => (
-                <button
-                  key={project.id}
-                  type="button"
-                  className="lift-hover group flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-card px-4 py-3 text-left shadow-card"
-                  onClick={() => openProject(project.id)}
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{project.name}</p>
-                    <p className="mt-0.5 flex items-center gap-1 text-caption text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {formatUpdatedAt(project.updatedAt, t)}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-      </main>
-    </div>
-  );
-}
-
-// ---------- Chat card (main flow) ----------
-
-function ChatCard({
-  messages,
-  draft,
-  onDraftChange,
-  loading,
-  onSubmit,
-  scrollRef,
-  attachments,
-  attachError,
-  onAddFiles,
-  onRemoveAttachment,
-  fileRef,
-  device,
-  onDeviceChange,
-  locales,
-  onToggleLocale,
-}: {
-  messages: ChatMessage[];
-  draft: string;
-  onDraftChange: (value: string) => void;
-  loading: boolean;
-  onSubmit: (text: string) => void;
-  scrollRef: React.RefObject<HTMLDivElement>;
-  attachments: Attachment[];
-  attachError: string | null;
-  onAddFiles: (list: FileList | null) => void;
-  onRemoveAttachment: (id: string) => void;
-  fileRef: React.RefObject<HTMLInputElement>;
-  device: Device;
-  onDeviceChange: (device: Device) => void;
-  locales: string[];
-  onToggleLocale: (code: string) => void;
-}) {
-  const { t } = useT();
-  const draftRef = React.useRef<HTMLTextAreaElement>(null);
-
-  // Focus the description box on desktop so users can start typing right away.
-  // preventScroll: without it the browser scrolls the composer into view on
-  // mount, skipping the hero and pinning the card under the sticky header.
-  React.useEffect(() => {
-    if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
-      draftRef.current?.focus({ preventScroll: true });
-    }
-  }, []);
-
-  return (
-    <section className="mx-auto max-w-3xl">
-      <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-card">
-        <div className="flex items-center gap-2.5 border-b border-border/70 bg-white/50 px-4 py-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <Sparkles className="h-3.5 w-3.5" />
-          </span>
-          <div>
-            <h2 className="text-title3 font-semibold tracking-tight">{t("home.chatTitle")}</h2>
-            <p className="text-caption text-muted-foreground">{t("home.chatSubtitle")}</p>
+          <div className="absolute inset-y-0 left-0 w-[264px] border-r border-border/70 bg-card shadow-pop">
+            <StudioSidebar
+              projects={projects}
+              activeId={activeProjectId}
+              onOpenProject={(id) => {
+                setSidebarOpen(false);
+                openProject(id);
+              }}
+              onNewDeck={startBlank}
+              onOpenTemplate={() => startBlank()}
+              formatUpdatedAt={formatUpdatedAt}
+            />
           </div>
         </div>
+      )}
 
-        <div className="flex h-[380px] min-h-0 flex-col">
-          <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-            {messages.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted/40">
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                </span>
-                <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
-                  {t("home.chatEmpty")}
-                </p>
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  {SUGGESTION_CHIPS.map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      className="rounded-full border border-border/80 bg-white/70 px-3.5 py-1.5 text-xs text-muted-foreground shadow-sm transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-accent hover:text-foreground active:scale-[0.97]"
-                      onClick={() => onSubmit(t(key))}
-                    >
-                      {t(key)}
-                    </button>
-                  ))}
-                </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="glass sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0 rounded-sm lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+              aria-label={t("home.openMenu")}
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+            <span className="truncate text-footnote font-semibold tracking-tight lg:hidden">
+              {t("home.brand")}
+            </span>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 gap-1.5 rounded-sm px-3 text-footnote font-medium"
+              onClick={() => setImportOpen((value) => !value)}
+              aria-expanded={importOpen}
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{t("home.importCta")}</span>
+              <span className="sm:hidden">{t("home.fetch")}</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 gap-1.5 rounded-sm px-3 text-footnote font-medium"
+              onClick={startBlank}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t("home.blankCardTitle")}
+            </Button>
+          </div>
+        </header>
+
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-3xl px-5 pb-24 pt-10 sm:px-8 sm:pt-14">
+            <h1 className="text-title1 font-semibold tracking-tight sm:text-[34px] sm:leading-[1.15]">
+              {t("home.welcome")}
+            </h1>
+
+            <div className="mt-6">
+              <StudioComposer
+                draft={chatDraft}
+                onDraftChange={setChatDraft}
+                onSubmit={(text) => void submitChat(text)}
+                loading={chatLoading}
+                draftRef={draftRef}
+                attachments={attachments}
+                attachError={attachError}
+                onAttachClick={() => fileRef.current?.click()}
+                onRemoveAttachment={removeAttachment}
+                device={chatDevice}
+                onDeviceChange={setChatDevice}
+                deviceOptions={CHAT_DEVICES}
+                locales={chatLocales}
+                onToggleLocale={toggleChatLocale}
+              />
+              <input
+                ref={fileRef}
+                type="file"
+                accept={ATTACHMENT_ACCEPT}
+                multiple
+                hidden
+                disabled={chatLoading}
+                onChange={(event) => {
+                  void addFiles(event.currentTarget.files);
+                }}
+              />
+            </div>
+
+            {chatMessages.length === 0 ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {SUGGESTION_CHIPS.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className="rounded-sm border border-border/80 bg-card px-3 py-2 text-footnote text-muted-foreground transition-colors duration-150 ease-[var(--ease-out)] hover:border-border hover:text-foreground"
+                    onClick={() => void submitChat(t(key))}
+                  >
+                    {t(key)}
+                  </button>
+                ))}
               </div>
             ) : (
-              <>
-                {messages.map((message) => (
+              <div ref={chatScrollRef} className="mt-6 space-y-3">
+                {chatMessages.map((message) => (
                   <div
                     key={message.id}
-                    className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}
+                    className={cn(
+                      "flex",
+                      message.role === "user" ? "justify-end" : "justify-start",
+                    )}
                   >
                     <div
                       className={cn(
-                        "max-w-[85%] whitespace-pre-line rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+                        "max-w-[85%] whitespace-pre-line rounded-xl px-3.5 py-2 text-subhead leading-relaxed",
                         message.role === "user"
                           ? "bg-primary text-primary-foreground"
-                          : "bg-muted/60 text-foreground",
+                          : "bg-muted text-foreground",
                       )}
                     >
                       {message.text}
                     </div>
                   </div>
                 ))}
-                {loading && (
-                  <div className="flex justify-start">
-                    <div className="flex items-center gap-1.5 rounded-2xl bg-muted/60 px-3.5 py-2.5 text-xs text-muted-foreground">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      {t("home.chatThinking")}
-                    </div>
+                {chatLoading && (
+                  <div className="flex items-center gap-1.5 text-caption text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    {t("home.chatThinking")}
                   </div>
                 )}
-              </>
-            )}
-          </div>
-
-          <div className="border-t p-3">
-            {attachments.length > 0 && (
-              <div className="mb-2 flex flex-wrap gap-1.5">
-                {attachments.map((attachment) => (
-                  <div
-                    key={attachment.id}
-                    className="group relative h-16 w-11 overflow-hidden rounded-md border"
-                  >
-                    <img
-                      src={attachment.dataUrl}
-                      alt={attachment.name}
-                      className="h-full w-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded bg-background/90 opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
-                      onClick={() => onRemoveAttachment(attachment.id)}
-                      disabled={loading}
-                      title={t("home.removeAttachment", { name: attachment.name })}
-                      aria-label={t("home.removeAttachment", { name: attachment.name })}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
               </div>
             )}
-            {attachError && <p className="mb-1.5 text-caption text-destructive">{attachError}</p>}
 
-            <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-              <span className="flex items-center gap-1.5 text-caption font-medium text-muted-foreground">
-                {t("home.device")}
-                <DevicePicker
-                  value={device}
-                  options={CHAT_DEVICES}
-                  onChange={onDeviceChange}
-                  disabled={loading}
+            {importOpen && (
+              <section className="mt-8" aria-label={t("home.linkSectionTitle")}>
+                <h2 className="mb-3 text-title3 font-semibold tracking-tight">
+                  {t("home.linkSectionTitle")}
+                </h2>
+                <div className="rounded-xl border border-border/80 bg-card p-4 shadow-card">
+                  {!lookupApp ? (
+                    <form onSubmit={submitLookup} className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Input
+                          value={link}
+                          onChange={(event) => setLink(event.target.value)}
+                          placeholder={t("home.linkPlaceholder")}
+                          className="h-10 min-w-0 flex-1 rounded-sm text-subhead"
+                          aria-label={t("home.linkLabel")}
+                          disabled={linkLoading}
+                        />
+                        <Button
+                          type="submit"
+                          className="h-10 shrink-0 rounded-sm px-4 text-footnote font-medium"
+                          disabled={linkLoading || !link.trim()}
+                        >
+                          {linkLoading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              {t("home.fetching")}
+                            </>
+                          ) : (
+                            t("home.fetch")
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-caption leading-relaxed text-muted-foreground">
+                        {t("home.linkHint")}
+                      </p>
+                      {linkError && <p className="text-caption text-destructive">{linkError}</p>}
+                    </form>
+                  ) : (
+                    <LookupResult
+                      app={lookupApp}
+                      device={importDevice}
+                      onDeviceChange={setImportDevice}
+                      locales={importLocales}
+                      onToggleLocale={toggleImportLocale}
+                      importing={importing}
+                      importError={importError}
+                      onImport={() => void importApp()}
+                      onReset={resetLookup}
+                    />
+                  )}
+                </div>
+              </section>
+            )}
+
+            {deck && (
+              <div className="mt-8">
+                <DeckPreview
+                  deck={deck}
+                  paths={deckPaths}
+                  appName={deckAppName}
+                  onAppNameChange={setDeckAppName}
+                  device={chatDevice}
+                  onDeviceChange={setChatDevice}
+                  locales={chatLocales}
+                  onToggleLocale={toggleChatLocale}
+                  loading={chatLoading}
+                  onOpenEditor={openDeckInEditor}
                 />
-              </span>
-              <span className="flex items-center gap-1.5 text-caption font-medium text-muted-foreground">
-                {t("home.languages")}
-                <LocalePicker selected={locales} onToggle={onToggleLocale} disabled={loading} />
-              </span>
-            </div>
+              </div>
+            )}
 
-            <div className="flex items-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 shrink-0"
-                onClick={() => fileRef.current?.click()}
-                disabled={loading}
-                title={t("home.attach")}
-                aria-label={t("home.attach")}
-              >
-                <Paperclip className="h-4 w-4" />
-              </Button>
-              <Textarea
-                ref={draftRef}
-                value={draft}
-                onChange={(event) => onDraftChange(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                    event.preventDefault();
-                    onSubmit(draft);
-                  }
-                }}
-                placeholder={t("home.chatPlaceholder")}
-                rows={2}
-                className="min-h-0 flex-1 resize-none text-sm"
-                aria-label={t("home.chatPlaceholder")}
-                disabled={loading}
-              />
-              <Button
-                type="button"
-                size="icon"
-                className="h-9 w-9 shrink-0"
-                onClick={() => onSubmit(draft)}
-                disabled={loading || !draft.trim()}
-                title={t("home.chatSend")}
-                aria-label={t("home.chatSend")}
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
-            </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept={ATTACHMENT_ACCEPT}
-              multiple
-              hidden
-              disabled={loading}
-              onChange={(event) => {
-                onAddFiles(event.currentTarget.files);
-              }}
-            />
+            <section className="mt-14" aria-label={t("home.inspiration")}>
+              <h2 className="mb-3 text-title3 font-semibold tracking-tight">
+                {t("home.inspiration")}
+              </h2>
+              <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:-mx-8 sm:px-8">
+                {STUDIO_TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={startBlank}
+                    className="lift-hover group w-[168px] shrink-0 snap-start overflow-hidden rounded-xl border border-border/80 bg-card text-left shadow-card"
+                  >
+                    <img
+                      src={tpl.thumb}
+                      alt=""
+                      loading="lazy"
+                      className="aspect-[9/19] w-full object-cover"
+                    />
+                    <span className="block px-3 py-2.5">
+                      <span className="block truncate text-footnote font-medium">{tpl.name}</span>
+                      <span className="block truncate text-caption text-muted-foreground">
+                        {t("home.slideCount", { count: tpl.slides })}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
           </div>
-        </div>
+        </main>
       </div>
-    </section>
+    </div>
   );
 }
 
