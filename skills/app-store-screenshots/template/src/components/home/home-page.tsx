@@ -463,7 +463,7 @@ function Home() {
         )}
 
         <section className="mx-auto mt-14 max-w-2xl">
-          <h2 className="mb-3 text-[13px] font-semibold tracking-tight text-muted-foreground">
+          <h2 className="mb-3 text-title3 font-semibold tracking-tight">
             {t("home.linkSectionTitle")}
           </h2>
           <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-card">
@@ -525,7 +525,7 @@ function Home() {
         {projects.length > 0 && (
           <section className="mx-auto mt-14 max-w-2xl">
             <div className="mb-3 flex items-baseline justify-between">
-              <h2 className="text-[13px] font-semibold tracking-tight text-muted-foreground">
+              <h2 className="text-title3 font-semibold tracking-tight">
                 {t("home.recentTitle")}
               </h2>
               <div className="flex items-center gap-3">
@@ -620,7 +620,7 @@ function ChatCard({
             <Sparkles className="h-3.5 w-3.5" />
           </span>
           <div>
-            <h2 className="text-[13px] font-semibold tracking-tight">{t("home.chatTitle")}</h2>
+            <h2 className="text-title3 font-semibold tracking-tight">{t("home.chatTitle")}</h2>
             <p className="text-caption text-muted-foreground">{t("home.chatSubtitle")}</p>
           </div>
         </div>
@@ -814,7 +814,7 @@ function DeckPreview({
   return (
     <div className="mx-auto mt-6 max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold">{t("home.deckTitle")}</h2>
+        <h2 className="text-title3 font-semibold tracking-tight">{t("home.deckTitle")}</h2>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-caption text-muted-foreground">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: theme.accent }} />
@@ -932,7 +932,7 @@ function LookupResult({
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="truncate text-base font-semibold">{app.trackName}</h2>
+            <h2 className="truncate text-title3 font-semibold tracking-tight">{app.trackName}</h2>
             {app.trackViewUrl && (
               <a
                 href={app.trackViewUrl}
