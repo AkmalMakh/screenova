@@ -604,9 +604,11 @@ function ChatCard({
   const draftRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Focus the description box on desktop so users can start typing right away.
+  // preventScroll: without it the browser scrolls the composer into view on
+  // mount, skipping the hero and pinning the card under the sticky header.
   React.useEffect(() => {
     if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
-      draftRef.current?.focus();
+      draftRef.current?.focus({ preventScroll: true });
     }
   }, []);
 
