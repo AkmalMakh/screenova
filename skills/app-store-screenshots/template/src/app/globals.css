@@ -223,8 +223,13 @@
 }
 
 /* Editor canvas: screens read as grabbable objects under the select tool.
-   Editable elements inside keep their own cursors (rnd sets move/resize). */
+   Editable elements inside keep their own cursors (rnd sets move/resize).
+   Under the mark tool, only already-marked screens are grabbable — pressing
+   anywhere else draws a new band (crosshair). */
 .dot-grid[data-tool="select"][data-freeform="true"] [data-screen-id] {
+  cursor: grab;
+}
+.dot-grid[data-tool="marquee"][data-freeform="true"] [data-screen-id][data-marked="true"] {
   cursor: grab;
 }
 

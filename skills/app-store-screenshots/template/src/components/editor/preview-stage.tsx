@@ -314,10 +314,127 @@ export function PreviewStage({
         return;
       }
 
+      // Group drag, shared by the Select tool and the Mark tool (dragging a
+      // marked screen moves the whole marked group; see R5 for the
+      // compositor-path rationale). Returns false when dragging is not
+      // available (connected panorama / read-only).
+      const beginGroupDrag = (slideId: string): boolean => {
+        if (!editable || connectedCanvas) return false;
+        const groupIds =
+          selectedIds.has(slideId) && selectedIds.size > 0 ? [...selectedIds] : [slideId];
+        const bases = new Map<string, Offset>();
+        for (const id of groupIds) {
+          const slide = slides.find((item) => item.id === id);
+          if (slide) bases.set(id, slide.canvasOffset ?? { x: 0, y: 0 });
+        }
+        if (!bases.size) return false;
+
+        // Rigid-group clamp: limit the shared delta so no member crosses the
+        // canvas bounds — the group never tears apart at the edges.
+        let minDx = -Infinity, maxDx = Infinity, minDy = -Infinity, maxDy = Infinity;
+        for (const base of bases.values()) {
+          minDx = Math.max(minDx, -cW * 1.5 - base.x);
+          maxDx = Math.min(maxDx, cW * 1.5 - base.x);
+          minDy = Math.max(minDy, -cH - base.y);
+          maxDy = Math.min(maxDy, cH - base.y);
+        }
+
+        const nodes = new Map<string, HTMLElement[]>();
+        for (const id of bases.keys()) {
+          nodes.set(id, [
+            ...container.querySelectorAll<HTMLElement>(`[data-screen-id="${id}"]`),
+          ]);
+        }
+
+        const startX = event.clientX;
+        const startY = event.clientY;
+        let moved = false;
+        let raf = 0;
+        let lastX = startX;
+        let lastY = startY;
+        let dx = 0;
+        let dy = 0;
+
+        const lift = () => {
+          document.body.style.cursor = "grabbing";
+          for (const els of nodes.values()) {
+            for (const el of els) {
+              el.style.willChange = "transform";
+              el.style.zIndex = "5";
+            }
+            // Shadow on the first node (the background card) is enough lift.
+            const first = els[0];
+            if (first) first.style.filter = "drop-shadow(0 24px 48px rgba(10,12,20,0.28))";
+          }
+        };
+
+        const paintFrame = () => {
+          raf = 0;
+          dx = Math.min(maxDx, Math.max(minDx, (lastX - startX) / scale));
+          dy = Math.min(maxDy, Math.max(minDy, (lastY - startY) / scale));
+          for (const els of nodes.values()) {
+            for (const el of els) {
+              el.style.transform = `translate(${dx}px, ${dy}px)`;
+            }
+          }
+        };
+
+        const onMove = (move: PointerEvent) => {
+          lastX = move.clientX;
+          lastY = move.clientY;
+          if (!moved) {
+            if (Math.hypot(lastX - startX, lastY - startY) < DRAG_THRESHOLD) return;
+            moved = true;
+            lift();
+          }
+          if (!raf) raf = requestAnimationFrame(paintFrame);
+        };
+        const onUp = () => {
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+          if (raf) cancelAnimationFrame(raf);
+          document.body.style.cursor = "";
+          if (moved) {
+            paintFrame();
+            // Commit synchronously so the new left/top land in the same frame
+            // the inline transforms are cleared — no double-offset flash.
+            flushSync(() => {
+              for (const [id, base] of bases) {
+                const next = { x: base.x + dx, y: base.y + dy };
+                onScreenOffsetCommit(id, next.x === 0 && next.y === 0 ? null : next);
+              }
+            });
+          }
+          for (const els of nodes.values()) {
+            for (const el of els) {
+              el.style.transform = "";
+              el.style.willChange = "";
+              el.style.zIndex = "";
+              el.style.filter = "";
+            }
+          }
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        return true;
+      };
+
       // Mark tool: rubber-band over the canvas; screens touching the band
       // become the selection. The band and the live highlight rings are drawn
       // directly into the DOM — React only hears about it once, on release.
       if (tool === "marquee") {
+        // Pressing on an already-marked screen moves the marked group —
+        // no tool switch needed. Empty canvas or unmarked screens band.
+        if (!event.shiftKey && selectedIds.size) {
+          const hit = [...screenRects()].reverse().find(
+            (rect) =>
+              event.clientX >= rect.left &&
+              event.clientX <= rect.left + rect.width &&
+              event.clientY >= rect.top &&
+              event.clientY <= rect.top + rect.height,
+          );
+          if (hit && selectedIds.has(hit.id) && beginGroupDrag(hit.id)) return;
+        }
         event.preventDefault();
         const containerRect = container.getBoundingClientRect();
         const band = marqueeBandRef.current;
@@ -332,13 +449,13 @@ export function PreviewStage({
         let lastX = startX;
         let lastY = startY;
 
-        const paintFrame = () => {
-          raf = 0;
+        // Hit-testing runs both per painted frame AND on release — a flick
+        // faster than one frame must still commit what the band covered.
+        const computeHits = () => {
           const left = Math.min(startX, lastX);
           const top = Math.min(startY, lastY);
           const right = Math.max(startX, lastX);
           const bottom = Math.max(startY, lastY);
-
           hits = new Set(additive);
           for (const rect of rects) {
             const hit =
@@ -348,6 +465,12 @@ export function PreviewStage({
               rect.top + rect.height > top;
             if (hit) hits.add(rect.id);
           }
+          return { left, top, right, bottom };
+        };
+
+        const paintFrame = () => {
+          raf = 0;
+          const { left, top, right, bottom } = computeHits();
 
           if (band) {
             band.style.display = "block";
@@ -390,6 +513,9 @@ export function PreviewStage({
           if (band) band.style.display = "none";
           overlay?.replaceChildren();
           if (moved) {
+            lastX = up.clientX;
+            lastY = up.clientY;
+            computeHits();
             onSelectedIdsChange(hits);
             return;
           }
@@ -446,106 +572,7 @@ export function PreviewStage({
 
       // Screen dragging: isolated mode only (a connected panorama is one
       // artboard). Dragging a marked screen moves the whole marked group.
-      // The move itself is pure compositor work: rAF-throttled translate()
-      // on the screen nodes, with will-change and a shadow lift. React sees
-      // one flushSync commit on release, timed so there is no snap-back frame.
-      if (!editable || connectedCanvas) return;
-      const groupIds =
-        selectedIds.has(slideId) && selectedIds.size > 0 ? [...selectedIds] : [slideId];
-      const bases = new Map<string, Offset>();
-      for (const id of groupIds) {
-        const slide = slides.find((item) => item.id === id);
-        if (slide) bases.set(id, slide.canvasOffset ?? { x: 0, y: 0 });
-      }
-      if (!bases.size) return;
-
-      // Rigid-group clamp: limit the shared delta so no member crosses the
-      // canvas bounds — the group never tears apart at the edges.
-      let minDx = -Infinity, maxDx = Infinity, minDy = -Infinity, maxDy = Infinity;
-      for (const base of bases.values()) {
-        minDx = Math.max(minDx, -cW * 1.5 - base.x);
-        maxDx = Math.min(maxDx, cW * 1.5 - base.x);
-        minDy = Math.max(minDy, -cH - base.y);
-        maxDy = Math.min(maxDy, cH - base.y);
-      }
-
-      const nodes = new Map<string, HTMLElement[]>();
-      for (const id of bases.keys()) {
-        nodes.set(id, [
-          ...container.querySelectorAll<HTMLElement>(`[data-screen-id="${id}"]`),
-        ]);
-      }
-
-      const startX = event.clientX;
-      const startY = event.clientY;
-      let moved = false;
-      let raf = 0;
-      let lastX = startX;
-      let lastY = startY;
-      let dx = 0;
-      let dy = 0;
-
-      const lift = () => {
-        document.body.style.cursor = "grabbing";
-        for (const els of nodes.values()) {
-          for (const el of els) {
-            el.style.willChange = "transform";
-            el.style.zIndex = "5";
-          }
-          // Shadow on the first node (the background card) is enough lift.
-          const first = els[0];
-          if (first) first.style.filter = "drop-shadow(0 24px 48px rgba(10,12,20,0.28))";
-        }
-      };
-
-      const paintFrame = () => {
-        raf = 0;
-        dx = Math.min(maxDx, Math.max(minDx, (lastX - startX) / scale));
-        dy = Math.min(maxDy, Math.max(minDy, (lastY - startY) / scale));
-        for (const els of nodes.values()) {
-          for (const el of els) {
-            el.style.transform = `translate(${dx}px, ${dy}px)`;
-          }
-        }
-      };
-
-      const onMove = (move: PointerEvent) => {
-        lastX = move.clientX;
-        lastY = move.clientY;
-        if (!moved) {
-          if (Math.hypot(lastX - startX, lastY - startY) < DRAG_THRESHOLD) return;
-          moved = true;
-          lift();
-        }
-        if (!raf) raf = requestAnimationFrame(paintFrame);
-      };
-      const onUp = () => {
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-        if (raf) cancelAnimationFrame(raf);
-        document.body.style.cursor = "";
-        if (moved) {
-          paintFrame();
-          // Commit synchronously so the new left/top land in the same frame
-          // the inline transforms are cleared — no double-offset flash.
-          flushSync(() => {
-            for (const [id, base] of bases) {
-              const next = { x: base.x + dx, y: base.y + dy };
-              onScreenOffsetCommit(id, next.x === 0 && next.y === 0 ? null : next);
-            }
-          });
-        }
-        for (const els of nodes.values()) {
-          for (const el of els) {
-            el.style.transform = "";
-            el.style.willChange = "";
-            el.style.zIndex = "";
-            el.style.filter = "";
-          }
-        }
-      };
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
+      beginGroupDrag(slideId);
     },
     [
       panMode,

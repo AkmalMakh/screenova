@@ -656,6 +656,7 @@ export function DeckCanvas({
             <div
               key={`${slide.id}-feature`}
               data-screen-id={slide.id}
+              data-marked={selectedScreenIds?.has(slide.id) ? "true" : undefined}
               onMouseDown={(e) => {
                 if (!editable || e.defaultPrevented) return;
                 edit?.onSelectScreen?.(slide.id);
@@ -712,6 +713,7 @@ export function DeckCanvas({
           <div
             key={`${slide.id}-bg`}
             data-screen-id={slide.id}
+            data-marked={selectedScreenIds?.has(slide.id) ? "true" : undefined}
             onMouseDown={(e) => {
               if (!editable || e.defaultPrevented) return;
               edit?.onSelectScreen?.(slide.id);
@@ -781,6 +783,7 @@ export function DeckCanvas({
           <div
             key={`${slide.id}-elements-isolated`}
             data-screen-id={slide.id}
+            data-marked={selectedScreenIds?.has(slide.id) ? "true" : undefined}
             style={{
               position: "absolute",
               left: index * cW + offsetFor(slide.id).x,
