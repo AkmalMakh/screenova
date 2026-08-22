@@ -650,8 +650,6 @@ export function PreviewStage({
             top: 0,
             transform: `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${scale})`,
             transformOrigin: "0 0",
-            willChange: "transform",
-            filter: "drop-shadow(0 24px 48px hsl(240 10% 8% / 0.14))",
           }}
         >
           <DeckCanvas

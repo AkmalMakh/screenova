@@ -623,6 +623,13 @@ export function DeckCanvas({
   const totalW = Math.max(1, slides.length) * cW;
   const offsetFor = (id: string) =>
     (!connectedCanvas && offsets?.[id]) || { x: 0, y: 0 };
+  // Workspace-only screen shadow (showGuides is never set on export paths —
+  // a shadow must not bleed into a neighbor's exported PNG). Sized against
+  // previewScale so it reads the same at every zoom. box-shadow, not filter:
+  // a filter here forces a rasterized surface the size of the whole strip.
+  const screenShadow = showGuides
+    ? `0 ${Math.round(24 / previewScale)}px ${Math.round(48 / previewScale)}px hsl(240 10% 8% / 0.14)`
+    : undefined;
 
   return (
     <div
@@ -669,6 +676,7 @@ export function DeckCanvas({
                 width: cW,
                 height: cH,
                 overflow: "hidden",
+                boxShadow: screenShadow,
               }}
             >
               <FeatureGraphicCanvas
@@ -726,6 +734,7 @@ export function DeckCanvas({
               width: cW,
               height: cH,
               overflow: "hidden",
+              boxShadow: screenShadow,
             }}
           >
             <SlideBackground slide={slide} cW={cW} cH={cH} theme={theme} />
