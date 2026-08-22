@@ -15,7 +15,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { StudioComposer, StudioSidebar, STUDIO_TEMPLATES } from "@/components/home/studio-shell";
+import {
+  StudioComposer,
+  StudioSidebar,
+  STUDIO_TEMPLATES,
+  type ComposerReference,
+} from "@/components/home/studio-shell";
 import { fileToDataUrl, uploadDataUrl } from "@/components/editor/screenshot-picker";
 import type { AppStoreLookupResult } from "@/lib/app-store";
 import { LAYOUT_LABEL, themeById } from "@/lib/constants";
@@ -33,6 +38,10 @@ type T = ReturnType<typeof useT>["t"];
 type ChatMessage = { id: string; role: "user" | "assistant"; text: string };
 type Attachment = { id: string; name: string; dataUrl: string };
 
+// A reference link plus what the App Store lookup resolved for it. Screenshot
+// URLs stay here (page state) — the composer chip only shows icon + name.
+type StyleReference = ComposerReference & { screenshotUrls: string[] };
+
 type ImportResult = {
   ok: boolean;
   app: AppStoreLookupResult;
@@ -43,6 +52,8 @@ type ImportResult = {
 const CHAT_DEVICES: Device[] = ["iphone", "ipad", "android"];
 const IMPORT_DEVICES: Device[] = ["iphone", "ipad"];
 const MAX_ATTACHMENTS = 10;
+const MAX_REFERENCES = 3;
+const MAX_REFERENCE_SHOTS = 3;
 const MAX_ATTACH_BYTES = 8 * 1024 * 1024;
 const ATTACHMENT_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const ATTACHMENT_ACCEPT = "image/png,image/jpeg,image/webp";
@@ -104,6 +115,8 @@ function Home() {
   const [chatLoading, setChatLoading] = React.useState(false);
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
   const [attachError, setAttachError] = React.useState<string | null>(null);
+  const [references, setReferences] = React.useState<StyleReference[]>([]);
+  const [referenceError, setReferenceError] = React.useState<string | null>(null);
   const [deck, setDeck] = React.useState<DeckSuggestion | null>(null);
   const [deckPaths, setDeckPaths] = React.useState<string[]>([]);
   const [deckAppName, setDeckAppName] = React.useState("");
@@ -258,6 +271,90 @@ function Home() {
     setAttachError(null);
   }
 
+  // ---------- Style-reference links ----------
+
+  // Returns whether the link was accepted, so the composer knows to clear its
+  // input. App Store links resolve to icon + screenshots in the background;
+  // anything else stays a plain named URL the model gets as text.
+  function addReference(raw: string): boolean {
+    const value = raw.trim();
+    if (!value || chatLoading) return false;
+    setReferenceError(null);
+    if (references.length >= MAX_REFERENCES) {
+      setReferenceError(t("home.referenceLimit", { count: MAX_REFERENCES }));
+      return false;
+    }
+    let url: URL;
+    try {
+      url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    } catch {
+      setReferenceError(t("home.referenceInvalid"));
+      return false;
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      setReferenceError(t("home.referenceInvalid"));
+      return false;
+    }
+    const href = url.toString();
+    if (references.some((reference) => reference.url === href)) return true;
+
+    const id = chatId();
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    const isAppStore = host === "apps.apple.com" || host === "itunes.apple.com";
+    setReferences((current) => [
+      ...current,
+      { id, url: href, name: host, screenshotUrls: [], loading: isAppStore },
+    ]);
+    if (isAppStore) void resolveReference(id, href);
+    return true;
+  }
+
+  async function resolveReference(id: string, href: string) {
+    try {
+      const response = await fetch("/api/app-store/lookup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: href }),
+      });
+      const json = (await response.json()) as {
+        ok?: boolean;
+        app?: AppStoreLookupResult;
+        error?: string;
+      };
+      if (!response.ok || !json.ok || !json.app) {
+        throw new Error(json.error || t("home.referenceFailed"));
+      }
+      const app = json.app;
+      const shots = app.screenshotUrls.length ? app.screenshotUrls : app.ipadScreenshotUrls;
+      setReferences((current) =>
+        current.map((reference) =>
+          reference.id === id
+            ? {
+                ...reference,
+                name: app.trackName,
+                iconUrl: app.artworkUrl100 || undefined,
+                screenshotUrls: shots.slice(0, MAX_REFERENCE_SHOTS),
+                loading: false,
+              }
+            : reference,
+        ),
+      );
+    } catch (error) {
+      // Keep the chip as a plain link reference — the URL still informs the model.
+      setReferences((current) =>
+        current.map((reference) =>
+          reference.id === id ? { ...reference, loading: false } : reference,
+        ),
+      );
+      setReferenceError(error instanceof Error ? error.message : t("home.referenceFailed"));
+    }
+  }
+
+  function removeReference(id: string) {
+    setReferences((current) => current.filter((reference) => reference.id !== id));
+    setReferenceError(null);
+  }
+
   async function submitChat(text: string) {
     const value = text.trim();
     if (!value || chatLoading) return;
@@ -287,6 +384,13 @@ function Home() {
           count: 5,
           screenshots: attachments.length
             ? paths.map((path, index) => ({ name: attachments[index].name, path }))
+            : undefined,
+          styleReferences: references.length
+            ? references.map(({ name, url, screenshotUrls }) => ({
+                name,
+                url,
+                ...(screenshotUrls.length ? { screenshotUrls } : {}),
+              }))
             : undefined,
         }),
       });
@@ -466,6 +570,10 @@ function Home() {
                 deviceOptions={CHAT_DEVICES}
                 locales={chatLocales}
                 onToggleLocale={toggleChatLocale}
+                references={references}
+                referenceError={referenceError}
+                onAddReference={addReference}
+                onRemoveReference={removeReference}
               />
               <input
                 ref={fileRef}

@@ -11,6 +11,8 @@ import {
   DECK_SLIDE_LAYOUTS,
   DEFAULT_DECK_COUNT,
   MAX_DECK_SLIDES,
+  MAX_REFERENCE_SCREENSHOTS,
+  MAX_STYLE_REFERENCES,
   MIN_DECK_SLIDES,
   normalizeDeck,
 } from "@/lib/suggest-deck";
@@ -50,12 +52,31 @@ const screenshotInputSchema = z.object({
     }),
 });
 
+// Reference screenshots are passed to OpenAI as remote URLs. Only Apple's
+// screenshot CDN is accepted so this endpoint can't relay arbitrary URLs.
+const MZSTATIC_URL = /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.mzstatic\.com\/.+/i;
+
+const styleReferenceSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  url: z
+    .string()
+    .trim()
+    .max(400)
+    .url()
+    .refine((value) => value.startsWith("https://"), { message: "Reference links must be https." }),
+  screenshotUrls: z
+    .array(z.string().trim().max(600).regex(MZSTATIC_URL))
+    .max(MAX_REFERENCE_SCREENSHOTS)
+    .optional(),
+});
+
 const suggestDeckRequestSchema = z.object({
   messages: z.array(messageSchema).min(1).max(MAX_MESSAGES),
   locales: z.array(z.string().trim().regex(localeCode)).min(1).max(7),
   device: z.enum(["iphone", "ipad", "android"]),
   count: z.number().int().min(MIN_DECK_SLIDES).max(MAX_DECK_SLIDES).optional(),
   screenshots: z.array(screenshotInputSchema).min(1).max(MAX_SCREENSHOTS).optional(),
+  styleReferences: z.array(styleReferenceSchema).max(MAX_STYLE_REFERENCES).optional(),
 });
 
 export async function POST(req: Request) {
@@ -83,6 +104,7 @@ export async function POST(req: Request) {
   }
   const { messages, locales, device, count } = validation.data;
   const screenshots = validation.data.screenshots ?? [];
+  const styleReferences = validation.data.styleReferences ?? [];
   const withScreenshots = screenshots.length > 0;
   // One slide per attached screenshot, in order; otherwise the requested count.
   const deckCount = withScreenshots ? screenshots.length : count ?? DEFAULT_DECK_COUNT;
@@ -141,6 +163,20 @@ export async function POST(req: Request) {
     }
   }
 
+  // Style references ride along as remote CDN URLs — OpenAI fetches them, so
+  // nothing extra lands on this server. Low detail: they set direction only.
+  for (let i = 0; i < styleReferences.length; i += 1) {
+    const reference = styleReferences[i];
+    const shots = reference.screenshotUrls ?? [];
+    userContent.push({
+      type: "input_text",
+      text: `STYLE REFERENCE ${i + 1} of ${styleReferences.length} — ${reference.name} (${reference.url})${shots.length ? "" : " — link only, no screenshots"}`,
+    });
+    for (const url of shots) {
+      userContent.push({ type: "input_image", image_url: url, detail: "low" });
+    }
+  }
+
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const model = process.env.OPENAI_DESIGN_MODEL || "gpt-5.6-terra";
 
@@ -151,7 +187,16 @@ export async function POST(req: Request) {
         const response = await client.responses.parse(
           {
             model,
-            instructions: buildDeckPrompt(locales, device, deckCount, screenshots.length),
+            instructions: buildDeckPrompt(
+              locales,
+              device,
+              deckCount,
+              screenshots.length,
+              styleReferences.map((reference) => ({
+                name: reference.name,
+                hasImages: (reference.screenshotUrls ?? []).length > 0,
+              })),
+            ),
             input: [{ role: "user", content: userContent }],
             reasoning: { effort: "medium" },
             text: {

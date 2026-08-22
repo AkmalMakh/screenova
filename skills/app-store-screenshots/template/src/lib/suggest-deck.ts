@@ -39,6 +39,17 @@ export const MAX_DECK_SLIDES = 8;
 export const MIN_DECK_SLIDES = 3;
 export const DEFAULT_DECK_COUNT = 5;
 
+// Competitor / inspiration links the user attaches to the studio composer.
+// App Store links resolve to real screenshots; anything else rides along as
+// a named URL the model may recognize.
+export const MAX_STYLE_REFERENCES = 3;
+export const MAX_REFERENCE_SCREENSHOTS = 3;
+
+export type StyleReferenceSummary = {
+  name: string;
+  hasImages: boolean;
+};
+
 const slideCopySchema = z.object({
   label: z.string().trim().min(1).max(40),
   headline: z.string().trim().min(1).max(120),
@@ -75,13 +86,25 @@ export function buildDeckPrompt(
   device: string,
   count: number,
   screenshotCount = 0,
+  styleReferences: StyleReferenceSummary[] = [],
 ): string {
   const themeGuide = DECK_THEME_IDS.map((id) => `- ${id}: ${THEMES[id].name}`).join("\n");
   const slideRules =
     screenshotCount > 0
       ? `The user attached ${screenshotCount} screenshots of their app. Write exactly one slide per screenshot, in the same order — the first slide is about screenshot 1, and so on. Ground each label and headline in what that screenshot actually shows; never invent features the screenshots don't display. Every slide must use a layout that shows a device frame (hero, device-bottom, device-top, two-devices) — never "no-device". Vary the layouts for rhythm.`
       : `Vary the layouts across screens for visual rhythm; the first screen is a "hero" and the last is a "no-device" closer. Use at most one "two-devices" screen.`;
-  return `You are the template engine inside an App Store screenshot editor. The user has described their app and wants a starter template deck to begin designing from.
+  const referenceRules = styleReferences.length
+    ? `\n\nSTYLE REFERENCES
+The user attached ${styleReferences.length} reference app${styleReferences.length === 1 ? "" : "s"} whose App Store presence they want to emulate:
+${styleReferences
+  .map(
+    (reference, index) =>
+      `${index + 1}. ${reference.name}${reference.hasImages ? " — its store screenshots are attached below, labeled STYLE REFERENCE" : " — no screenshots available; go by what you know of this product"}`,
+  )
+  .join("\n")}
+Study the references for DIRECTION only: layout rhythm, copy tone and energy, how they sequence features, and which theme fits that vibe. Then apply that direction to the USER'S app. Never copy a reference's headlines, feature claims, prices, or brand names — every word of copy must describe the user's app as they described it.`
+    : "";
+  return `You are the template engine inside an App Store screenshot editor. The user has described their app and wants a starter template deck to begin designing from.${referenceRules}
 
 Draft exactly ${count} screens for a ${device}-frame App Store campaign:
 - ${slideRules}

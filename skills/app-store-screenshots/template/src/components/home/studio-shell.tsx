@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { ChevronDown, Clock, Plus, Search, Send, Paperclip, Loader2, Wand2, X } from "lucide-react";
+import { ChevronDown, Clock, Link2, Plus, Search, Send, Paperclip, Loader2, Wand2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { deviceLabel, useT } from "@/lib/ui-i18n";
@@ -20,6 +20,17 @@ export type TemplateEntry = {
   name: string;
   thumb: string;
   slides: number;
+};
+
+/** A design-reference link the user attached to the composer. App Store links
+    resolve to the app's icon/name (and screenshots, held by the page state);
+    other links stay as plain named URLs. */
+export type ComposerReference = {
+  id: string;
+  name: string;
+  url: string;
+  iconUrl?: string;
+  loading?: boolean;
 };
 
 /** Deck assets that ship with the template — the sidebar's Templates group. */
@@ -244,6 +255,10 @@ export function StudioComposer({
   deviceOptions,
   locales,
   onToggleLocale,
+  references,
+  referenceError,
+  onAddReference,
+  onRemoveReference,
 }: {
   draft: string;
   onDraftChange: (value: string) => void;
@@ -259,13 +274,58 @@ export function StudioComposer({
   deviceOptions: Device[];
   locales: string[];
   onToggleLocale: (code: string) => void;
+  references: ComposerReference[];
+  referenceError: string | null;
+  onAddReference: (url: string) => boolean;
+  onRemoveReference: (id: string) => void;
 }) {
   const { t } = useT();
+  const [linkOpen, setLinkOpen] = React.useState(false);
+  const [linkDraft, setLinkDraft] = React.useState("");
+
+  function submitLink() {
+    if (onAddReference(linkDraft)) setLinkDraft("");
+  }
 
   return (
     <div className="rounded-2xl border border-border/80 bg-card shadow-card transition-shadow focus-within:border-primary/40 focus-within:shadow-pop">
-      {attachments.length > 0 && (
+      {references.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-4 pt-4">
+          {references.map((reference) => (
+            <span
+              key={reference.id}
+              title={reference.url}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border/80 bg-muted/40 pl-1.5 pr-1 text-footnote"
+            >
+              {reference.loading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              ) : reference.iconUrl ? (
+                // Remote App Store icon — display only, never uploaded.
+                <img
+                  src={reference.iconUrl}
+                  alt=""
+                  className="h-5 w-5 rounded-xs border border-border/60 object-cover"
+                />
+              ) : (
+                <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
+              <span className="max-w-40 truncate font-medium">{reference.name}</span>
+              <button
+                type="button"
+                onClick={() => onRemoveReference(reference.id)}
+                disabled={loading}
+                aria-label={t("home.referenceRemove", { name: reference.name })}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {attachments.length > 0 && (
+        <div className={cn("flex flex-wrap gap-1.5 px-4", references.length ? "pt-2" : "pt-4")}>
           {attachments.map((attachment) => (
             <div
               key={attachment.id}
@@ -307,7 +367,46 @@ export function StudioComposer({
         className="block max-h-[320px] min-h-[132px] w-full resize-none bg-transparent px-4 pb-3 pt-4 text-body leading-relaxed outline-none placeholder:text-muted-foreground disabled:opacity-60"
       />
 
-      {attachError && <p className="px-4 pb-2 text-caption text-destructive">{attachError}</p>}
+      {linkOpen && (
+        <div className="border-t border-border/70 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              value={linkDraft}
+              onChange={(event) => setLinkDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  submitLink();
+                } else if (event.key === "Escape") {
+                  setLinkOpen(false);
+                }
+              }}
+              placeholder={t("home.referencePlaceholder")}
+              aria-label={t("home.referenceButton")}
+              autoFocus
+              disabled={loading}
+              className="h-8 min-w-0 flex-1 bg-transparent text-footnote outline-none placeholder:text-muted-foreground disabled:opacity-60"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-8 shrink-0 rounded-sm px-3 text-footnote font-medium"
+              onClick={submitLink}
+              disabled={loading || !linkDraft.trim()}
+            >
+              {t("home.referenceAdd")}
+            </Button>
+          </div>
+          <p className="pl-6 pt-1 text-caption leading-relaxed text-muted-foreground">
+            {t("home.referenceHint")}
+          </p>
+        </div>
+      )}
+
+      {(attachError || referenceError) && (
+        <p className="px-4 pb-2 text-caption text-destructive">{attachError || referenceError}</p>
+      )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border/70 px-3 py-2.5">
         <Button
@@ -320,6 +419,22 @@ export function StudioComposer({
           aria-label={t("home.attach")}
         >
           <Paperclip className="h-4 w-4" />
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={cn(
+            "h-9 w-9 shrink-0 rounded-sm",
+            linkOpen && "border-primary/50 text-primary",
+          )}
+          onClick={() => setLinkOpen((value) => !value)}
+          disabled={loading}
+          aria-label={t("home.referenceButton")}
+          aria-expanded={linkOpen}
+        >
+          <Link2 className="h-4 w-4" />
         </Button>
 
         <SegmentedControl
