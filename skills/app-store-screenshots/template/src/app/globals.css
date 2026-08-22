@@ -166,6 +166,29 @@
       100% 100%,
       24px 24px;
   }
+
+  /* Cursor spotlight over the dot lattice: the same 24px dots, tinted
+     systemBlue, revealed only inside a soft halo that tracks the pointer
+     (--mx/--my are written directly from JS — no React involved). The
+     background-position is kept in lockstep with the canvas pan so the
+     tinted dots sit exactly on the gray ones. */
+  .dot-spotlight {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle, hsl(var(--primary) / 0.45) 1.2px, transparent 1.2px);
+    background-size: 24px 24px;
+    -webkit-mask-image: radial-gradient(
+      220px circle at var(--mx, -9999px) var(--my, -9999px),
+      black 0%,
+      transparent 72%
+    );
+    mask-image: radial-gradient(
+      220px circle at var(--mx, -9999px) var(--my, -9999px),
+      black 0%,
+      transparent 72%
+    );
+  }
 }
 
 @keyframes fade-up {

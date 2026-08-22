@@ -80,8 +80,14 @@ export function PreviewStage({
 }: Props) {
   const { t } = useT();
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const scrollerRef = React.useRef<HTMLDivElement>(null);
   const wrapRef = React.useRef<HTMLDivElement>(null);
+  const spotlightRef = React.useRef<HTMLDivElement>(null);
+  // Viewport = translate(pan) scale(scale) on the world div. Pan lives in a
+  // ref and is written straight to the DOM — unbounded in every direction,
+  // which is what makes the canvas infinite. React state only carries zoom
+  // (the % label and rnd element math need it).
+  const panRef = React.useRef<Offset>({ x: 0, y: 0 });
+  const scaleRef = React.useRef(0.2);
   const suppressNextActiveScreenPanRef = React.useRef(false);
   const [fitScale, setFitScale] = React.useState(0.2);
   const [zoom, setZoom] = React.useState(1);
@@ -93,15 +99,43 @@ export function PreviewStage({
   // deck per mousemove is what made dragging feel heavy.
   const marqueeBandRef = React.useRef<HTMLDivElement>(null);
   const markOverlayRef = React.useRef<HTMLDivElement>(null);
-  const pendingZoomAnchorRef = React.useRef<{
-    pointX: number;
-    pointY: number;
-    oldScale: number;
-  } | null>(null);
 
   const { cW, cH } = getCanvas(device, orientation);
   const totalW = Math.max(1, slides.length) * cW;
   const scale = fitScale * zoom;
+  scaleRef.current = scale;
+
+  // Writes the viewport transform and glides the dot lattice with it — the
+  // background moving in lockstep is what sells "surface", not "document".
+  const applyPan = React.useCallback((x: number, y: number, animate = false) => {
+    panRef.current = { x, y };
+    const world = wrapRef.current;
+    const container = containerRef.current;
+    if (world) {
+      world.style.transition = animate
+        ? "transform 320ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1))"
+        : "";
+      world.style.transform = `translate(${x}px, ${y}px) scale(${scaleRef.current})`;
+    }
+    if (container) {
+      container.style.backgroundPosition = `0 0, ${x}px ${y}px`;
+      spotlightRef.current?.style.setProperty("background-position", `${x}px ${y}px`);
+    }
+  }, []);
+
+  const centerPan = React.useCallback(
+    (animate = false) => {
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      applyPan(
+        (rect.width - totalW * scaleRef.current) / 2,
+        (rect.height - cH * scaleRef.current) / 2,
+        animate,
+      );
+    },
+    [applyPan, totalW, cH],
+  );
   const activeIndex = Math.max(0, slides.findIndex((slide) => slide.id === activeSlideId));
   const activeSlide = slides[activeIndex] || slides[0] || null;
   const panMode = tool === "pan" || spaceHeld;
@@ -148,52 +182,78 @@ export function PreviewStage({
 
   React.useEffect(() => {
     setZoom(1);
-    // Center the strip inside its apron when the artboard changes.
-    const scroller = scrollerRef.current;
-    if (scroller) {
-      requestAnimationFrame(() => {
-        scroller.scrollTop = (scroller.scrollHeight - scroller.clientHeight) / 2;
-      });
-    }
-  }, [device, orientation]);
+    // Center the strip in the viewport when the artboard changes.
+    const raf = requestAnimationFrame(() => centerPan(false));
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [device, orientation, fitScale]);
 
-  // Wheel: pinch / cmd+wheel zooms toward the cursor, plain wheel pans
-  // natively via the scroller. React's synthetic wheel handlers are passive,
-  // so the listener is attached by hand.
+  // Wheel: plain wheel / trackpad pans the infinite surface; pinch or
+  // cmd+wheel zooms toward the cursor. React's synthetic wheel handlers are
+  // passive, so the listener is attached by hand.
   React.useEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
+    const container = containerRef.current;
+    if (!container) return;
     const onWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
-      const wrap = wrapRef.current;
-      if (!wrap) return;
-      const rect = wrap.getBoundingClientRect();
-      const currentScale = fitScale * zoom;
-      pendingZoomAnchorRef.current = {
-        pointX: (event.clientX - rect.left) / currentScale,
-        pointY: (event.clientY - rect.top) / currentScale,
-        oldScale: currentScale,
-      };
-      setZoom((value) => {
-        const next = value * Math.exp(-event.deltaY * 0.002);
-        return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
-      });
+      const pan = panRef.current;
+      if (event.ctrlKey || event.metaKey) {
+        const rect = container.getBoundingClientRect();
+        const px = event.clientX - rect.left;
+        const py = event.clientY - rect.top;
+        const oldScale = scaleRef.current;
+        const nextZoom = Math.min(
+          MAX_ZOOM,
+          Math.max(MIN_ZOOM, zoom * Math.exp(-event.deltaY * 0.002)),
+        );
+        const nextScale = fitScale * nextZoom;
+        const ratio = nextScale / oldScale;
+        // Keep the canvas point under the cursor fixed through the scale change.
+        panRef.current = {
+          x: px - ratio * (px - pan.x),
+          y: py - ratio * (py - pan.y),
+        };
+        setZoom(nextZoom);
+        return;
+      }
+      applyPan(pan.x - event.deltaX, pan.y - event.deltaY);
     };
-    scroller.addEventListener("wheel", onWheel, { passive: false });
-    return () => scroller.removeEventListener("wheel", onWheel);
-  }, [fitScale, zoom]);
+    container.addEventListener("wheel", onWheel, { passive: false });
+    return () => container.removeEventListener("wheel", onWheel);
+  }, [fitScale, zoom, applyPan]);
 
-  // Keep the canvas point under the cursor fixed while the scale changes.
-  React.useLayoutEffect(() => {
-    const anchor = pendingZoomAnchorRef.current;
-    const scroller = scrollerRef.current;
-    if (!anchor || !scroller) return;
-    pendingZoomAnchorRef.current = null;
-    const delta = scale - anchor.oldScale;
-    scroller.scrollLeft += anchor.pointX * delta;
-    scroller.scrollTop += anchor.pointY * delta;
-  }, [scale]);
+  // Dot spotlight: the lattice warms to systemBlue around the cursor.
+  // Direct CSS-var writes at rAF rate; React never renders for a hover.
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    let raf = 0;
+    let mx = -9999;
+    let my = -9999;
+    const paint = () => {
+      raf = 0;
+      container.style.setProperty("--mx", `${mx}px`);
+      container.style.setProperty("--my", `${my}px`);
+    };
+    const onMove = (event: PointerEvent) => {
+      const rect = container.getBoundingClientRect();
+      mx = event.clientX - rect.left;
+      my = event.clientY - rect.top;
+      if (!raf) raf = requestAnimationFrame(paint);
+    };
+    const onLeave = () => {
+      mx = -9999;
+      my = -9999;
+      if (!raf) raf = requestAnimationFrame(paint);
+    };
+    container.addEventListener("pointermove", onMove);
+    container.addEventListener("pointerleave", onLeave);
+    return () => {
+      container.removeEventListener("pointermove", onMove);
+      container.removeEventListener("pointerleave", onLeave);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
   // Tool shortcuts: V select, H pan, Space temporarily pans (like Figma/Stitch).
   React.useEffect(() => {
@@ -262,15 +322,13 @@ export function PreviewStage({
       return;
     }
 
-    const scroller = scrollerRef.current;
-    const wrap = wrapRef.current;
-    if (!scroller || !wrap || !activeSlide) return;
-    const padLeft = wrap.offsetLeft;
-    const screenLeft = padLeft + activeIndex * cW * scale;
-    const screenWidth = cW * scale;
-    const targetLeft = Math.max(0, screenLeft - (scroller.clientWidth - screenWidth) / 2);
-    scroller.scrollTo({ left: targetLeft, behavior: "smooth" });
-  }, [activeIndex, activeSlide, cW, scale]);
+    const container = containerRef.current;
+    if (!container || !activeSlide) return;
+    const rect = container.getBoundingClientRect();
+    const off = (!connectedCanvas && activeSlide.canvasOffset) || { x: 0, y: 0 };
+    const targetX = rect.width / 2 - (activeIndex * cW + off.x + cW / 2) * scale;
+    applyPan(targetX, panRef.current.y, true);
+  }, [activeIndex, activeSlide, cW, scale, connectedCanvas, applyPan]);
 
   const handleCanvasActiveSlideChange = React.useCallback(
     (id: string) => {
@@ -286,9 +344,12 @@ export function PreviewStage({
   // middle button), marquee marking, and screen dragging (single or group).
   const onPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      const scroller = scrollerRef.current;
       const container = containerRef.current;
-      if (!scroller || !container) return;
+      if (!container) return;
+      // Floating chrome (zoom cluster, panels) sits inside the container —
+      // gestures must never start from a control.
+      const origin = event.target as HTMLElement;
+      if (origin.closest("button, input, textarea, select, [role=menu]")) return;
 
       const pan = panMode || event.button === 1;
       if (!pan && event.button !== 0) return;
@@ -298,14 +359,23 @@ export function PreviewStage({
         setPanning(true);
         const startX = event.clientX;
         const startY = event.clientY;
-        const startLeft = scroller.scrollLeft;
-        const startTop = scroller.scrollTop;
+        const base = { ...panRef.current };
+        let raf = 0;
+        let lastX = startX;
+        let lastY = startY;
+        const paintFrame = () => {
+          raf = 0;
+          applyPan(base.x + (lastX - startX), base.y + (lastY - startY));
+        };
         const onMove = (move: PointerEvent) => {
-          scroller.scrollLeft = startLeft - (move.clientX - startX);
-          scroller.scrollTop = startTop - (move.clientY - startY);
+          lastX = move.clientX;
+          lastY = move.clientY;
+          if (!raf) raf = requestAnimationFrame(paintFrame);
         };
         const onUp = () => {
           setPanning(false);
+          if (raf) cancelAnimationFrame(raf);
+          paintFrame();
           window.removeEventListener("pointermove", onMove);
           window.removeEventListener("pointerup", onUp);
         };
@@ -599,35 +669,30 @@ export function PreviewStage({
       data-tool={tool}
       data-freeform={!connectedCanvas && editable ? "true" : undefined}
       className="dot-grid relative h-full w-full overflow-hidden"
-      style={{ cursor }}
+      style={{ cursor, touchAction: "none" }}
+      onPointerDown={onPointerDown}
     >
-      <div
-        ref={scrollerRef}
-        className="h-full w-full overflow-auto"
-        onPointerDown={onPointerDown}
-      >
-        {/* Generous apron on every side so screens can be arranged freely
-            and the workspace pans like an open canvas, not a document. */}
-        <div style={{ padding: "38vh 34vw" }}>
-          <div
-            ref={wrapRef}
-            style={{
-              width: totalW * scale,
-              height: cH * scale,
-              position: "relative",
-              flexShrink: 0,
-              filter: "drop-shadow(0 24px 48px hsl(240 10% 8% / 0.14))",
-            }}
-          >
-            <div
-              style={{
-                width: totalW,
-                height: cH,
-                transform: `scale(${scale})`,
-                transformOrigin: "top left",
-              }}
-            >
-              <DeckCanvas
+      {/* Cursor spotlight: the dot lattice tints systemBlue near the pointer. */}
+      <div ref={spotlightRef} aria-hidden className="dot-spotlight" />
+
+      {/* The infinite surface: one world div under translate(pan) scale(zoom).
+          No scroll geometry, so there is no edge to hit in any direction. */}
+      <div className="absolute inset-0">
+        <div
+          ref={wrapRef}
+          style={{
+            width: totalW,
+            height: cH,
+            position: "absolute",
+            left: 0,
+            top: 0,
+            transform: `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${scale})`,
+            transformOrigin: "0 0",
+            willChange: "transform",
+            filter: "drop-shadow(0 24px 48px hsl(240 10% 8% / 0.14))",
+          }}
+        >
+          <DeckCanvas
                 slides={slides}
                 device={device}
                 orientation={orientation}
@@ -657,9 +722,7 @@ export function PreviewStage({
                   onSelectElement,
                   onSelectScreen: handleCanvasActiveSlideChange,
                 } : undefined}
-              />
-            </div>
-          </div>
+          />
         </div>
       </div>
 
@@ -732,7 +795,10 @@ export function PreviewStage({
           variant="ghost"
           size="icon"
           className="h-6 w-6"
-          onClick={() => setZoom(1)}
+          onClick={() => {
+            setZoom(1);
+            requestAnimationFrame(() => centerPan(true));
+          }}
           title={t("preview.fitScreen")}
           aria-label={t("preview.fitScreen")}
         >
