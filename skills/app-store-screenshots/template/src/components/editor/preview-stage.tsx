@@ -81,7 +81,6 @@ export function PreviewStage({
   const { t } = useT();
   const containerRef = React.useRef<HTMLDivElement>(null);
   const wrapRef = React.useRef<HTMLDivElement>(null);
-  const spotlightRef = React.useRef<HTMLDivElement>(null);
   // Viewport = translate(pan) scale(scale) on the world div. Pan lives in a
   // ref and is written straight to the DOM — unbounded in every direction,
   // which is what makes the canvas infinite. React state only carries zoom
@@ -119,7 +118,6 @@ export function PreviewStage({
     }
     if (container) {
       container.style.backgroundPosition = `0 0, ${x}px ${y}px`;
-      spotlightRef.current?.style.setProperty("background-position", `${x}px ${y}px`);
     }
   }, []);
 
@@ -221,39 +219,6 @@ export function PreviewStage({
     container.addEventListener("wheel", onWheel, { passive: false });
     return () => container.removeEventListener("wheel", onWheel);
   }, [fitScale, zoom, applyPan]);
-
-  // Dot spotlight: the lattice warms to systemBlue around the cursor.
-  // Direct CSS-var writes at rAF rate; React never renders for a hover.
-  React.useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    let raf = 0;
-    let mx = -9999;
-    let my = -9999;
-    const paint = () => {
-      raf = 0;
-      container.style.setProperty("--mx", `${mx}px`);
-      container.style.setProperty("--my", `${my}px`);
-    };
-    const onMove = (event: PointerEvent) => {
-      const rect = container.getBoundingClientRect();
-      mx = event.clientX - rect.left;
-      my = event.clientY - rect.top;
-      if (!raf) raf = requestAnimationFrame(paint);
-    };
-    const onLeave = () => {
-      mx = -9999;
-      my = -9999;
-      if (!raf) raf = requestAnimationFrame(paint);
-    };
-    container.addEventListener("pointermove", onMove);
-    container.addEventListener("pointerleave", onLeave);
-    return () => {
-      container.removeEventListener("pointermove", onMove);
-      container.removeEventListener("pointerleave", onLeave);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
 
   // Tool shortcuts: V select, H pan, Space temporarily pans (like Figma/Stitch).
   React.useEffect(() => {
@@ -672,9 +637,6 @@ export function PreviewStage({
       style={{ cursor, touchAction: "none" }}
       onPointerDown={onPointerDown}
     >
-      {/* Cursor spotlight: the dot lattice tints systemBlue near the pointer. */}
-      <div ref={spotlightRef} aria-hidden className="dot-spotlight" />
-
       {/* The infinite surface: one world div under translate(pan) scale(zoom).
           No scroll geometry, so there is no edge to hit in any direction. */}
       <div className="absolute inset-0">
