@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { DEFAULT_THEME_ID, THEMES } from "./constants";
 import type { SlideAnalysis } from "./import-slides";
-import type { ThemeId } from "./types";
+import type { Theme, ThemeId } from "./types";
 
 // A template deck drafted from a free-text app description. The editor turns
 // it into a real project via buildSlidesFromAnalysis (lib/import-slides.ts).
@@ -31,6 +31,10 @@ export const DECK_THEME_IDS = [
 export type DeckSuggestion = {
   appName: string;
   themeId: ThemeId;
+  // AI-proposed color system — sampled from style references when present,
+  // derived from the described vibe otherwise. themeId stays as a fallback
+  // for when the palette fails validation.
+  customTheme?: Theme;
   summary: string;
   slides: SlideAnalysis[];
 };
@@ -55,6 +59,18 @@ const slideCopySchema = z.object({
   headline: z.string().trim().min(1).max(120),
 });
 
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+const deckThemeSchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  bg: z.string().regex(HEX_COLOR),
+  bgAlt: z.string().regex(HEX_COLOR),
+  fg: z.string().regex(HEX_COLOR),
+  fgAlt: z.string().regex(HEX_COLOR),
+  accent: z.string().regex(HEX_COLOR),
+  muted: z.string().regex(HEX_COLOR),
+});
+
 // Structured Outputs requires bounded object keys with
 // additionalProperties: false. z.record() emits `propertyNames` (rejected by
 // OpenAI), so build a literal-keyed z.object from the REQUEST's locales —
@@ -69,6 +85,7 @@ export function buildDeckSchema(
   return z.object({
     appName: z.string().trim().min(1).max(40),
     themeId: z.enum(DECK_THEME_IDS),
+    theme: deckThemeSchema,
     summary: z.string().trim().min(1).max(500),
     slides: z
       .array(
@@ -115,9 +132,22 @@ Draft exactly ${count} screens for a ${device}-frame App Store campaign:
 
 Also return:
 - appName: the app's name as stated by the user, or a short clean name you propose (≤40 characters).
-- themeId: the theme that best fits the described vibe, from:
+- theme: a custom color system for the campaign backgrounds (NOT the app UI). All six values are 6-digit hex:
+  - bg: the primary background behind most screens
+  - bgAlt: a contrasting secondary background for 1–2 emphasis screens
+  - fg / fgAlt: headline text on bg / on bgAlt — contrast must be strong (≥4.5:1)
+  - accent: the small uppercase label color and highlight color (must be readable on bg)
+  - muted: subdued secondary text on bg
+  ${
+    styleReferences.length
+      ? "Sample this palette FROM THE STYLE REFERENCE screenshots: match their dominant background color, their accent, their light-or-dark mood — the finished deck should sit naturally next to the references on the App Store. Do not fall back to a generic palette when references are attached."
+      : "Derive the palette from the described vibe. Commit to a point of view — a real brand color story, not default white with black text."
+  }
+  Also give the palette a short name (≤40 characters) describing its mood.
+- themeId: the built-in theme closest to your custom palette, as a fallback, from:
 ${themeGuide}
-- summary: one or two friendly sentences (≤500 characters) telling the user what template you drafted — the slide order and the vibe.`;
+  Choose by color similarity to YOUR palette — never pick a theme just because its name resembles the app.
+- summary: one or two friendly sentences (≤500 characters) telling the user what template you drafted — the slide order, the vibe, and where the colors came from.`;
 }
 
 /** Validate and normalize a model response into a DeckSuggestion. */
@@ -157,9 +187,36 @@ export function normalizeDeck(
   const themeId = (DECK_THEME_IDS as readonly string[]).includes(String(raw.themeId))
     ? (raw.themeId as ThemeId)
     : DEFAULT_THEME_ID;
+  const customTheme = normalizeDeckTheme(raw.theme);
   const appName = typeof raw.appName === "string" ? raw.appName.trim().slice(0, 40) : "";
   const summary = typeof raw.summary === "string" ? raw.summary.trim().slice(0, 500) : "";
   if (!appName || !summary) return null;
 
-  return { appName, themeId, summary, slides };
+  return { appName, themeId, ...(customTheme ? { customTheme } : {}), summary, slides };
+}
+
+/** Validate the model's custom palette; a bad palette degrades to themeId. */
+function normalizeDeckTheme(raw: unknown): Theme | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  const colors: Record<string, string> = {};
+  for (const key of ["bg", "bgAlt", "fg", "fgAlt", "accent", "muted"] as const) {
+    const entry = typeof value[key] === "string" ? (value[key] as string).trim() : "";
+    if (!HEX_COLOR.test(entry)) return null;
+    colors[key] = entry;
+  }
+  const name =
+    typeof value.name === "string" && value.name.trim()
+      ? value.name.trim().slice(0, 40)
+      : "AI Custom";
+  return {
+    id: "ai-custom",
+    name,
+    bg: colors.bg,
+    bgAlt: colors.bgAlt,
+    fg: colors.fg,
+    fgAlt: colors.fgAlt,
+    accent: colors.accent,
+    muted: colors.muted,
+  };
 }

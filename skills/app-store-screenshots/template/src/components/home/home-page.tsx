@@ -23,7 +23,7 @@ import {
 } from "@/components/home/studio-shell";
 import { fileToDataUrl, uploadDataUrl } from "@/components/editor/screenshot-picker";
 import type { AppStoreLookupResult } from "@/lib/app-store";
-import { LAYOUT_LABEL, themeById } from "@/lib/constants";
+import { themeById } from "@/lib/constants";
 import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides";
 import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { useProject } from "@/lib/storage";
@@ -426,6 +426,16 @@ function Home() {
       ...prev,
       appName: deckAppName.trim(),
       themeId: deck.themeId,
+      // The AI palette wins over the built-in fallback — same mechanism the
+      // editor's design proposals use (customThemesByDevice beats themeId).
+      ...(deck.customTheme
+        ? {
+            customThemesByDevice: {
+              ...(prev.customThemesByDevice || {}),
+              [chatDevice]: { ...deck.customTheme, id: `ai-custom-${chatDevice}` },
+            },
+          }
+        : {}),
       device: chatDevice,
       slidesByDevice: { ...prev.slidesByDevice, [chatDevice]: slides },
     }));
@@ -764,7 +774,7 @@ function DeckPreview({
   onOpenEditor: () => void;
 }) {
   const { t } = useT();
-  const theme = themeById(deck.themeId);
+  const theme = deck.customTheme ?? themeById(deck.themeId);
 
   return (
     <div className="mx-auto mt-6 max-w-3xl space-y-4">
@@ -1000,49 +1010,53 @@ function DeckSlideCard({
   thumbnail?: string;
 }) {
   const copy = slide.copy[locale] || slide.copy.en || Object.values(slide.copy)[0];
+  const showDevice = !!thumbnail && slide.layout !== "no-device";
+
+  // A miniature of the real slide: theme background, accent label, headline,
+  // and the screenshot inside a device frame peeking from the bottom edge —
+  // instead of text painted over the raw screenshot.
   return (
     <div
       className="lift-hover relative flex aspect-[9/19] flex-col overflow-hidden rounded-xl border border-border/70 shadow-card"
       style={{ backgroundColor: theme.bg, color: theme.fg }}
     >
-      {thumbnail ? (
-        <>
-          <img src={thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-          <span className="absolute left-3 top-2 z-10 text-[8px] font-semibold uppercase tracking-widest text-white/80">
-            {LAYOUT_LABEL[slide.layout]}
-          </span>
-          <div className="relative z-10 mt-auto p-3 text-white">
-            {copy?.label && (
-              <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: theme.accent }}>
-                {copy.label}
-              </p>
-            )}
-            {copy?.headline && (
-              <p className="mt-1 whitespace-pre-line text-[13px] font-semibold leading-tight">
-                {copy.headline}
-              </p>
-            )}
+      <div
+        className={cn(
+          "relative z-10 px-3 pt-4 text-center",
+          !showDevice && "flex flex-1 flex-col items-center justify-center pb-4",
+        )}
+      >
+        {copy?.label && (
+          <p
+            className="text-[9px] font-bold uppercase tracking-widest"
+            style={{ color: theme.accent }}
+          >
+            {copy.label}
+          </p>
+        )}
+        {copy?.headline && (
+          <p className="mt-1.5 whitespace-pre-line text-[13px] font-semibold leading-tight">
+            {copy.headline}
+          </p>
+        )}
+      </div>
+
+      {showDevice ? (
+        <div className="relative mx-auto mt-3 w-[76%] flex-1">
+          <div
+            className="absolute inset-x-0 -bottom-6 top-0 overflow-hidden rounded-t-[16px] border-[3px] border-b-0 shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
+            style={{ borderColor: theme.fg, backgroundColor: theme.bgAlt }}
+          >
+            <img src={thumbnail} alt="" className="h-full w-full object-cover object-top" />
           </div>
-        </>
+        </div>
       ) : (
-        <>
-          <span className="p-3 text-[8px] font-semibold uppercase tracking-widest opacity-50">
-            {LAYOUT_LABEL[slide.layout]}
-          </span>
-          <div className="mt-auto p-3">
-            {copy?.label && (
-              <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: theme.accent }}>
-                {copy.label}
-              </p>
-            )}
-            {copy?.headline && (
-              <p className="mt-1 whitespace-pre-line text-[13px] font-semibold leading-tight">
-                {copy.headline}
-              </p>
-            )}
-          </div>
-        </>
+        // Closer/no-device slide: a quiet accent glow instead of a frame.
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-12 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full opacity-25 blur-2xl"
+          style={{ backgroundColor: theme.accent }}
+        />
       )}
     </div>
   );
