@@ -61,8 +61,13 @@ export const DEFAULT_DECK_COUNT = 5;
 // Competitor / inspiration links the user attaches to the studio composer.
 // App Store links resolve to real screenshots; anything else rides along as
 // a named URL the model may recognize.
-export const MAX_STYLE_REFERENCES = 3;
-export const MAX_REFERENCE_SCREENSHOTS = 3;
+// Re-exported so the route keeps a single import site; defined in constants.ts
+// because the studio composer needs them too and must not pull zod in.
+export {
+  MAX_REFERENCE_SCREENSHOTS,
+  MAX_REFERENCE_SCREENSHOTS_TOTAL,
+  MAX_STYLE_REFERENCES,
+} from "./constants";
 
 export type StyleReferenceSummary = {
   name: string;

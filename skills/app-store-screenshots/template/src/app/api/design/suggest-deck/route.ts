@@ -12,6 +12,7 @@ import {
   DEFAULT_DECK_COUNT,
   MAX_DECK_SLIDES,
   MAX_REFERENCE_SCREENSHOTS,
+  MAX_REFERENCE_SCREENSHOTS_TOTAL,
   MAX_STYLE_REFERENCES,
   MIN_DECK_SLIDES,
   normalizeDeck,
@@ -164,16 +165,20 @@ export async function POST(req: Request) {
   }
 
   // Style references ride along as remote CDN URLs — OpenAI fetches them, so
-  // nothing extra lands on this server. Low detail: they set direction only.
+  // nothing extra lands on this server. High detail, because the model has to
+  // read widget placement and text position off these, not just their palette;
+  // at "low" it cannot resolve either.
+  let referenceShotBudget = MAX_REFERENCE_SCREENSHOTS_TOTAL;
   for (let i = 0; i < styleReferences.length; i += 1) {
     const reference = styleReferences[i];
-    const shots = reference.screenshotUrls ?? [];
+    const shots = (reference.screenshotUrls ?? []).slice(0, referenceShotBudget);
+    referenceShotBudget -= shots.length;
     userContent.push({
       type: "input_text",
-      text: `STYLE REFERENCE ${i + 1} of ${styleReferences.length} — ${reference.name} (${reference.url})${shots.length ? "" : " — link only, no screenshots"}`,
+      text: `STYLE REFERENCE ${i + 1} of ${styleReferences.length} — ${reference.name} (${reference.url})${shots.length ? ` — ${shots.length} screens follow, in store order` : " — link only, no screenshots"}`,
     });
     for (const url of shots) {
-      userContent.push({ type: "input_image", image_url: url, detail: "low" });
+      userContent.push({ type: "input_image", image_url: url, detail: "high" });
     }
   }
 

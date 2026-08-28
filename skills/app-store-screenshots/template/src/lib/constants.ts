@@ -7,6 +7,19 @@ import type {
   ThemeId,
 } from "./types";
 
+// ---------- Style reference limits ----------
+// The studio composer truncates before it builds the request and the
+// suggest-deck route validates what arrives, so both sides read these. If they
+// disagree the lower number wins silently, which is how a raised server cap
+// can look like it did nothing.
+export const MAX_STYLE_REFERENCES = 3;
+// Cloning a layout system needs most of a competitor's deck; three screens
+// only showed enough to sample a palette. Apple returns 5–10 per app.
+export const MAX_REFERENCE_SCREENSHOTS = 8;
+// 3 references x 8 screens at high detail is ~36k image tokens before the
+// user's own screenshots, so bound the total across all references too.
+export const MAX_REFERENCE_SCREENSHOTS_TOTAL = 12;
+
 // ---------- Canvas dimensions (design at largest required resolution) ----------
 export const CANVAS: Record<Device, { w: number; h: number; wL?: number; hL?: number }> = {
   iphone:        { w: 1320, h: 2868 },

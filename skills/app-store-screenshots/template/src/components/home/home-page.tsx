@@ -23,7 +23,11 @@ import {
 } from "@/components/home/studio-shell";
 import { fileToDataUrl, uploadDataUrl } from "@/components/editor/screenshot-picker";
 import type { AppStoreLookupResult } from "@/lib/app-store";
-import { themeById } from "@/lib/constants";
+import {
+  MAX_REFERENCE_SCREENSHOTS,
+  MAX_STYLE_REFERENCES,
+  themeById,
+} from "@/lib/constants";
 import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides";
 import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { useProject } from "@/lib/storage";
@@ -52,8 +56,8 @@ type ImportResult = {
 const CHAT_DEVICES: Device[] = ["iphone", "ipad", "android"];
 const IMPORT_DEVICES: Device[] = ["iphone", "ipad"];
 const MAX_ATTACHMENTS = 10;
-const MAX_REFERENCES = 3;
-const MAX_REFERENCE_SHOTS = 3;
+const MAX_REFERENCES = MAX_STYLE_REFERENCES;
+const MAX_REFERENCE_SHOTS = MAX_REFERENCE_SCREENSHOTS;
 const MAX_ATTACH_BYTES = 8 * 1024 * 1024;
 const ATTACHMENT_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const ATTACHMENT_ACCEPT = "image/png,image/jpeg,image/webp";
