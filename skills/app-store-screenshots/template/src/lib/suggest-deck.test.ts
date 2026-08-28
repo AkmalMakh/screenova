@@ -161,6 +161,93 @@ describe("normalizeDeck", () => {
     expect(deck?.themeId).toBe("clean-light");
   });
 
+  it("carries a cloned screen's design detail through", () => {
+    const deck = normalizeDeck(
+      {
+        ...validDeck,
+        slides: [
+          {
+            ...validDeck.slides[0],
+            headlineFontFamily: "editorial",
+            inverted: true,
+            deviceTransform: { x: 160, y: -900, width: 1000, height: 2170, rotation: null, zIndex: 3 },
+            textElements: [
+              {
+                id: "subhead",
+                text: { en: "Never forget anything" },
+                transform: { x: 120, y: 1500, width: 1080, height: 120, rotation: null, zIndex: null },
+                fontSize: 60,
+                fontWeight: 700,
+                color: "#111111",
+                align: "center",
+              },
+            ],
+            decorations: [
+              {
+                id: "tile",
+                kind: "icon-tile",
+                transform: { x: 80, y: 1200, width: 200, height: 200, rotation: -12, zIndex: 5 },
+                fill: { type: "linear-gradient", colors: ["#A78BFA", "#8B5CF6"], angle: 135 },
+                opacity: 1,
+                borderRadius: 48,
+                blur: null,
+                iconName: "alarm-clock",
+                iconColor: "#FFFFFF",
+              },
+            ],
+          },
+          ...validDeck.slides.slice(1),
+        ],
+      },
+      ["en"],
+      5,
+    );
+    const slide = deck?.slides[0];
+    expect(slide?.headlineFontFamily).toBe("editorial");
+    expect(slide?.inverted).toBe(true);
+    expect(slide?.deviceTransform?.y).toBe(-900);
+    expect(slide?.textElements?.[0].text.en).toBe("Never forget anything");
+    expect(slide?.textElements?.[0].fontWeight).toBe(700);
+    expect(slide?.decorations?.[0].iconName).toBe("alarm-clock");
+    expect(slide?.decorations?.[0].transform.rotation).toBe(-12);
+  });
+
+  // A template the user can still edit beats refusing the whole deck over one
+  // bad widget, so malformed elements are dropped individually.
+  it("drops a malformed decoration without losing the screen", () => {
+    const deck = normalizeDeck(
+      {
+        ...validDeck,
+        slides: [
+          {
+            ...validDeck.slides[0],
+            decorations: [
+              { id: "bad", kind: "hexagon", transform: {}, fill: {}, opacity: 1 },
+              {
+                id: "good",
+                kind: "ellipse",
+                transform: { x: 0, y: 0, width: 100, height: 100, rotation: null, zIndex: null },
+                fill: { type: "solid", colors: ["#8B5CF6"], angle: null },
+                opacity: 0.4,
+                borderRadius: null,
+                blur: null,
+                iconName: null,
+                iconColor: null,
+              },
+            ],
+          },
+          ...validDeck.slides.slice(1),
+        ],
+      },
+      ["en"],
+      5,
+    );
+    expect(deck).not.toBeNull();
+    expect(deck?.slides[0].copy.en.headline).toBe("Build them daily.");
+    expect(deck?.slides[0].decorations).toHaveLength(1);
+    expect(deck?.slides[0].decorations?.[0].id).toBe("good");
+  });
+
   it("returns null on a slide count mismatch", () => {
     expect(normalizeDeck(validDeck, ["en"], 4)).toBeNull();
   });

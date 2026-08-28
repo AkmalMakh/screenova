@@ -24,10 +24,13 @@ import {
 import { fileToDataUrl, uploadDataUrl } from "@/components/editor/screenshot-picker";
 import type { AppStoreLookupResult } from "@/lib/app-store";
 import {
+  CANVAS,
+  HEADLINE_FONT_CSS,
   MAX_REFERENCE_SCREENSHOTS,
   MAX_STYLE_REFERENCES,
   themeById,
 } from "@/lib/constants";
+import { decorationIcon } from "@/lib/decoration-icons";
 import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides";
 import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { useProject } from "@/lib/storage";
@@ -807,6 +810,7 @@ function DeckPreview({
               locale={DECK_LOCALE(deck, locales)}
               theme={theme}
               thumbnail={paths[index]}
+              device={device}
             />
           </div>
         ))}
@@ -1007,27 +1011,120 @@ function DeckSlideCard({
   locale,
   theme,
   thumbnail,
+  device,
 }: {
   slide: SlideAnalysis;
   locale: string;
   theme: Theme;
   thumbnail?: string;
+  device: Device;
 }) {
   const copy = slide.copy[locale] || slide.copy.en || Object.values(slide.copy)[0];
   const showDevice = !!thumbnail && slide.layout !== "no-device";
+  const canvas = CANVAS[device] ?? CANVAS.iphone;
+  const inverted = !!slide.inverted;
+  const bg = inverted ? theme.bgAlt : theme.bg;
+  const fg = inverted ? theme.fgAlt : theme.fg;
 
-  // A miniature of the real slide: theme background, accent label, headline,
-  // and the screenshot inside a device frame peeking from the bottom edge —
-  // instead of text painted over the raw screenshot.
+  // Canvas pixels are mapped to percentages of the card so the miniature stays
+  // faithful at any card size, and font sizes use cqw against the card's own
+  // container so they scale with it too.
+  const px = (value: number) => `${(value / canvas.w) * 100}%`;
+  const py = (value: number) => `${(value / canvas.h) * 100}%`;
+  const cqw = (value: number) => `${(value / canvas.w) * 100}cqw`;
+  const textOnTop = slide.layout !== "device-top";
+
   return (
     <div
-      className="lift-hover relative flex aspect-[9/19] flex-col overflow-hidden rounded-xl border border-border/70 shadow-card"
-      style={{ backgroundColor: theme.bg, color: theme.fg }}
+      className="lift-hover relative aspect-[9/19] overflow-hidden rounded-xl border border-border/70 shadow-card"
+      style={{ backgroundColor: bg, color: fg, containerType: "size" }}
     >
+      {/* Decorations first, so they sit behind the device unless a zIndex lifts them. */}
+      {(slide.decorations || []).map((element) => {
+        const background =
+          element.fill.type === "linear-gradient" && element.fill.colors.length > 1
+            ? `linear-gradient(${element.fill.angle ?? 135}deg, ${element.fill.colors.join(", ")})`
+            : element.fill.colors[0];
+        const Icon = element.kind === "icon-tile" ? decorationIcon(element.iconName) : null;
+        return (
+          <div
+            key={element.id}
+            aria-hidden
+            className="pointer-events-none absolute flex items-center justify-center"
+            style={{
+              left: px(element.transform.x),
+              top: py(element.transform.y),
+              width: px(element.transform.width),
+              height: py(element.transform.height),
+              zIndex: element.transform.zIndex ?? 1,
+              transform: element.transform.rotation
+                ? `rotate(${element.transform.rotation}deg)`
+                : undefined,
+              borderRadius:
+                element.kind === "ellipse"
+                  ? "50%"
+                  : element.kind === "line"
+                    ? "999px"
+                    : `${((element.borderRadius ?? element.transform.width * 0.18) / canvas.w) * 100}cqw`,
+              background,
+              opacity: element.opacity,
+              filter: element.blur ? `blur(${(element.blur / canvas.w) * 100}cqw)` : undefined,
+            }}
+          >
+            {Icon && (
+              <Icon
+                size="60%"
+                color={element.iconColor ?? "#FFFFFF"}
+                strokeWidth={1.75}
+                absoluteStrokeWidth
+              />
+            )}
+          </div>
+        );
+      })}
+
+      {showDevice &&
+        (slide.deviceTransform ? (
+          // Cloned placement — may bleed past an edge, which is the point.
+          <div
+            className="absolute overflow-hidden rounded-[6cqw] border-[0.8cqw] shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
+            style={{
+              left: px(slide.deviceTransform.x),
+              top: py(slide.deviceTransform.y),
+              width: px(slide.deviceTransform.width),
+              height: py(slide.deviceTransform.height),
+              zIndex: slide.deviceTransform.zIndex ?? 3,
+              transform: slide.deviceTransform.rotation
+                ? `rotate(${slide.deviceTransform.rotation}deg)`
+                : undefined,
+              borderColor: fg,
+              backgroundColor: inverted ? theme.bg : theme.bgAlt,
+            }}
+          >
+            <img src={thumbnail} alt="" className="h-full w-full object-cover object-top" />
+          </div>
+        ) : (
+          <div
+            className="absolute inset-x-[12%] bottom-[-6%] top-[38%] overflow-hidden rounded-t-[16px] border-[3px] border-b-0 shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
+            style={{ zIndex: 3, borderColor: fg, backgroundColor: inverted ? theme.bg : theme.bgAlt }}
+          >
+            <img src={thumbnail} alt="" className="h-full w-full object-cover object-top" />
+          </div>
+        ))}
+
+      {!showDevice && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-12 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full opacity-25 blur-2xl"
+          style={{ backgroundColor: theme.accent }}
+        />
+      )}
+
       <div
         className={cn(
-          "relative z-10 px-3 pt-4 text-center",
-          !showDevice && "flex flex-1 flex-col items-center justify-center pb-4",
+          "absolute inset-x-0 z-[4] px-3 text-center",
+          textOnTop ? "top-0 pt-4" : "bottom-0 pb-4",
+          !showDevice && "top-1/2 -translate-y-1/2",
         )}
       >
         {copy?.label && (
@@ -1039,29 +1136,41 @@ function DeckSlideCard({
           </p>
         )}
         {copy?.headline && (
-          <p className="mt-1.5 whitespace-pre-line text-[13px] font-semibold leading-tight">
+          <p
+            className="mt-1.5 whitespace-pre-line text-[13px] font-semibold leading-tight"
+            style={{
+              fontFamily: slide.headlineFontFamily
+                ? HEADLINE_FONT_CSS[slide.headlineFontFamily]
+                : undefined,
+            }}
+          >
             {copy.headline}
           </p>
         )}
       </div>
 
-      {showDevice ? (
-        <div className="relative mx-auto mt-3 w-[76%] flex-1">
-          <div
-            className="absolute inset-x-0 -bottom-6 top-0 overflow-hidden rounded-t-[16px] border-[3px] border-b-0 shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
-            style={{ borderColor: theme.fg, backgroundColor: theme.bgAlt }}
+      {/* Subheads and body copy keep their own drafted positions. */}
+      {(slide.textElements || []).map((element) => {
+        const text = element.text[locale] || element.text.en || Object.values(element.text)[0];
+        if (!text) return null;
+        return (
+          <p
+            key={element.id}
+            className="absolute z-[5] whitespace-pre-line leading-tight"
+            style={{
+              left: px(element.transform.x),
+              top: py(element.transform.y),
+              width: px(element.transform.width),
+              fontSize: cqw(element.fontSize ?? canvas.w * 0.04),
+              fontWeight: element.fontWeight ?? 400,
+              color: element.color ?? fg,
+              textAlign: element.align ?? "center",
+            }}
           >
-            <img src={thumbnail} alt="" className="h-full w-full object-cover object-top" />
-          </div>
-        </div>
-      ) : (
-        // Closer/no-device slide: a quiet accent glow instead of a frame.
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-12 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full opacity-25 blur-2xl"
-          style={{ backgroundColor: theme.accent }}
-        />
-      )}
+            {text}
+          </p>
+        );
+      })}
     </div>
   );
 }
