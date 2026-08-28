@@ -6,7 +6,9 @@ import {
   DECK_DEVICE_LAYOUTS,
   DECK_SLIDE_LAYOUTS,
   DECK_THEME_IDS,
+  DEFAULT_DECK_COUNT,
   normalizeDeck,
+  resolveDeckCount,
 } from "./suggest-deck";
 
 const THEME = {
@@ -271,6 +273,38 @@ describe("normalizeDeck", () => {
   });
 });
 
+describe("resolveDeckCount", () => {
+  it("matches the reference deck's screen count", () => {
+    expect(resolveDeckCount({ referenceScreenCounts: [7] })).toBe(7);
+    expect(resolveDeckCount({ referenceScreenCounts: [10] })).toBe(10);
+  });
+
+  it("lets the reference outvote a smaller pile of attached screenshots", () => {
+    expect(resolveDeckCount({ screenshotCount: 5, referenceScreenCounts: [7] })).toBe(7);
+  });
+
+  it("keeps one screen per screenshot when the user has more than the reference", () => {
+    expect(resolveDeckCount({ screenshotCount: 8, referenceScreenCounts: [3] })).toBe(8);
+  });
+
+  it("takes the longest of several references", () => {
+    expect(resolveDeckCount({ referenceScreenCounts: [3, 7, 5] })).toBe(7);
+  });
+
+  it("honors an explicit request over everything else", () => {
+    expect(resolveDeckCount({ requested: 4, referenceScreenCounts: [7] })).toBe(4);
+  });
+
+  it("clamps to the App Store's 10-screenshot ceiling and the 3-screen floor", () => {
+    expect(resolveDeckCount({ referenceScreenCounts: [40] })).toBe(10);
+    expect(resolveDeckCount({ screenshotCount: 1 })).toBe(3);
+  });
+
+  it("falls back to the default with no signal at all", () => {
+    expect(resolveDeckCount({})).toBe(DEFAULT_DECK_COUNT);
+  });
+});
+
 describe("screenshot-driven decks", () => {
   it("excludes no-device from the screenshot layout list", () => {
     expect(DECK_DEVICE_LAYOUTS).not.toContain("no-device");
@@ -293,6 +327,21 @@ describe("screenshot-driven decks", () => {
         slides: [slide("no-device", base.slides[0].copy)],
       }).success,
     ).toBe(false);
+  });
+
+  it("tells the model what the screens past the last screenshot are for", () => {
+    // 5 screenshots against a 7-screen reference: screens 6-7 have no image.
+    const prompt = buildDeckPrompt(["en"], "iphone", 7, 5);
+    expect(prompt).toContain("Screens 1–5 map to the attached screenshots IN ORDER");
+    expect(prompt).toContain("remaining 2 screens");
+    expect(prompt).toContain('must use the "no-device" layout');
+    expect(prompt).toContain('Do not use "no-device" for screens 1–5');
+  });
+
+  it("keeps the strict one-per-screenshot rule when the counts match", () => {
+    const prompt = buildDeckPrompt(["en"], "iphone", 5, 5);
+    expect(prompt).toContain("exactly one slide per screenshot");
+    expect(prompt).not.toContain("remaining");
   });
 
   it("adds screenshot grounding rules to the prompt when screenshots are attached", () => {

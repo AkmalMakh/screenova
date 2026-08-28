@@ -54,9 +54,35 @@ export type DeckSuggestion = {
   slides: SlideAnalysis[];
 };
 
-export const MAX_DECK_SLIDES = 8;
+// Apple accepts up to 10 screenshots per device, so a deck cloning a
+// competitor's full sequence has to be able to reach 10.
+export const MAX_DECK_SLIDES = 10;
 export const MIN_DECK_SLIDES = 3;
 export const DEFAULT_DECK_COUNT = 5;
+
+/**
+ * How many screens to draft.
+ *
+ * A reference deck sets the pace: reproducing a competitor's sequence means
+ * matching its length, so a 7-screen reference yields 7 screens even when the
+ * user attached fewer screenshots of their own — the surplus screens become
+ * device-free interstitials and closers. An explicit request from the UI still
+ * wins, and with no signal at all it falls back to the default.
+ */
+export function resolveDeckCount({
+  requested,
+  screenshotCount = 0,
+  referenceScreenCounts = [],
+}: {
+  requested?: number;
+  screenshotCount?: number;
+  referenceScreenCounts?: number[];
+}): number {
+  const referenceScreens = referenceScreenCounts.length ? Math.max(...referenceScreenCounts) : 0;
+  const derived = Math.max(referenceScreens, screenshotCount) || DEFAULT_DECK_COUNT;
+  const raw = requested ?? derived;
+  return Math.min(MAX_DECK_SLIDES, Math.max(MIN_DECK_SLIDES, raw));
+}
 
 // Competitor / inspiration links the user attaches to the studio composer.
 // App Store links resolve to real screenshots; anything else rides along as
@@ -160,9 +186,12 @@ export function buildDeckPrompt(
 ): string {
   const canvas = CANVAS[device] ?? CANVAS.iphone;
   const themeGuide = DECK_THEME_IDS.map((id) => `- ${id}: ${THEMES[id].name}`).join("\n");
+  const surplus = Math.max(0, count - screenshotCount);
   const slideRules =
     screenshotCount > 0
-      ? `The user attached ${screenshotCount} screenshots of their app. Write exactly one slide per screenshot, in the same order — the first slide is about screenshot 1, and so on. Ground each label and headline in what that screenshot actually shows; never invent features the screenshots don't display. Every slide must use a layout that shows a device frame (hero, device-bottom, device-top, two-devices) — never "no-device". Vary the layouts for rhythm.`
+      ? surplus > 0
+        ? `The user attached ${screenshotCount} screenshots of their app, and you are drafting ${count} screens. Screens 1–${screenshotCount} map to the attached screenshots IN ORDER — screen 1 is about screenshot 1, and so on — and must use a layout that shows a device frame (hero, device-bottom, device-top, two-devices). Ground each of those labels and headlines in what that screenshot actually shows; never invent features the screenshots don't display. The remaining ${surplus} screen${surplus === 1 ? "" : "s"} (${screenshotCount + 1}–${count}) have NO screenshot behind them, so they must use the "no-device" layout and carry the deck on copy and decoration alone — a summarizing closer, a value statement, a feature roundup built from icon tiles. Do not use "no-device" for screens 1–${screenshotCount}.`
+        : `The user attached ${screenshotCount} screenshots of their app. Write exactly one slide per screenshot, in the same order — the first slide is about screenshot 1, and so on. Ground each label and headline in what that screenshot actually shows; never invent features the screenshots don't display. Every slide must use a layout that shows a device frame (hero, device-bottom, device-top, two-devices) — never "no-device". Vary the layouts for rhythm.`
       : `Vary the layouts across screens for visual rhythm; the first screen is a "hero" and the last is a "no-device" closer. Use at most one "two-devices" screen.`;
   const referenceRules = styleReferences.length
     ? `\n\nSTYLE REFERENCES — CLONE THE LAYOUT SYSTEM
@@ -173,7 +202,7 @@ ${styleReferences
       `${index + 1}. ${reference.name}${reference.hasImages ? " — its store screenshots are attached below, labeled STYLE REFERENCE" : " — no screenshots available; go by what you know of this product"}`,
   )
   .join("\n")}
-Your job is to REPRODUCE THE REFERENCE'S VISUAL STRUCTURE as closely as the schema allows, then pour the user's content into it. This is the primary objective — a deck that merely borrows the reference's colors is a failure. For each reference screen, read off and reproduce:
+Your job is to REPRODUCE THE REFERENCE'S VISUAL STRUCTURE as closely as the schema allows, then pour the user's content into it. This is the primary objective — a deck that merely borrows the reference's colors is a failure. Work through the reference's screens IN ORDER, one of your screens per reference screen, so the finished deck walks the same sequence. For each reference screen, read off and reproduce:
 - DEVICE PLACEMENT: where the phone sits and how much of it is visible. Reference decks very often crop the device hard against an edge — only the bottom third of a phone hanging from the top of the screen, or the top half rising from the bottom. Reproduce that with deviceTransform, including negative x/y to push the device past the canvas edge.
 - TEXT POSITION: is the copy above the device, below it, or overlaid? Reproduce it. If the reference puts the headline under a top-cropped phone, yours does too.
 - TEXT STACK DEPTH: count the distinct blocks of type. A screen with an eyebrow label, a large headline, a bold one-line subhead, and a smaller body paragraph is four blocks — the label and headline go in copy, and the subhead and paragraph become textElements with their own sizes, weights, and positions.

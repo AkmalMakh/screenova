@@ -9,13 +9,13 @@ import {
   buildDeckSchema,
   DECK_DEVICE_LAYOUTS,
   DECK_SLIDE_LAYOUTS,
-  DEFAULT_DECK_COUNT,
   MAX_DECK_SLIDES,
   MAX_REFERENCE_SCREENSHOTS,
   MAX_REFERENCE_SCREENSHOTS_TOTAL,
   MAX_STYLE_REFERENCES,
   MIN_DECK_SLIDES,
   normalizeDeck,
+  resolveDeckCount,
 } from "@/lib/suggest-deck";
 
 export const dynamic = "force-dynamic";
@@ -107,9 +107,20 @@ export async function POST(req: Request) {
   const screenshots = validation.data.screenshots ?? [];
   const styleReferences = validation.data.styleReferences ?? [];
   const withScreenshots = screenshots.length > 0;
-  // One slide per attached screenshot, in order; otherwise the requested count.
-  const deckCount = withScreenshots ? screenshots.length : count ?? DEFAULT_DECK_COUNT;
-  const layouts = withScreenshots ? DECK_DEVICE_LAYOUTS : DECK_SLIDE_LAYOUTS;
+  // A reference deck sets the length as well as the look — cloning a 7-screen
+  // competitor means drafting 7 screens, even when fewer screenshots were
+  // attached.
+  const deckCount = resolveDeckCount({
+    requested: count,
+    screenshotCount: screenshots.length,
+    referenceScreenCounts: styleReferences.map(
+      (reference) => (reference.screenshotUrls ?? []).length,
+    ),
+  });
+  // Screens beyond the attached screenshots have no image behind them, so
+  // "no-device" has to be available for them.
+  const layouts =
+    withScreenshots && deckCount <= screenshots.length ? DECK_DEVICE_LAYOUTS : DECK_SLIDE_LAYOUTS;
   const responseSchema = buildDeckSchema(locales, deckCount, layouts);
 
   // The last user message is the description to draft from; earlier turns are

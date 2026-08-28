@@ -388,7 +388,9 @@ function Home() {
           messages: nextMessages.map(({ role, text: messageText }) => ({ role, text: messageText })),
           locales: chatLocales,
           device: chatDevice,
-          count: 5,
+          // Deliberately unset: the route derives the count from the reference
+          // deck's screen count and the attached screenshots. Sending a fixed
+          // number here is what pinned every deck to 5 screens.
           screenshots: attachments.length
             ? paths.map((path, index) => ({ name: attachments[index].name, path }))
             : undefined,
