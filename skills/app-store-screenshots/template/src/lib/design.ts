@@ -31,7 +31,7 @@ export const elementTransformSchema = z.object({
   zIndex: z.number().int().min(0).max(100).optional(),
 });
 
-const textElementSchema = z.object({
+export const textElementSchema = z.object({
   id: z.string().trim().min(1).max(80),
   text: localizedTextSchema,
   transform: elementTransformSchema,
@@ -41,7 +41,7 @@ const textElementSchema = z.object({
   align: z.enum(["left", "center", "right"]).optional(),
 });
 
-const decorationElementSchema = z.object({
+export const decorationElementSchema = z.object({
   id: z.string().trim().min(1).max(80),
   kind: z.enum(["ellipse", "rounded-rectangle", "line"]),
   transform: elementTransformSchema,
@@ -69,7 +69,7 @@ const themeSchema = z.object({
 // OpenAI Structured Outputs requires every object property to be present.
 // Nullable fields represent "no change" and are normalized into the editor's
 // optional-field proposal shape after the response is parsed.
-const responseElementTransformSchema = z.object({
+export const responseElementTransformSchema = z.object({
   x: z.number().finite().min(-MAX_COORDINATE).max(MAX_COORDINATE),
   y: z.number().finite().min(-MAX_COORDINATE).max(MAX_COORDINATE),
   width: z.number().finite().min(1).max(MAX_COORDINATE),
@@ -78,7 +78,7 @@ const responseElementTransformSchema = z.object({
   zIndex: z.number().int().min(0).max(100).nullable(),
 });
 
-const responseTextElementSchema = z.object({
+export const responseTextElementSchema = z.object({
   id: z.string().trim().min(1).max(80),
   text: z.string().max(240),
   transform: responseElementTransformSchema,
@@ -88,7 +88,7 @@ const responseTextElementSchema = z.object({
   align: z.enum(["left", "center", "right"]).nullable(),
 });
 
-const responseDecorationElementSchema = z.object({
+export const responseDecorationElementSchema = z.object({
   id: z.string().trim().min(1).max(80),
   kind: z.enum(["ellipse", "rounded-rectangle", "line"]),
   transform: responseElementTransformSchema,
@@ -324,43 +324,17 @@ export function normalizeDesignResponse(input: unknown, locale: string): DesignP
         ? { headlineFontFamily: patch.headlineFontFamily }
         : {}),
       ...(patch.transforms !== null
-        ? {
-            transforms: Object.fromEntries(
-              Object.entries(patch.transforms)
-                .filter((entry): entry is [string, NonNullable<typeof entry[1]>] => entry[1] !== null)
-                .map(([key, transform]) => [key, normalizeResponseTransform(transform)]),
-            ),
-          }
+        ? { transforms: normalizeResponseTransforms(patch.transforms) }
         : {}),
       ...(patch.textElements !== null
         ? {
-            textElements: patch.textElements.map((element) => ({
-              id: element.id,
-              text: { [localeKey]: element.text },
-              transform: normalizeResponseTransform(element.transform),
-              ...(element.fontSize !== null ? { fontSize: element.fontSize } : {}),
-              ...(element.fontWeight !== null ? { fontWeight: element.fontWeight } : {}),
-              ...(element.color !== null ? { color: element.color } : {}),
-              ...(element.align !== null ? { align: element.align } : {}),
-            })),
+            textElements: patch.textElements.map((element) =>
+              normalizeResponseTextElement(element, localeKey),
+            ),
           }
         : {}),
       ...(patch.decorations !== null
-        ? {
-            decorations: patch.decorations.map((element) => ({
-              id: element.id,
-              kind: element.kind,
-              transform: normalizeResponseTransform(element.transform),
-              fill: {
-                type: element.fill.type,
-                colors: element.fill.colors,
-                ...(element.fill.angle !== null ? { angle: element.fill.angle } : {}),
-              },
-              opacity: element.opacity,
-              ...(element.borderRadius !== null ? { borderRadius: element.borderRadius } : {}),
-              ...(element.blur !== null ? { blur: element.blur } : {}),
-            })),
-          }
+        ? { decorations: patch.decorations.map(normalizeResponseDecoration) }
         : {}),
       ...(patch.visualAssetPrompt !== null
         ? { visualAssetPrompt: patch.visualAssetPrompt }
@@ -380,36 +354,12 @@ export function normalizeDesignResponse(input: unknown, locale: string): DesignP
       headline: { [localeKey]: slide.headline },
       headlineFontFamily: slide.headlineFontFamily,
       ...(slide.transforms !== null
-        ? {
-            transforms: Object.fromEntries(
-              Object.entries(slide.transforms)
-                .filter((entry): entry is [string, NonNullable<typeof entry[1]>] => entry[1] !== null)
-                .map(([key, transform]) => [key, normalizeResponseTransform(transform)]),
-            ),
-          }
+        ? { transforms: normalizeResponseTransforms(slide.transforms) }
         : {}),
-      textElements: slide.textElements.map((element) => ({
-        id: element.id,
-        text: { [localeKey]: element.text },
-        transform: normalizeResponseTransform(element.transform),
-        ...(element.fontSize !== null ? { fontSize: element.fontSize } : {}),
-        ...(element.fontWeight !== null ? { fontWeight: element.fontWeight } : {}),
-        ...(element.color !== null ? { color: element.color } : {}),
-        ...(element.align !== null ? { align: element.align } : {}),
-      })),
-      decorations: slide.decorations.map((element) => ({
-        id: element.id,
-        kind: element.kind,
-        transform: normalizeResponseTransform(element.transform),
-        fill: {
-          type: element.fill.type,
-          colors: element.fill.colors,
-          ...(element.fill.angle !== null ? { angle: element.fill.angle } : {}),
-        },
-        opacity: element.opacity,
-        ...(element.borderRadius !== null ? { borderRadius: element.borderRadius } : {}),
-        ...(element.blur !== null ? { blur: element.blur } : {}),
-      })),
+      textElements: slide.textElements.map((element) =>
+        normalizeResponseTextElement(element, localeKey),
+      ),
+      decorations: slide.decorations.map(normalizeResponseDecoration),
       ...(slide.visualAssetPrompt !== null
         ? { visualAssetPrompt: slide.visualAssetPrompt }
         : {}),
@@ -420,7 +370,7 @@ export function normalizeDesignResponse(input: unknown, locale: string): DesignP
   });
 }
 
-function normalizeResponseTransform(
+export function normalizeResponseTransform(
   transform: z.infer<typeof responseElementTransformSchema>,
 ): ElementTransform {
   return {
@@ -430,6 +380,54 @@ function normalizeResponseTransform(
     height: transform.height,
     ...(transform.rotation !== null ? { rotation: transform.rotation } : {}),
     ...(transform.zIndex !== null ? { zIndex: transform.zIndex } : {}),
+  };
+}
+
+/** Drop the null (= "no change") entries from a built-in transform map. */
+function normalizeResponseTransforms(
+  transforms: z.infer<typeof responseBuiltInTransformsSchema>,
+): Record<string, ElementTransform> {
+  return Object.fromEntries(
+    Object.entries(transforms)
+      .filter((entry): entry is [string, NonNullable<(typeof entry)[1]>] => entry[1] !== null)
+      .map(([key, transform]) => [key, normalizeResponseTransform(transform)]),
+  );
+}
+
+// The model returns one string per text element because /api/design edits a
+// single locale at a time; the caller's active locale becomes the only key.
+// Other locales survive via the merge in applySlidePatch.
+export function normalizeResponseTextElement(
+  element: z.infer<typeof responseTextElementSchema>,
+  localeKey: string,
+): TextElement {
+  return {
+    id: element.id,
+    text: { [localeKey]: element.text },
+    transform: normalizeResponseTransform(element.transform),
+    ...(element.fontSize !== null ? { fontSize: element.fontSize } : {}),
+    ...(element.fontWeight !== null ? { fontWeight: element.fontWeight } : {}),
+    ...(element.color !== null ? { color: element.color } : {}),
+    ...(element.align !== null ? { align: element.align } : {}),
+  };
+}
+
+// Decorations carry no localized content, so this needs no locale.
+export function normalizeResponseDecoration(
+  element: z.infer<typeof responseDecorationElementSchema>,
+): DecorationElement {
+  return {
+    id: element.id,
+    kind: element.kind,
+    transform: normalizeResponseTransform(element.transform),
+    fill: {
+      type: element.fill.type,
+      colors: element.fill.colors,
+      ...(element.fill.angle !== null ? { angle: element.fill.angle } : {}),
+    },
+    opacity: element.opacity,
+    ...(element.borderRadius !== null ? { borderRadius: element.borderRadius } : {}),
+    ...(element.blur !== null ? { blur: element.blur } : {}),
   };
 }
 
