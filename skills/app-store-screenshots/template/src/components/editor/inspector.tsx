@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { HEADLINE_FONT_LABEL, LAYOUT_LABEL } from "@/lib/constants";
-import { DECORATION_ICON_NAMES, DEFAULT_DECORATION_ICON } from "@/lib/decoration-icons";
+import { DECORATION_ICON_NAMES, DEFAULT_DECORATION_ICON } from "@/lib/decoration-icon-names";
 import { nid } from "@/lib/defaults";
 import {
   decorationElementKey,

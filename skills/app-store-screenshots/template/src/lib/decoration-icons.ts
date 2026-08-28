@@ -67,11 +67,18 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
+import {
+  DEFAULT_DECORATION_ICON,
+  isDecorationIconName,
+  type DecorationIconName,
+} from "./decoration-icon-names";
 
-// A fixed allowlist rather than a dynamic `lucide[name]` lookup, for two
-// reasons: bundlers can only tree-shake named imports, and export snapshots
-// the DOM synchronously (screenshot-editor.tsx) so a lazily-resolved icon
-// would rasterize as a blank box.
+// Named imports rather than a dynamic `lucide[name]` lookup: bundlers only
+// tree-shake named imports, and export snapshots the canvas synchronously, so
+// a lazily-resolved icon would rasterize as a blank box.
+//
+// The `satisfies` clause is load-bearing — it fails the build if a name in
+// decoration-icon-names.ts has no component here, or vice versa.
 export const DECORATION_ICONS = {
   "alarm-clock": AlarmClock,
   "bar-chart": BarChart3,
@@ -139,22 +146,10 @@ export const DECORATION_ICONS = {
   wand: Wand2,
   watch: Watch,
   zap: Zap,
-} satisfies Record<string, LucideIcon>;
-
-export type DecorationIconName = keyof typeof DECORATION_ICONS;
-
-// Non-empty tuple so z.enum() accepts it.
-export const DECORATION_ICON_NAMES = Object.keys(DECORATION_ICONS) as [
-  DecorationIconName,
-  ...DecorationIconName[],
-];
-
-export const DEFAULT_DECORATION_ICON: DecorationIconName = "sparkles";
-
-export function isDecorationIconName(value: unknown): value is DecorationIconName {
-  return typeof value === "string" && value in DECORATION_ICONS;
-}
+} satisfies Record<DecorationIconName, LucideIcon>;
 
 export function decorationIcon(name: string | undefined): LucideIcon {
-  return isDecorationIconName(name) ? DECORATION_ICONS[name] : DECORATION_ICONS[DEFAULT_DECORATION_ICON];
+  return isDecorationIconName(name)
+    ? DECORATION_ICONS[name]
+    : DECORATION_ICONS[DEFAULT_DECORATION_ICON];
 }

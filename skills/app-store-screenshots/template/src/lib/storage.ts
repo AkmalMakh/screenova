@@ -10,7 +10,7 @@ import {
   PROJECT_SCHEMA_VERSION,
   projectStorageKey,
 } from "./constants";
-import { isDecorationIconName } from "./decoration-icons";
+import { isDecorationIconName } from "./decoration-icon-names";
 import { DEFAULT_PROJECT } from "./defaults";
 import { coerceLocalized } from "./locale";
 import {

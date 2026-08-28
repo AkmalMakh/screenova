@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { zodTextFormat } from "openai/helpers/zod";
 import {
   buildDeckPrompt,
   buildDeckSchema,
@@ -8,37 +9,100 @@ import {
   normalizeDeck,
 } from "./suggest-deck";
 
+const THEME = {
+  name: "Test Palette",
+  bg: "#FFFFFF",
+  bgAlt: "#111111",
+  fg: "#111111",
+  fgAlt: "#FFFFFF",
+  accent: "#5B7CFA",
+  muted: "#6B7280",
+};
+
+// Structured Outputs requires every property to be present, so the design
+// fields are always sent — null and [] are how a screen says "not used".
+function slide(layout: string, copy: Record<string, { label: string; headline: string }>) {
+  return {
+    layout,
+    copy,
+    headlineFontFamily: null,
+    inverted: null,
+    deviceTransform: null,
+    textElements: [],
+    decorations: [],
+  };
+}
+
+// OpenAI rejects a schema with an optional field, an unbounded record, or a
+// missing additionalProperties:false — and the failure only shows up as a live
+// 400. Walk the emitted JSON Schema instead. Mirrors design.test.ts.
+function assertStrictObjects(node: unknown, path = "$"): void {
+  if (!node || typeof node !== "object") return;
+  const schema = node as Record<string, unknown>;
+  const properties = schema.properties as Record<string, unknown> | undefined;
+  if (properties) {
+    expect(schema.additionalProperties, `${path} must reject unknown properties`).toBe(false);
+    expect(schema.required, `${path} must require every property`).toEqual(Object.keys(properties));
+    for (const [key, value] of Object.entries(properties)) {
+      assertStrictObjects(value, `${path}.properties.${key}`);
+    }
+  }
+  if (schema.items) assertStrictObjects(schema.items, `${path}.items`);
+  for (const keyword of ["anyOf", "oneOf"] as const) {
+    const branches = schema[keyword];
+    if (Array.isArray(branches)) {
+      branches.forEach((branch, index) =>
+        assertStrictObjects(branch, `${path}.${keyword}[${index}]`),
+      );
+    }
+  }
+  const definitions = (schema.$defs || schema.definitions) as Record<string, unknown> | undefined;
+  if (definitions) {
+    for (const [key, value] of Object.entries(definitions)) {
+      assertStrictObjects(value, `${path}.$defs.${key}`);
+    }
+  }
+}
+
 describe("buildDeckSchema", () => {
   it("builds literal-keyed copy objects for the requested locales", () => {
     const schema = buildDeckSchema(["en", "de"], 5);
     const parsed = schema.safeParse({
       appName: "Streaks",
       themeId: "dark-bold",
+      theme: THEME,
       summary: "A bold deck.",
       slides: [
-        {
-          layout: "hero",
-          copy: { en: { label: "HABITS", headline: "Build them daily." }, de: { label: "GEWOHNHEITEN", headline: "Täglich aufbauen." } },
-        },
-        {
-          layout: "device-bottom",
-          copy: { en: { label: "TRACK", headline: "See your streak." }, de: { label: "TRACKEN", headline: "Sieh deine Serie." } },
-        },
-        {
-          layout: "device-top",
-          copy: { en: { label: "SHARE", headline: "With friends." }, de: { label: "TEILEN", headline: "Mit Freunden." } },
-        },
-        {
-          layout: "two-devices",
-          copy: { en: { label: "STATS", headline: "Know your data." }, de: { label: "STATISTIK", headline: "Kenne deine Daten." } },
-        },
-        {
-          layout: "no-device",
-          copy: { en: { label: "MORE", headline: "And so much more." }, de: { label: "MEHR", headline: "Und viel mehr." } },
-        },
+        slide("hero", {
+          en: { label: "HABITS", headline: "Build them daily." },
+          de: { label: "GEWOHNHEITEN", headline: "Täglich aufbauen." },
+        }),
+        slide("device-bottom", {
+          en: { label: "TRACK", headline: "See your streak." },
+          de: { label: "TRACKEN", headline: "Sieh deine Serie." },
+        }),
+        slide("device-top", {
+          en: { label: "SHARE", headline: "With friends." },
+          de: { label: "TEILEN", headline: "Mit Freunden." },
+        }),
+        slide("two-devices", {
+          en: { label: "STATS", headline: "Know your data." },
+          de: { label: "STATISTIK", headline: "Kenne deine Daten." },
+        }),
+        slide("no-device", {
+          en: { label: "MORE", headline: "And so much more." },
+          de: { label: "MEHR", headline: "Und viel mehr." },
+        }),
       ],
     });
     expect(parsed.success).toBe(true);
+  });
+
+  it("emits an OpenAI strict schema with every object field required", () => {
+    const format = zodTextFormat(buildDeckSchema(["en", "de"], 3), "deck_test") as unknown as {
+      schema: unknown;
+    };
+    assertStrictObjects(format.schema);
   });
 
   it("rejects a response with the wrong slide count", () => {
@@ -131,13 +195,16 @@ describe("screenshot-driven decks", () => {
     const base = {
       appName: "App",
       themeId: "clean-light",
+      theme: THEME,
       summary: "Summary",
-      slides: [{ layout: "hero", copy: { en: { label: "HI", headline: "Hello." } } }],
+      slides: [slide("hero", { en: { label: "HI", headline: "Hello." } })],
     };
     expect(schema.safeParse(base).success).toBe(true);
     expect(
-      schema.safeParse({ ...base, slides: [{ layout: "no-device", copy: base.slides[0].copy }] })
-        .success,
+      schema.safeParse({
+        ...base,
+        slides: [slide("no-device", base.slides[0].copy)],
+      }).success,
     ).toBe(false);
   });
 

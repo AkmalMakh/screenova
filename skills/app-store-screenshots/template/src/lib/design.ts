@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DECORATION_ICON_NAMES } from "./decoration-icons";
+import { DECORATION_ICON_NAMES } from "./decoration-icon-names";
 import type {
   DecorationElement,
   ElementTransform,
@@ -13,7 +13,7 @@ import type {
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const MAX_COORDINATE = 20_000;
-const headlineFontFamilySchema = z.enum([
+export const headlineFontFamilySchema = z.enum([
   "modern",
   "editorial",
   "geometric",
