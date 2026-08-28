@@ -65,7 +65,9 @@ export type TextElement = {
 
 export type DecorationElement = {
   id: string;
-  kind: "ellipse" | "rounded-rectangle" | "line";
+  // "icon-tile" draws a rounded tile filled with `fill` and a centered glyph
+  // from lib/decoration-icons.ts; every other kind is a plain filled shape.
+  kind: "ellipse" | "rounded-rectangle" | "line" | "icon-tile";
   transform: ElementTransform;
   fill: {
     type: "solid" | "linear-gradient";
@@ -75,6 +77,9 @@ export type DecorationElement = {
   opacity: number;
   borderRadius?: number;
   blur?: number;
+  // icon-tile only: allowlisted icon key, and the glyph color drawn on the tile.
+  iconName?: string;
+  iconColor?: string;
 };
 
 export type VisualAsset = {

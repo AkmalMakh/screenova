@@ -10,6 +10,7 @@ import {
   PROJECT_SCHEMA_VERSION,
   projectStorageKey,
 } from "./constants";
+import { isDecorationIconName } from "./decoration-icons";
 import { DEFAULT_PROJECT } from "./defaults";
 import { coerceLocalized } from "./locale";
 import {
@@ -89,7 +90,12 @@ function cleanDecoration(value: unknown): DecorationElement | undefined {
   if (!value || typeof value !== "object") return undefined;
   const raw = value as Partial<DecorationElement>;
   if (typeof raw.id !== "string" || !raw.id.trim()) return undefined;
-  if (raw.kind !== "ellipse" && raw.kind !== "rounded-rectangle" && raw.kind !== "line") {
+  if (
+    raw.kind !== "ellipse" &&
+    raw.kind !== "rounded-rectangle" &&
+    raw.kind !== "line" &&
+    raw.kind !== "icon-tile"
+  ) {
     return undefined;
   }
   const transform = cleanTransform(raw.transform);
@@ -118,6 +124,12 @@ function cleanDecoration(value: unknown): DecorationElement | undefined {
       : {}),
     ...(typeof raw.blur === "number" && Number.isFinite(raw.blur)
       ? { blur: Math.max(0, Math.min(80, raw.blur)) }
+      : {}),
+    // Drop an unknown icon key rather than the whole decoration; the renderer
+    // falls back to a default glyph.
+    ...(isDecorationIconName(raw.iconName) ? { iconName: raw.iconName } : {}),
+    ...(typeof raw.iconColor === "string" && /^#[0-9a-fA-F]{6}$/.test(raw.iconColor)
+      ? { iconColor: raw.iconColor }
       : {}),
   };
 }

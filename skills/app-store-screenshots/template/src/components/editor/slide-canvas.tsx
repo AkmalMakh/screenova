@@ -26,6 +26,7 @@ import {
   tabletLW,
   tabletPW,
 } from "@/lib/constants";
+import { decorationIcon } from "@/lib/decoration-icons";
 import { toDecorationElementId, toTextElementId } from "@/lib/elements";
 import { img } from "@/lib/image-cache";
 import { pickText, resolveLocalizedScreenshot } from "@/lib/locale";
@@ -1234,6 +1235,11 @@ function SlideElements({
         : element.kind === "line"
           ? "999px"
           : `${element.borderRadius ?? Math.min(rect.width, rect.height) * 0.18}px`;
+    // icon-tile: a filled rounded tile with a centered glyph. The glyph is
+    // sized off the tile so it scales with the element at any export
+    // resolution, and gets an explicit color rather than inheriting
+    // currentColor, which html-to-image does not always resolve.
+    const Icon = element.kind === "icon-tile" ? decorationIcon(element.iconName) : null;
     return (
       <Movable
         key={element.id}
@@ -1267,8 +1273,25 @@ function SlideElements({
             background,
             opacity: element.opacity,
             filter: element.blur ? `blur(${element.blur}px)` : undefined,
+            ...(Icon
+              ? {
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: `0 ${rect.height * 0.08}px ${rect.height * 0.2}px rgba(0,0,0,0.18)`,
+                }
+              : {}),
           }}
-        />
+        >
+          {Icon && (
+            <Icon
+              size={Math.min(rect.width, rect.height) * 0.56}
+              color={element.iconColor ?? "#FFFFFF"}
+              strokeWidth={1.75}
+              absoluteStrokeWidth
+            />
+          )}
+        </div>
       </Movable>
     );
   }

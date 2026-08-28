@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { HEADLINE_FONT_LABEL, LAYOUT_LABEL } from "@/lib/constants";
+import { DECORATION_ICON_NAMES, DEFAULT_DECORATION_ICON } from "@/lib/decoration-icons";
 import { nid } from "@/lib/defaults";
 import {
   decorationElementKey,
@@ -815,9 +816,41 @@ function DecorationPanel({
             <SelectItem value="ellipse">{t("inspector.ellipse")}</SelectItem>
             <SelectItem value="rounded-rectangle">{t("inspector.roundedRect")}</SelectItem>
             <SelectItem value="line">{t("inspector.line")}</SelectItem>
+            <SelectItem value="icon-tile">{t("inspector.iconTile")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
+      {element.kind === "icon-tile" && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label className="text-[11px] text-muted-foreground">{t("inspector.icon")}</Label>
+            <Select
+              value={element.iconName ?? DEFAULT_DECORATION_ICON}
+              onValueChange={(iconName) => onPatch({ iconName })}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-64">
+                {DECORATION_ICON_NAMES.map((name) => (
+                  <SelectItem key={name} value={name}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px] text-muted-foreground">{t("inspector.iconColor")}</Label>
+            <Input
+              type="color"
+              value={element.iconColor ?? "#FFFFFF"}
+              className="h-9 p-1"
+              onChange={(event) => onPatch({ iconColor: event.target.value })}
+            />
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
           <Label className="text-[11px] text-muted-foreground">{t("inspector.fill")}</Label>

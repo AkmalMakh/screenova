@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DECORATION_ICON_NAMES } from "./decoration-icons";
 import type {
   DecorationElement,
   ElementTransform,
@@ -43,7 +44,7 @@ export const textElementSchema = z.object({
 
 export const decorationElementSchema = z.object({
   id: z.string().trim().min(1).max(80),
-  kind: z.enum(["ellipse", "rounded-rectangle", "line"]),
+  kind: z.enum(["ellipse", "rounded-rectangle", "line", "icon-tile"]),
   transform: elementTransformSchema,
   fill: z.object({
     type: z.enum(["solid", "linear-gradient"]),
@@ -53,6 +54,8 @@ export const decorationElementSchema = z.object({
   opacity: z.number().finite().min(0.05).max(1),
   borderRadius: z.number().finite().min(0).max(1000).optional(),
   blur: z.number().finite().min(0).max(80).optional(),
+  iconName: z.enum(DECORATION_ICON_NAMES).optional(),
+  iconColor: z.string().regex(HEX_COLOR).optional(),
 });
 
 const themeSchema = z.object({
@@ -90,7 +93,7 @@ export const responseTextElementSchema = z.object({
 
 export const responseDecorationElementSchema = z.object({
   id: z.string().trim().min(1).max(80),
-  kind: z.enum(["ellipse", "rounded-rectangle", "line"]),
+  kind: z.enum(["ellipse", "rounded-rectangle", "line", "icon-tile"]),
   transform: responseElementTransformSchema,
   fill: z.object({
     type: z.enum(["solid", "linear-gradient"]),
@@ -100,6 +103,8 @@ export const responseDecorationElementSchema = z.object({
   opacity: z.number().finite().min(0.05).max(1),
   borderRadius: z.number().finite().min(0).max(1000).nullable(),
   blur: z.number().finite().min(0).max(80).nullable(),
+  iconName: z.enum(DECORATION_ICON_NAMES).nullable(),
+  iconColor: z.string().regex(HEX_COLOR).nullable(),
 });
 
 const responseBuiltInTransformsSchema = z.object({
@@ -428,6 +433,8 @@ export function normalizeResponseDecoration(
     opacity: element.opacity,
     ...(element.borderRadius !== null ? { borderRadius: element.borderRadius } : {}),
     ...(element.blur !== null ? { blur: element.blur } : {}),
+    ...(element.iconName !== null ? { iconName: element.iconName } : {}),
+    ...(element.iconColor !== null ? { iconColor: element.iconColor } : {}),
   };
 }
 

@@ -345,4 +345,46 @@ describe("project migration", () => {
     expect(migrated.slidesByDevice.iphone[0].screenshot).toBe("/screenshots/one.png");
     expect(migrated.slidesByDevice.iphone[0].headline.de).toBe("Alte Überschrift");
   });
+
+  // The sanitizer drops decorations whose `kind` it doesn't recognize, so a
+  // new kind that isn't allowlisted there renders once and then silently
+  // disappears on the next load. Guard every kind the type permits.
+  it("preserves an icon-tile decoration through a sanitize round-trip", () => {
+    const before = project();
+    before.slidesByDevice.iphone[0].decorations = [
+      {
+        id: "tile-1",
+        kind: "icon-tile",
+        transform: { x: 80, y: 120, width: 200, height: 200, rotation: -12 },
+        fill: { type: "linear-gradient", colors: ["#A78BFA", "#8B5CF6"], angle: 135 },
+        opacity: 1,
+        borderRadius: 48,
+        iconName: "alarm-clock",
+        iconColor: "#FFFFFF",
+      },
+    ];
+    const decorations = mergeWithDefaults(before).slidesByDevice.iphone[0].decorations;
+    expect(decorations).toHaveLength(1);
+    expect(decorations?.[0].kind).toBe("icon-tile");
+    expect(decorations?.[0].iconName).toBe("alarm-clock");
+    expect(decorations?.[0].iconColor).toBe("#FFFFFF");
+    expect(decorations?.[0].transform.rotation).toBe(-12);
+  });
+
+  it("drops an unknown icon name but keeps the tile", () => {
+    const before = project();
+    before.slidesByDevice.iphone[0].decorations = [
+      {
+        id: "tile-2",
+        kind: "icon-tile",
+        transform: { x: 0, y: 0, width: 100, height: 100 },
+        fill: { type: "solid", colors: ["#8B5CF6"] },
+        opacity: 1,
+        iconName: "not-a-real-icon",
+      },
+    ];
+    const decorations = mergeWithDefaults(before).slidesByDevice.iphone[0].decorations;
+    expect(decorations).toHaveLength(1);
+    expect(decorations?.[0].iconName).toBeUndefined();
+  });
 });
