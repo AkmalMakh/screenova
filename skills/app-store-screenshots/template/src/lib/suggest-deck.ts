@@ -169,6 +169,11 @@ export function buildDeckSchema(
           // default placement; a rect can push the device off-canvas so it
           // crops against an edge the way reference decks often do.
           deviceTransform: responseElementTransformSchema.nullable(),
+          // Where the label + headline block sits. Positioned independently of
+          // the device, so the model needs both to keep them from colliding —
+          // without this it could only move the device and had no way to get
+          // the text out of its way.
+          captionTransform: responseElementTransformSchema.nullable(),
           textElements: z.array(textElementSchema).max(MAX_DECK_TEXT_ELEMENTS),
           decorations: z.array(responseDecorationElementSchema).max(MAX_DECK_DECORATIONS),
         }),
@@ -207,6 +212,7 @@ Your job is to REPRODUCE THE REFERENCE'S VISUAL STRUCTURE as closely as the sche
 - TEXT POSITION: is the copy above the device, below it, or overlaid? Reproduce it. If the reference puts the headline under a top-cropped phone, yours does too.
 - TEXT STACK DEPTH: count the distinct blocks of type. A screen with an eyebrow label, a large headline, a bold one-line subhead, and a smaller body paragraph is four blocks — the label and headline go in copy, and the subhead and paragraph become textElements with their own sizes, weights, and positions.
 - TYPOGRAPHY: if the reference's headlines are a serif, set headlineFontFamily to "editorial". Rounded and geometric sans map to "rounded" and "geometric". Match the weight contrast between the headline and its subhead.
+- MIXED-WEIGHT HEADLINES: many reference decks stack a light line above a heavy line at the same size ("your simple" over "day planner"). The headline itself is one weight, so build this as two pieces — put one line in the headline and the other in a text element directly above or below it at the same size, same x, same width, with the contrasting fontWeight (300–400 light, 700–800 heavy) and no gap beyond the line height. Reproduce which of the two lines is the heavy one.
 - WIDGETS: reproduce floating decorative elements. Rounded app-icon tiles with a glyph are kind "icon-tile" with an iconName; rotate them slightly the way the reference does. Gradient orbs, blobs, and pills are "ellipse" or "rounded-rectangle". Match their count, scale, rotation, and scatter.
 - BACKGROUND RHYTHM: which screens are light and which invert to a dark background.
 What you must NOT take from the references: their headlines, subheads, body copy, feature claims, prices, statistics, brand names, product names, and logos. Structure and styling are yours to reuse; their words are not. Every string you emit must describe the USER'S app as they described it.`
@@ -219,7 +225,22 @@ The canvas is ${canvas.w}×${canvas.h} pixels. All coordinates you emit are in t
 - Coordinates may be negative or exceed the canvas to bleed an element off an edge. That is how you crop a device against the top edge: give it a negative y, or a y+height greater than ${canvas.h}.
 - Keep headline and label text fully inside the canvas with comfortable margins (roughly ${Math.round(canvas.w * 0.08)}px from the left and right edges). Devices and decorations may bleed.
 - zIndex orders elements: decorations sit at 1–2 when they are background texture, devices at 3, captions at 4. Put a widget ABOVE the device by giving it a zIndex of 5 or more.
-- Sizes are absolute pixels too. On this canvas a headline is roughly ${Math.round(canvas.w * 0.075)}–${Math.round(canvas.w * 0.11)}px, a subhead ${Math.round(canvas.w * 0.045)}px, body copy ${Math.round(canvas.w * 0.033)}px, and a decorative icon tile ${Math.round(canvas.w * 0.1)}–${Math.round(canvas.w * 0.17)}px square.`;
+- Sizes are absolute pixels too. On this canvas a headline is roughly ${Math.round(canvas.w * 0.075)}–${Math.round(canvas.w * 0.11)}px, a subhead ${Math.round(canvas.w * 0.045)}px, body copy ${Math.round(canvas.w * 0.033)}px, and a decorative icon tile ${Math.round(canvas.w * 0.1)}–${Math.round(canvas.w * 0.17)}px square.
+
+TEXT LAYOUT — READ THIS TWICE
+The text block and the device are positioned independently, so keeping them apart is your job. Text running underneath a phone is the single most common way this deck comes out broken, and it is unrecoverable without hand-editing.
+- captionTransform positions the label + headline block. The text starts at the TOP of that box and flows DOWN; the box height is the room you are allowing it, not the height it will occupy. Send null to accept the layout default.
+- A headline line costs about ${Math.round(canvas.w * 0.105)}px of height at the sizes above. Budget ${Math.round(canvas.w * 0.05)}px for the eyebrow label, then ${Math.round(canvas.w * 0.105)}px per headline line, then ${Math.round(canvas.w * 0.07)}px for each extra text element.
+- HARD RULE, text above the device (hero, device-bottom, two-devices): deviceTransform.y must be greater than captionTransform.y plus the total text height you just budgeted, plus a gap of at least ${Math.round(canvas.h * 0.04)}px. With a label, a 2-line headline and one subhead starting at y=${Math.round(canvas.h * 0.08)}, that puts the top of the device no higher than about y=${Math.round(canvas.h * 0.42)}.
+- HARD RULE, text below the device (device-top): the device's bottom edge (y + height) must be ABOVE captionTransform.y by at least ${Math.round(canvas.h * 0.04)}px. This is the layout where the device is cropped by the TOP edge, so its y is normally negative.
+- Never let a decoration with a zIndex above 4 sit on top of the headline.
+
+TYPOGRAPHY DISCIPLINE
+- Pick ONE headline size for the whole deck and reuse it on every screen. Decks whose headline size changes per screen read as broken, not as varied. Same for the subhead size.
+- Headlines must fit in at most 2 lines — 3 only if the words are short. That means roughly 4 to 7 words. "Capture an expense while it's on your mind" is too long; "Capture expenses by voice" is right. Long headlines are the reason text collides with devices.
+- Set the headline width to the caption box width and center it, unless the reference clearly left-aligns its copy.
+- The eyebrow label is the theme accent on the theme background. If your accent is a pale tint of the background the label becomes invisible — pick an accent with real contrast against bg, or drop the label for that screen rather than shipping unreadable text.
+- Extra text elements should share the caption's x and width so the block reads as one column. A narrow text element pushed to one side looks like a mistake unless the reference does exactly that.`;
   return `You are the template engine inside an App Store screenshot editor. The user has described their app and wants a starter template deck to begin designing from.${referenceRules}${geometryRules}
 
 Draft exactly ${count} screens for a ${device}-frame App Store campaign:
@@ -261,6 +282,7 @@ export function normalizeDeck(
   value: unknown,
   locales: string[],
   count: number,
+  device: Device = "iphone",
 ): DeckSuggestion | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
@@ -287,11 +309,13 @@ export function normalizeDeck(
       if (!label || !headline) return null;
       localized[locale] = { label, headline };
     }
-    slides.push({
+    const slide: SlideAnalysis = {
       layout: entry.layout as DeckSlideLayout,
       copy: localized,
       ...normalizeDeckSlideDesign(entry, locales),
-    });
+    };
+    separateCaptionAndDevice(slide, CANVAS[device] ?? CANVAS.iphone);
+    slides.push(slide);
   }
 
   const themeId = (DECK_THEME_IDS as readonly string[]).includes(String(raw.themeId))
@@ -324,6 +348,10 @@ function normalizeDeckSlideDesign(
   const deviceTransform = responseElementTransformSchema.safeParse(entry.deviceTransform);
   if (deviceTransform.success) {
     design.deviceTransform = normalizeResponseTransform(deviceTransform.data);
+  }
+  const captionTransform = responseElementTransformSchema.safeParse(entry.captionTransform);
+  if (captionTransform.success) {
+    design.captionTransform = normalizeResponseTransform(captionTransform.data);
   }
 
   // Element ids only need to be unique within their own slide — the editor
@@ -399,6 +427,113 @@ function normalizeDeckTextElement(raw: unknown, locales: string[]): TextElement 
     ...(color !== null ? { color } : {}),
     ...(align !== null ? { align } : {}),
   };
+}
+
+// Caption typography is fixed by the renderer (see Caption in
+// components/editor/slide-canvas.tsx), not chosen by the model, so the height
+// of a text block is computable rather than guessable. Keep these in step with
+// that component.
+const HEADLINE_SIZE_RATIO = 0.092;
+const HEADLINE_LINE_HEIGHT = 0.96;
+const LABEL_SIZE_RATIO = 0.028;
+const LABEL_MIN_HEIGHT_RATIO = 0.03;
+const LABEL_MARGIN_RATIO = 0.018;
+// Mean advance width of the bold headline face as a fraction of font size.
+// Deliberately generous: over-estimating wraps costs a little empty space,
+// under-estimating puts a headline under a phone.
+const HEADLINE_CHAR_ADVANCE = 0.54;
+
+/**
+ * Vertical extent of a rect once rotated about its center.
+ *
+ * Rotation is applied by the renderer after positioning, so a tilted phone
+ * occupies a taller band than its height — its corners reach further up and
+ * down. Collision math that ignores this lets a corner sit on the headline,
+ * which is exactly how tilted reference layouts break.
+ */
+function rotatedVerticalBounds(rect: ElementTransform): { top: number; bottom: number } {
+  const rotation = rect.rotation ?? 0;
+  if (!rotation) return { top: rect.y, bottom: rect.y + rect.height };
+  const radians = (Math.abs(rotation) * Math.PI) / 180;
+  const spread = Math.abs(rect.width * Math.sin(radians)) + Math.abs(rect.height * Math.cos(radians));
+  const centerY = rect.y + rect.height / 2;
+  return { top: centerY - spread / 2, bottom: centerY + spread / 2 };
+}
+
+/** Bottom edge of the rendered label + headline block, in canvas pixels. */
+function captionTextBottom(
+  slide: SlideAnalysis,
+  caption: ElementTransform,
+  canvas: { w: number; h: number },
+): number {
+  const unit = Math.min(canvas.w, canvas.h);
+  const copies = Object.values(slide.copy);
+  const hasLabel = copies.some((entry) => entry?.label);
+  const labelHeight = hasLabel
+    ? Math.max(unit * LABEL_MIN_HEIGHT_RATIO, unit * LABEL_SIZE_RATIO) + unit * LABEL_MARGIN_RATIO
+    : 0;
+  const headlineSize = unit * HEADLINE_SIZE_RATIO;
+  const charsPerLine = Math.max(
+    8,
+    Math.floor(caption.width / (headlineSize * HEADLINE_CHAR_ADVANCE)),
+  );
+  // The longest locale decides, since every locale renders in the same box.
+  const lines = copies.reduce((worst, entry) => {
+    const headline = entry?.headline ?? "";
+    const wrapped = headline
+      .split("\n")
+      .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
+    return Math.max(worst, wrapped);
+  }, 1);
+  return caption.y + labelHeight + lines * headlineSize * HEADLINE_LINE_HEIGHT;
+}
+
+/**
+ * Push the device clear of the text block.
+ *
+ * The model places the caption and the device independently and is told to
+ * keep them apart, but it gets the arithmetic wrong often enough that a deck
+ * arrives with a headline running underneath a phone — the one defect that
+ * cannot be salvaged without hand-editing every screen. The renderer's type
+ * metrics are fixed, so the correct position is computable; compute it rather
+ * than trusting the model. Nudging a device down (or up, on device-top) is
+ * always preferable to shipping overlapping text, and the user can still drag
+ * it afterwards.
+ */
+function separateCaptionAndDevice(slide: SlideAnalysis, canvas: { w: number; h: number }): void {
+  const caption = slide.captionTransform;
+  const device = slide.deviceTransform;
+  if (!caption || !device) return;
+
+  const gap = canvas.h * 0.03;
+  // Text elements belong to the same block, so they extend it.
+  const elementsBottom = (slide.textElements ?? []).reduce(
+    (bottom, element) => Math.max(bottom, element.transform.y + element.transform.height),
+    0,
+  );
+
+  const bounds = rotatedVerticalBounds(device);
+  const textTop = Math.min(
+    caption.y,
+    ...(slide.textElements ?? []).map((element) => element.transform.y),
+  );
+  const textBottom = Math.max(captionTextBottom(slide, caption, canvas), elementsBottom);
+
+  // Already clear, above or below.
+  if (bounds.top >= textBottom + gap || bounds.bottom <= textTop - gap) return;
+
+  // Two ways out: drop the device below the text, or lift it above. Which one
+  // is right depends on where the model actually put the text, not on the
+  // layout's name — it routinely puts the caption at the bottom of a
+  // nominally text-above layout. Pick whichever leaves more of the device on
+  // the canvas, so a screen never resolves its overlap by pushing the phone
+  // out of frame entirely.
+  const downShift = textBottom + gap - bounds.top;
+  const upShift = bounds.bottom - (textTop - gap);
+  const visible = (shift: number) =>
+    Math.min(canvas.h, bounds.bottom + shift) - Math.max(0, bounds.top + shift);
+
+  device.y += visible(downShift) >= visible(-upShift) ? downShift : -upShift;
 }
 
 /** Validate the model's custom palette; a bad palette degrades to themeId. */

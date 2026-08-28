@@ -225,7 +225,7 @@ export async function POST(req: Request) {
         if (!response.output_parsed) {
           throw new Error("The model returned no template deck.");
         }
-        const deck = normalizeDeck(response.output_parsed, locales, deckCount);
+        const deck = normalizeDeck(response.output_parsed, locales, deckCount, device);
         if (!deck) {
           throw new Error("The model returned an invalid template deck.");
         }

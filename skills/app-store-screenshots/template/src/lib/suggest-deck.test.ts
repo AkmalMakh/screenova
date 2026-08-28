@@ -30,6 +30,7 @@ function slide(layout: string, copy: Record<string, { label: string; headline: s
     headlineFontFamily: null,
     inverted: null,
     deviceTransform: null,
+    captionTransform: null,
     textElements: [],
     decorations: [],
   };
@@ -214,6 +215,138 @@ describe("normalizeDeck", () => {
     expect(slide?.decorations?.[0].transform.rotation).toBe(-12);
   });
 
+  // A headline running underneath a phone is the one defect a user cannot
+  // salvage without hand-editing every screen, so it is repaired in code
+  // rather than left to the model's arithmetic.
+  it("pushes the device below the headline when the model overlaps them", () => {
+    const deck = normalizeDeck(
+      {
+        ...validDeck,
+        slides: [
+          {
+            ...validDeck.slides[0],
+            layout: "device-bottom",
+            copy: { en: { label: "PLAN", headline: "See your whole month at a glance" } },
+            captionTransform: { x: 106, y: 240, width: 1108, height: 800, rotation: null, zIndex: null },
+            // Model's placement — lands inside the headline.
+            deviceTransform: { x: 105, y: 400, width: 1110, height: 2409, rotation: null, zIndex: 3 },
+          },
+          ...validDeck.slides.slice(1),
+        ],
+      },
+      ["en"],
+      5,
+      "iphone",
+    );
+    const slide = deck?.slides[0];
+    // 1320x2868: unit 1320, headline 121.4px over a 1108px box wraps to 2
+    // lines, plus the label block and an 86px gap — the device clears ~620.
+    expect(slide?.deviceTransform!.y).toBeGreaterThan(600);
+    // The text block itself is never moved; only the device yields.
+    expect(slide?.captionTransform!.y).toBe(240);
+  });
+
+  // Resolving an overlap by shoving the phone off the canvas is not resolving
+  // it. When the model puts the caption low, the device has to go up instead.
+  it("lifts rather than drops when the text sits at the bottom", () => {
+    const deck = normalizeDeck(
+      {
+        ...validDeck,
+        slides: [
+          {
+            ...validDeck.slides[0],
+            layout: "two-devices",
+            copy: { en: { label: "SYNC", headline: "Access your day everywhere" } },
+            captionTransform: { x: 106, y: 2200, width: 1108, height: 600, rotation: null, zIndex: null },
+            deviceTransform: { x: 105, y: 1400, width: 1110, height: 2409, rotation: null, zIndex: 3 },
+          },
+          ...validDeck.slides.slice(1),
+        ],
+      },
+      ["en"],
+      5,
+      "iphone",
+    );
+    const device = deck?.slides[0].deviceTransform!;
+    expect(device.y).toBeLessThan(1400);
+    // Still substantially on canvas rather than pushed out of frame.
+    const visible = Math.min(2868, device.y + device.height) - Math.max(0, device.y);
+    expect(visible).toBeGreaterThan(2868 * 0.4);
+  });
+
+  it("accounts for rotation, which makes a tilted device reach higher", () => {
+    const build = (rotation: number | null) =>
+      normalizeDeck(
+        {
+          ...validDeck,
+          slides: [
+            {
+              ...validDeck.slides[0],
+              layout: "device-bottom",
+              copy: { en: { label: "PLAN", headline: "See your whole month" } },
+              captionTransform: { x: 106, y: 240, width: 1108, height: 800, rotation: null, zIndex: null },
+              deviceTransform: { x: 105, y: 400, width: 1110, height: 2409, rotation, zIndex: 3 },
+            },
+            ...validDeck.slides.slice(1),
+          ],
+        },
+        ["en"],
+        5,
+        "iphone",
+      );
+    const upright = build(null)?.slides[0].deviceTransform!.y ?? 0;
+    const tilted = build(-15)?.slides[0].deviceTransform!.y ?? 0;
+    // A tilted phone's corner reaches above its own y, so it has to be pushed
+    // further down than an upright one to clear the same headline.
+    expect(tilted).toBeGreaterThan(upright);
+  });
+
+  it("leaves a device that already clears the headline alone", () => {
+    const deck = normalizeDeck(
+      {
+        ...validDeck,
+        slides: [
+          {
+            ...validDeck.slides[0],
+            layout: "device-bottom",
+            copy: { en: { label: "PLAN", headline: "Short one" } },
+            captionTransform: { x: 106, y: 240, width: 1108, height: 800, rotation: null, zIndex: null },
+            deviceTransform: { x: 105, y: 1600, width: 1110, height: 2409, rotation: null, zIndex: 3 },
+          },
+          ...validDeck.slides.slice(1),
+        ],
+      },
+      ["en"],
+      5,
+      "iphone",
+    );
+    expect(deck?.slides[0].deviceTransform!.y).toBe(1600);
+  });
+
+  it("lifts a top-cropped device clear of text sitting below it", () => {
+    const deck = normalizeDeck(
+      {
+        ...validDeck,
+        slides: [
+          {
+            ...validDeck.slides[0],
+            layout: "device-top",
+            copy: { en: { label: "REMIND", headline: "Schedule reminders" } },
+            captionTransform: { x: 106, y: 1800, width: 1108, height: 700, rotation: null, zIndex: null },
+            // Bottom edge at 1900, well past where the text starts.
+            deviceTransform: { x: 105, y: -500, width: 1110, height: 2400, rotation: null, zIndex: 3 },
+          },
+          ...validDeck.slides.slice(1),
+        ],
+      },
+      ["en"],
+      5,
+      "iphone",
+    );
+    const device = deck?.slides[0].deviceTransform!;
+    expect(device.y + device.height).toBeLessThanOrEqual(1800);
+  });
+
   // A template the user can still edit beats refusing the whole deck over one
   // bad widget, so malformed elements are dropped individually.
   it("drops a malformed decoration without losing the screen", () => {
@@ -327,6 +460,29 @@ describe("screenshot-driven decks", () => {
         slides: [slide("no-device", base.slides[0].copy)],
       }).success,
     ).toBe(false);
+  });
+
+  it("states the non-overlap rule in real canvas pixels", () => {
+    const prompt = buildDeckPrompt(["en"], "iphone", 5);
+    // The collision between the headline band and the device is the failure
+    // this guidance exists to prevent, so it has to survive prompt edits.
+    expect(prompt).toContain("TEXT LAYOUT");
+    expect(prompt).toContain("captionTransform");
+    expect(prompt).toContain("HARD RULE, text above the device");
+    expect(prompt).toContain("HARD RULE, text below the device");
+    // 1320x2868 iPhone canvas — budgets must be concrete, not proportional
+    // prose the model has to evaluate itself.
+    expect(prompt).toContain("1320×2868");
+    expect(prompt).toMatch(/gap of at least \d+px/);
+    expect(prompt).toContain("at most 2 lines");
+  });
+
+  it("scales the layout budgets to the target device", () => {
+    const iphone = buildDeckPrompt(["en"], "iphone", 5);
+    const android = buildDeckPrompt(["en"], "android", 5);
+    expect(iphone).toContain("1320×2868");
+    expect(android).toContain("1080×1920");
+    expect(iphone).not.toEqual(android);
   });
 
   it("tells the model what the screens past the last screenshot are for", () => {

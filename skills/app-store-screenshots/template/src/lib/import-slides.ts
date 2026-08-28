@@ -21,6 +21,7 @@ export type SlideAnalysis = {
   headlineFontFamily?: HeadlineFontFamily;
   inverted?: boolean;
   deviceTransform?: ElementTransform;
+  captionTransform?: ElementTransform;
   textElements?: TextElement[];
   decorations?: DecorationElement[];
 };
@@ -56,10 +57,16 @@ export function buildSlidesFromAnalysis(
       screenshot: paths[index] ?? "",
       ...(item.headlineFontFamily ? { headlineFontFamily: item.headlineFontFamily } : {}),
       ...(item.inverted ? { inverted: item.inverted } : {}),
-      // A device rect only means anything against the layout it was drafted
-      // for, so drop it when clampLayout had to rewrite the layout.
-      ...(item.deviceTransform && clampLayout(item.layout, device) === item.layout
-        ? { transforms: { device: item.deviceTransform } }
+      // These rects only mean anything against the layout they were drafted
+      // for, so drop them when clampLayout had to rewrite the layout.
+      ...(clampLayout(item.layout, device) === item.layout &&
+      (item.deviceTransform || item.captionTransform)
+        ? {
+            transforms: {
+              ...(item.deviceTransform ? { device: item.deviceTransform } : {}),
+              ...(item.captionTransform ? { caption: item.captionTransform } : {}),
+            },
+          }
         : {}),
       ...(item.textElements?.length ? { textElements: item.textElements } : {}),
       ...(item.decorations?.length ? { decorations: item.decorations } : {}),

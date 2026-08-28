@@ -136,6 +136,7 @@ describe("buildSlidesFromAnalysis", () => {
           headlineFontFamily: "editorial",
           inverted: true,
           deviceTransform: { x: 160, y: -900, width: 1000, height: 2170, zIndex: 3 },
+          captionTransform: { x: 106, y: 1900, width: 1108, height: 700 },
           textElements: [
             {
               id: "subhead",
@@ -165,6 +166,9 @@ describe("buildSlidesFromAnalysis", () => {
     expect(slide.inverted).toBe(true);
     // Negative y is how a device crops against the top edge — it must survive.
     expect(slide.transforms?.device?.y).toBe(-900);
+    // The drafted headline position has to land on the caption element, or the
+    // text falls back to the layout default and collides with the device.
+    expect(slide.transforms?.caption?.y).toBe(1900);
     expect(slide.textElements?.[0].text.en).toBe("Never forget anything");
     expect(slide.decorations?.[0].iconName).toBe("alarm-clock");
     expect(slide.decorations?.[0].transform.rotation).toBe(-12);

@@ -1124,10 +1124,22 @@ function DeckSlideCard({
 
       <div
         className={cn(
-          "absolute inset-x-0 z-[4] px-3 text-center",
-          textOnTop ? "top-0 pt-4" : "bottom-0 pb-4",
-          !showDevice && "top-1/2 -translate-y-1/2",
+          "absolute z-[4] text-center",
+          // Only fall back to the layout-default band when the deck didn't
+          // draft its own caption position.
+          !slide.captionTransform && "inset-x-0 px-3",
+          !slide.captionTransform && (textOnTop ? "top-0 pt-4" : "bottom-0 pb-4"),
+          !slide.captionTransform && !showDevice && "top-1/2 -translate-y-1/2",
         )}
+        style={
+          slide.captionTransform
+            ? {
+                left: px(slide.captionTransform.x),
+                top: py(slide.captionTransform.y),
+                width: px(slide.captionTransform.width),
+              }
+            : undefined
+        }
       >
         {copy?.label && (
           <p
