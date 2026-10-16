@@ -1,3 +1,5 @@
+import type { BackgroundFill, FrameStyle, HeadlineStyle } from "./slide-appearance";
+import { CANVAS } from "./constants";
 import { nid } from "./defaults";
 import type {
   DecorationElement,
@@ -16,6 +18,11 @@ import type {
 // path leaves it unset and gets the layout's default placement; suggest-deck
 // fills it in when it is cloning a reference deck's structure.
 export type SlideAnalysis = {
+  backgroundFill?: BackgroundFill;
+  frameStyle?: FrameStyle;
+  headlineStyle?: HeadlineStyle;
+  /** Explicit framing intent from a generated design, even before assets arrive. */
+  showDeviceFrame?: boolean;
   layout: "hero" | "device-bottom" | "device-top" | "two-devices" | "no-device";
   copy: Record<string, { label: string; headline: string }>;
   headlineFontFamily?: HeadlineFontFamily;
@@ -51,6 +58,9 @@ export function buildSlidesFromAnalysis(
     }
     return {
       id: nid(),
+      ...(item.backgroundFill ? { backgroundFill: item.backgroundFill } : {}),
+      ...(item.frameStyle ? { frameStyle: item.frameStyle } : {}),
+      ...(item.headlineStyle ? { headlineStyle: item.headlineStyle } : {}),
       layout: clampLayout(item.layout, device),
       label,
       headline,
@@ -70,6 +80,31 @@ export function buildSlidesFromAnalysis(
         : {}),
       ...(item.textElements?.length ? { textElements: item.textElements } : {}),
       ...(item.decorations?.length ? { decorations: item.decorations } : {}),
+    };
+  });
+}
+
+/** Resolve the approved suggestion once for preview, editor and export.
+ * An absent screenshot means an intentionally device-free composition, not a
+ * request to invent an empty phone. Imports retain their existing behavior.
+ */
+export function buildSuggestedSlides(
+  analysis: SlideAnalysis[], paths: string[], locales: string[], device: Device,
+): Slide[] {
+  const { w, h } = CANVAS[device];
+  return buildSlidesFromAnalysis(analysis, paths, locales, device).map((slide, index) => {
+    const source = analysis[index];
+    const withoutDevice = source.layout === "no-device" || (!paths[index] && !source.showDeviceFrame);
+    const caption = slide.transforms?.caption ?? {
+      x: w * 0.08,
+      y: h * (source.layout === "no-device" || (source.layout === "device-top" && withoutDevice) ? 0.35 : source.layout === "device-top" ? 0.72 : 0.06),
+      width: w * 0.84, height: h * 0.28,
+    };
+    return {
+      ...slide,
+      layout: withoutDevice ? clampLayout("no-device", device) : slide.layout,
+      backgroundStyle: "plain",
+      transforms: withoutDevice ? { caption } : { ...slide.transforms, caption },
     };
   });
 }

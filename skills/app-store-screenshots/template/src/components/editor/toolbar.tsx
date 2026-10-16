@@ -15,6 +15,8 @@ import {
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { AccountButton } from "@/components/auth/account-button";
 import {
   Dialog,
   DialogContent,
@@ -94,12 +96,15 @@ export function Toolbar(props: Props) {
 
   return (
     <div className="glass sticky top-0 z-40 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-border/70 px-4 py-2">
+      <div className="flex w-full shrink-0 items-center gap-2 overflow-x-auto pb-1 sm:contents [&>*]:shrink-0">
+      <ThemeToggle />
+      <AccountButton />
       <Button
         type="button"
         variant="ghost"
         size="icon"
         className="h-8 w-8"
-        onClick={() => router.push("/")}
+        onClick={() => router.push("/studio")}
         title={t("toolbar.home")}
         aria-label={t("toolbar.home")}
         disabled={props.busy}
@@ -264,7 +269,8 @@ export function Toolbar(props: Props) {
         </SelectContent>
       </Select>
 
-      <div className="ml-auto flex shrink-0 items-center gap-2">
+      </div>
+      <div className="ml-auto flex w-full shrink-0 flex-wrap items-center justify-end gap-2 sm:w-auto">
         <SaveStatus savedAt={props.savedAt} saveError={props.saveError} />
         <span aria-hidden className="h-5 w-px bg-border" />
         <Button
@@ -276,10 +282,11 @@ export function Toolbar(props: Props) {
             setCopyOpen(true);
           }}
           title={t("toolbar.bulkCopyHint")}
+          aria-label={t("toolbar.copy")}
           disabled={props.busy}
         >
           <FileText className="h-4 w-4" />
-          {t("toolbar.copy")}
+          <span className="hidden sm:inline">{t("toolbar.copy")}</span>
         </Button>
         <Button
           variant="ghost"
@@ -294,7 +301,7 @@ export function Toolbar(props: Props) {
         </Button>
         <Button
           onClick={props.onExport}
-          disabled={!!props.exporting}
+          disabled={props.busy}
           size="sm"
           className="h-8"
           title={t("toolbar.exportHint")}

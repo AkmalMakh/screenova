@@ -3,6 +3,19 @@ import type { TranslationKey } from "./en";
 
 export const de: Record<TranslationKey, string> = {
   // ---- common ----
+  "badge.add": "Auszeichnung hinzufügen",
+  "badge.name": "Auszeichnung",
+  "badge.placeholder": "Deine Auszeichnung",
+  "badge.eyebrow": "Jahr oder Untertitel",
+  "badge.title": "Titel der Auszeichnung",
+  "badge.stars": "Sterne (0–5)",
+  "badge.laurels": "Lorbeer anzeigen",
+  "badge.artColor": "Lorbeer- und Sternfarbe",
+  "badge.textColor": "Textfarbe der Auszeichnung",
+  "badge.width": "Breite (px)",
+  "badge.duplicate": "Auszeichnung duplizieren",
+  "badge.delete": "Auszeichnung löschen",
+  "badge.hint": "Bearbeitbare Dekoration, keine bestätigte Auszeichnung. Verwende nur tatsächlich erhaltene Anerkennungen.",
   "common.loading": "Editor wird geladen…",
 
   // ---- toolbar ----
@@ -88,7 +101,7 @@ export const de: Record<TranslationKey, string> = {
   "canvas.oneIdeaPlaceholder": "Eine Idee\npro Bildschirm.",
 
   // ---- screenshot picker ----
-  "picker.formatError": "PNG oder JPG verwenden (der App Store lehnt andere Formate ab)",
+  "picker.formatError": "PNG, JPEG oder WebP verwenden. Exporte sind immer PNG.",
   "picker.tooLarge": "Bild zu groß (>8MB)",
   "picker.readFailed": "Datei konnte nicht gelesen werden",
   "picker.saving": "wird gespeichert…",
@@ -326,7 +339,7 @@ export const de: Record<TranslationKey, string> = {
 
   // ---- home page ----
   "home.loading": "Wird geladen…",
-  "home.brand": "App Store Screenshots",
+  "home.brand": "Screenova",
   "home.tagline": "Entwerfen → Exportieren → Veröffentlichen",
   "home.badge": "KI-Vorlagen-Engine",
   "home.title1": "App-Store-Screenshots,",
@@ -348,12 +361,13 @@ export const de: Record<TranslationKey, string> = {
   "home.searchProjects": "Decks durchsuchen",
   "home.templates": "Vorlagen",
   "home.inspiration": "Brauchst du Inspiration?",
-  "home.welcome": "Was veröffentlichen wir heute?",
+  "home.welcome": "Deine App. Wir gestalten die Geschichte.",
   "home.groupRecent": "Letzte 7 Tage",
   "home.groupEarlier": "Früher",
   "home.importCta": "Aus dem App Store importieren",
   "home.emptyProjects": "Noch keine Decks",
   "home.slideCount": "{count} Folien",
+  "home.closeMenu": "Menü schließen",
   "home.openMenu": "Projektmenü öffnen",
   "home.updatedNow": "gerade eben",
   "home.updatedMinutes": "vor {minutes} Min.",
@@ -390,6 +404,7 @@ export const de: Record<TranslationKey, string> = {
   "home.referencePlaceholder": "App-Store-Link einer App einfügen, deren Stil dir gefällt…",
   "home.referenceAdd": "Hinzufügen",
   "home.referenceRemove": "Referenz {name} entfernen",
+  "home.referenceAutoHint": "Referenz-Links in die Beschreibung einfügen — sie werden automatisch hinzugefügt.",
   "home.referenceLimit": "Höchstens {count} Referenz-Links hinzufügen.",
   "home.referenceInvalid": "Das sieht nicht nach einem gültigen Link aus.",
   "home.referenceFailed": "Dieser App-Store-Link konnte nicht geladen werden.",

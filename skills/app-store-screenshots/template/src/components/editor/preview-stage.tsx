@@ -87,6 +87,7 @@ export function PreviewStage({
   // (the % label and rnd element math need it).
   const panRef = React.useRef<Offset>({ x: 0, y: 0 });
   const scaleRef = React.useRef(0.2);
+  const zoomRef = React.useRef(1);
   const suppressNextActiveScreenPanRef = React.useRef(false);
   const [fitScale, setFitScale] = React.useState(0.2);
   const [zoom, setZoom] = React.useState(1);
@@ -103,6 +104,7 @@ export function PreviewStage({
   const totalW = Math.max(1, slides.length) * cW;
   const scale = fitScale * zoom;
   scaleRef.current = scale;
+  zoomRef.current = zoom;
 
   // Writes the viewport transform and glides the dot lattice with it — the
   // background moving in lockstep is what sells "surface", not "document".
@@ -121,21 +123,23 @@ export function PreviewStage({
     }
   }, []);
 
+  const activeIndex = Math.max(0, slides.findIndex((slide) => slide.id === activeSlideId));
+  const activeSlide = slides[activeIndex] || slides[0] || null;
+
   const centerPan = React.useCallback(
     (animate = false) => {
       const container = containerRef.current;
       if (!container) return;
       const rect = container.getBoundingClientRect();
+      const offset = (!connectedCanvas && activeSlide?.canvasOffset) || { x: 0, y: 0 };
       applyPan(
-        (rect.width - totalW * scaleRef.current) / 2,
-        (rect.height - cH * scaleRef.current) / 2,
+        rect.width / 2 - (activeIndex * cW + offset.x + cW / 2) * scaleRef.current,
+        rect.height / 2 - (offset.y + cH / 2) * scaleRef.current,
         animate,
       );
     },
-    [applyPan, totalW, cH],
+    [applyPan, activeIndex, activeSlide, connectedCanvas, cW, cH],
   );
-  const activeIndex = Math.max(0, slides.findIndex((slide) => slide.id === activeSlideId));
-  const activeSlide = slides[activeIndex] || slides[0] || null;
   const panMode = tool === "pan" || spaceHeld;
 
   const offsets = React.useMemo(() => {
@@ -202,7 +206,7 @@ export function PreviewStage({
         const oldScale = scaleRef.current;
         const nextZoom = Math.min(
           MAX_ZOOM,
-          Math.max(MIN_ZOOM, zoom * Math.exp(-event.deltaY * 0.002)),
+          Math.max(MIN_ZOOM, zoomRef.current * Math.exp(-event.deltaY * 0.002)),
         );
         const nextScale = fitScale * nextZoom;
         const ratio = nextScale / oldScale;
@@ -211,6 +215,9 @@ export function PreviewStage({
           x: px - ratio * (px - pan.x),
           y: py - ratio * (py - pan.y),
         };
+        zoomRef.current = nextZoom;
+        scaleRef.current = nextScale;
+        applyPan(panRef.current.x, panRef.current.y);
         setZoom(nextZoom);
         return;
       }
@@ -218,13 +225,13 @@ export function PreviewStage({
     };
     container.addEventListener("wheel", onWheel, { passive: false });
     return () => container.removeEventListener("wheel", onWheel);
-  }, [fitScale, zoom, applyPan]);
+  }, [fitScale, applyPan]);
 
   // Tool shortcuts: V select, H pan, Space temporarily pans (like Figma/Stitch).
   React.useEffect(() => {
     const isTyping = (target: EventTarget | null) =>
       target instanceof HTMLElement &&
-      !!target.closest("input, textarea, select, [contenteditable]");
+      !!target.closest("input, textarea, select, button, a[href], [role=menu], [role=dialog], [contenteditable]");
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
       if (event.key === " " && !event.repeat) {
@@ -263,9 +270,12 @@ export function PreviewStage({
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.key === " ") setSpaceHeld(false);
     };
+    const onBlur = () => setSpaceHeld(false);
+    window.addEventListener("blur", onBlur);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     return () => {
+      window.removeEventListener("blur", onBlur);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
@@ -291,9 +301,11 @@ export function PreviewStage({
     if (!container || !activeSlide) return;
     const rect = container.getBoundingClientRect();
     const off = (!connectedCanvas && activeSlide.canvasOffset) || { x: 0, y: 0 };
-    const targetX = rect.width / 2 - (activeIndex * cW + off.x + cW / 2) * scale;
+    const targetX = rect.width / 2 - (activeIndex * cW + off.x + cW / 2) * scaleRef.current;
     applyPan(targetX, panRef.current.y, true);
-  }, [activeIndex, activeSlide, cW, scale, connectedCanvas, applyPan]);
+    // Only explicit screen navigation recenters. Editing and zooming preserve the viewport.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSlideId]);
 
   const handleCanvasActiveSlideChange = React.useCallback(
     (id: string) => {
@@ -722,9 +734,9 @@ export function PreviewStage({
       </div>
 
       {/* Zoom cluster clears the floating composer on small screens. */}
-      <div className="absolute bottom-36 right-3 flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-1.5 py-1 text-caption tabular-nums text-muted-foreground shadow-sm backdrop-blur-md sm:bottom-4 sm:right-16">
-        <span className="px-1">{slides.length}× {cW}×{cH}</span>
-        <span aria-hidden className="text-border">|</span>
+      <div className="absolute top-4 right-3 flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-1.5 py-1 text-caption tabular-nums text-muted-foreground shadow-sm backdrop-blur-md sm:top-auto sm:bottom-4 sm:right-16">
+        <span className="hidden px-1 sm:inline">{slides.length}× {cW}×{cH}</span>
+        <span aria-hidden className="hidden text-border sm:inline">|</span>
         <Button
           type="button"
           variant="ghost"
@@ -756,6 +768,8 @@ export function PreviewStage({
           size="icon"
           className="h-6 w-6"
           onClick={() => {
+            scaleRef.current = fitScale;
+            zoomRef.current = 1;
             setZoom(1);
             requestAnimationFrame(() => centerPan(true));
           }}

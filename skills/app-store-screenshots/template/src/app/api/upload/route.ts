@@ -2,6 +2,9 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import sharp from "sharp";
+import { authorizeRequest } from "@/lib/supabase/access";
+import { assetKey, readAsset, storeAsset } from "@/lib/supabase/assets";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +20,11 @@ const MIME_EXT: Record<string, string> = {
 };
 
 function parseDataUrl(dataUrl: string): { mime: string; bytes: Buffer } | null {
-  const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
+  const m = /^data:([^;]+);base64,([A-Za-z0-9+/]+={0,2})$/.exec(dataUrl);
   if (!m) return null;
   const mime = m[1].toLowerCase();
   const bytes = Buffer.from(m[2], "base64");
+  if (!bytes.length || bytes.toString("base64").replace(/=+$/, "") !== m[2].replace(/=+$/, "")) return null;
   return { mime, bytes };
 }
 
@@ -45,15 +49,38 @@ function publicFilePath(publicPath: string | undefined): string | null {
   return path.join(process.cwd(), "public", ...normalized.split("/").filter(Boolean));
 }
 
+// Localized paths retain their extension when a locale's screenshot is
+// replaced. Encode to that extension instead of writing JPEG bytes into .png.
+async function encodeForPath(bytes: Buffer, publicPath: string): Promise<Buffer> {
+  const image = sharp(bytes, { limitInputPixels: 64_000_000 });
+  const extension = path.posix.extname(publicPath).toLowerCase();
+  if (extension === ".webp") return image.webp().toBuffer();
+  if (extension === ".jpg" || extension === ".jpeg") return image.jpeg().toBuffer();
+  return image.png().toBuffer();
+}
+
 export async function POST(req: Request) {
+  const access = await authorizeRequest(req, "upload");
+  if ("response" in access) return access.response;
   let body: { dataUrl?: string; targetPath?: string; seedFromPath?: string; seedPaths?: string[] };
   try {
     body = (await req.json()) as { dataUrl?: string; targetPath?: string };
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
+  if (access.client) {
+    try {
+      const normalize = (value: string) => value.startsWith("/api/assets/")
+        ? `/screenshots/${assetKey(value, access.userId).slice(access.userId.length + 1)}` : value;
+      if (body.targetPath) body.targetPath = normalize(body.targetPath);
+      if (Array.isArray(body.seedPaths)) body.seedPaths = body.seedPaths.map(normalize);
+    } catch { return NextResponse.json({ ok: false, error: "Invalid screenshot destination." }, { status: 400 }); }
+  }
   if (!body?.dataUrl || typeof body.dataUrl !== "string") {
     return NextResponse.json({ ok: false, error: "Missing dataUrl" }, { status: 400 });
+  }
+  if (body.dataUrl.length > 11_200_000) {
+    return NextResponse.json({ ok: false, error: "Image too large (>8MB)" }, { status: 413 });
   }
   const parsed = parseDataUrl(body.dataUrl);
   if (!parsed) {
@@ -68,6 +95,37 @@ export async function POST(req: Request) {
   }
   if (parsed.bytes.byteLength > 8 * 1024 * 1024) {
     return NextResponse.json({ ok: false, error: "Image too large (>8MB)" }, { status: 413 });
+  }
+  try {
+    const metadata = await sharp(parsed.bytes, { limitInputPixels: 64_000_000 }).metadata();
+    const expected = ext === "jpg" ? "jpeg" : ext;
+    if (metadata.format !== expected || !metadata.width || !metadata.height) throw new Error("Invalid image");
+  } catch {
+    return NextResponse.json({ ok: false, error: "The file is not a valid PNG, JPEG, or WebP image." }, { status: 400 });
+  }
+  if (body.targetPath && !localizedTarget(body.targetPath, ext)) {
+    return NextResponse.json({ ok: false, error: "Invalid screenshot destination." }, { status: 400 });
+  }
+
+  if (access.client) {
+    try {
+      // Preserve the existing per-locale pattern while namespacing every file.
+      const cloudPath = (local: string) => `/api/assets/${access.userId}/${local.slice("/screenshots/".length)}`;
+      const target = body.targetPath ? cloudPath(body.targetPath) : undefined;
+      if (target && body.seedFromPath && Array.isArray(body.seedPaths)) {
+        const original = await readAsset(access, body.seedFromPath);
+        for (const seed of body.seedPaths.slice(0, 12)) {
+          if (!localizedTarget(seed, ext) || seed === body.targetPath) continue;
+          const destination = cloudPath(seed);
+          let exists = false;
+          try { await readAsset(access, destination); exists = true; } catch { /* Seed missing locale. */ }
+          if (!exists) await storeAsset(access, await encodeForPath(original, seed), /\.jpe?g$/.test(seed) ? "image/jpeg" : seed.endsWith(".webp") ? "image/webp" : "image/png", destination);
+        }
+      }
+      const bytes = target ? await encodeForPath(parsed.bytes, body.targetPath!) : parsed.bytes;
+      const mime = target ? (target.endsWith(".jpg") || target.endsWith(".jpeg") ? "image/jpeg" : target.endsWith(".webp") ? "image/webp" : "image/png") : parsed.mime;
+      return NextResponse.json({ ok: true, path: await storeAsset(access, bytes, mime, target) });
+    } catch { return NextResponse.json({ ok: false, error: "Image could not be saved. Please retry." }, { status: 503 }); }
   }
 
   const hash = createHash("sha1").update(parsed.bytes).digest("hex").slice(0, 16);
@@ -95,7 +153,7 @@ export async function POST(req: Request) {
           } catch {
             try {
               await fs.mkdir(path.dirname(seedFile), { recursive: true });
-              await fs.copyFile(seedFrom, seedFile);
+              await fs.writeFile(seedFile, await encodeForPath(await fs.readFile(seedFrom), seedPath));
             } catch {
               // Seeding is best-effort; the active locale upload should still succeed.
             }
@@ -104,7 +162,7 @@ export async function POST(req: Request) {
       }
     }
     if (targetPath) {
-      await fs.writeFile(absFile, parsed.bytes);
+      await fs.writeFile(absFile, await encodeForPath(parsed.bytes, targetPath));
     } else {
       try {
         await fs.access(absFile);

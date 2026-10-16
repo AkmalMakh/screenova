@@ -1,13 +1,15 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  // Dark mode is scoped to the Screenova marketing landing (`.screenova-dark`
-  // on the landing wrapper) so the editor and app pages keep their light theme.
+  // Shared workspace appearance. Export artwork retains explicit deck colors.
   darkMode: ["selector", ".screenova-dark"],
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     container: { center: true, padding: "2rem", screens: { "2xl": "1400px" } },
     extend: {
+      fontFamily: {
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -44,7 +46,7 @@ const config: Config = {
         },
       },
       // Apple HIG type ramp. Named roles, not pixel guesses — see
-      // design-md/apple/DESIGN.md. Floor is 12px (caption); any control a user
+      // root DESIGN.md. Floor is 12px (caption); any control a user
       // reads to make a choice is `footnote` (13px) or larger.
       fontSize: {
         caption: ["12px", { lineHeight: "1.4" }],

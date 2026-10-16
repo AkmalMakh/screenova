@@ -1,5 +1,7 @@
 "use client";
+import { apiFetch } from "@/lib/account-scope";
 import * as React from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -12,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,18 +27,18 @@ import {
 import { fileToDataUrl, uploadDataUrl } from "@/components/editor/screenshot-picker";
 import type { AppStoreLookupResult } from "@/lib/app-store";
 import {
-  CANVAS,
-  HEADLINE_FONT_CSS,
   MAX_REFERENCE_SCREENSHOTS,
   MAX_STYLE_REFERENCES,
   themeById,
 } from "@/lib/constants";
-import { decorationIcon } from "@/lib/decoration-icons";
-import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides";
+import { SlideCanvas, getCanvas } from "@/components/editor/slide-canvas";
+import { buildSlidesFromAnalysis, buildSuggestedSlides, type SlideAnalysis } from "@/lib/import-slides";
 import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { useProject } from "@/lib/storage";
+import { extractReferenceLinks, normalizeReferenceUrl } from "@/lib/reference-links";
 import type { DeckSuggestion } from "@/lib/suggest-deck";
-import type { Device, Theme } from "@/lib/types";
+import type { Device, Slide, Theme } from "@/lib/types";
+import { buildTemplateSlides, type TemplateEntry } from "@/lib/studio-templates";
 import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
 import type { TranslationKey } from "@/lib/ui-translations/en";
 import { cn } from "@/lib/utils";
@@ -96,12 +99,12 @@ function Home() {
     activeProjectId,
     createProject,
     switchProject,
-    deleteProject,
     setState,
   } = useProject();
 
   // Workspace chrome: the rail is a sheet below lg, and the App Store import
   // is a disclosure rather than a permanent section competing with the composer.
+  const menuButtonRef = React.useRef<HTMLButtonElement>(null);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [importOpen, setImportOpen] = React.useState(false);
   const draftRef = React.useRef<HTMLTextAreaElement>(null);
@@ -122,15 +125,30 @@ function Home() {
   const [chatLoading, setChatLoading] = React.useState(false);
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
   const [attachError, setAttachError] = React.useState<string | null>(null);
-  const [references, setReferences] = React.useState<StyleReference[]>([]);
+  const [references, setReferenceState] = React.useState<StyleReference[]>([]);
+  const referencesRef = React.useRef<StyleReference[]>([]);
+  const ignoredAutoReferences = React.useRef(new Set<string>());
+  const referenceLookups = React.useRef(new Map<string, Promise<void>>());
   const [referenceError, setReferenceError] = React.useState<string | null>(null);
   const [deck, setDeck] = React.useState<DeckSuggestion | null>(null);
-  const [deckPaths, setDeckPaths] = React.useState<string[]>([]);
+  const [deckScreenshots, setDeckScreenshots] = React.useState<Array<{ name: string; path: string }>>([]);
   const [deckAppName, setDeckAppName] = React.useState("");
   const [chatDevice, setChatDevice] = React.useState<Device>("iphone");
   const [chatLocales, setChatLocales] = React.useState<string[]>(["en"]);
+  const suggestedSlides = React.useMemo(() => deck ? buildSuggestedSlides(deck.slides, deckScreenshots.map(({ path }) => path), chatLocales.length ? chatLocales : ["en"], chatDevice) : [], [deck, deckScreenshots, chatLocales, chatDevice]);
   const chatScrollRef = React.useRef<HTMLDivElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    try {
+      const prompt = sessionStorage.getItem("screenova:studio-prompt");
+      if (prompt) {
+        changeChatDraft(prompt);
+        detectDescriptionLinks(prompt, true);
+        sessionStorage.removeItem("screenova:studio-prompt");
+      }
+    } catch { /* The composer also works without browser storage. */ }
+  }, []);
 
   // Preselect the current UI language plus English, like the new-project dialog.
   React.useEffect(() => {
@@ -153,7 +171,7 @@ function Home() {
     setLinkError(null);
     setLookupApp(null);
     try {
-      const response = await fetch("/api/app-store/lookup", {
+      const response = await apiFetch("/api/app-store/lookup", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ url: value }),
@@ -182,9 +200,8 @@ function Home() {
     const locales = importLocales.length ? importLocales : ["en"];
     setImporting(t("home.importingFetch"));
     setImportError(null);
-    let createdId: string | null = null;
     try {
-      const response = await fetch("/api/app-store/import", {
+      const response = await apiFetch("/api/app-store/import", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ url: link.trim(), device: importDevice }),
@@ -194,17 +211,8 @@ function Home() {
         throw new Error(json.error || t("home.importFailed"));
       }
       const result = json as ImportResult;
-      const created = createProject(result.app.trackName, locales);
-      createdId = created.id ?? null;
-      setState((prev) => ({
-        ...prev,
-        appName: result.app.trackName,
-        appIcon: result.iconPath || prev.appIcon,
-        device: importDevice,
-      }));
-
       setImporting(t("home.importingDraft"));
-      const analysisResponse = await fetch("/api/design/analyze-screenshots", {
+      const analysisResponse = await apiFetch("/api/design/analyze-screenshots", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -218,7 +226,7 @@ function Home() {
         slides?: SlideAnalysis[];
         error?: string;
       };
-      if (!analysisResponse.ok || !analysis.ok || !analysis.slides) {
+      if (!analysisResponse.ok || !analysis.ok || !analysis.slides?.length) {
         throw new Error(analysis.error || t("home.importFailed"));
       }
       const slides = buildSlidesFromAnalysis(
@@ -227,15 +235,18 @@ function Home() {
         locales,
         importDevice,
       );
+      createProject(result.app.trackName, locales);
       setState((prev) => ({
         ...prev,
+        appName: result.app.trackName,
+        appIcon: result.iconPath || prev.appIcon,
+        device: importDevice,
         slidesByDevice: { ...prev.slidesByDevice, [importDevice]: slides },
       }));
       router.push("/editor");
     } catch (error) {
-      // Don't leave a half-imported project behind — it would show up in
-      // Recent projects as an empty deck.
-      if (createdId) deleteProject(createdId);
+      // Only create the project after analysis succeeds; a failed import must
+      // not change the active project or discard the user's existing work.
       setImporting(null);
       setImportError(error instanceof Error ? error.message : t("home.importFailed"));
     }
@@ -280,45 +291,69 @@ function Home() {
 
   // ---------- Style-reference links ----------
 
+  function setReferences(updater: React.SetStateAction<StyleReference[]>) {
+    const next = typeof updater === "function" ? updater(referencesRef.current) : updater;
+    referencesRef.current = next;
+    setReferenceState(next);
+  }
+
+  function addReferenceUrls(urls: string[]): StyleReference[] {
+    const next = [...referencesRef.current];
+    const added: StyleReference[] = [];
+    let limitReached = false;
+    for (const href of urls) {
+      if (next.some((reference) => reference.url === href)) continue;
+      if (next.length >= MAX_REFERENCES) { limitReached = true; continue; }
+      const host = new URL(href).hostname.toLowerCase().replace(/^www\./, "");
+      const loading = host === "apps.apple.com" || host === "itunes.apple.com";
+      const reference = { id: chatId(), url: href, name: host, screenshotUrls: [], loading };
+      next.push(reference);
+      added.push(reference);
+    }
+    setReferenceError(limitReached ? t("home.referenceLimit", { count: MAX_REFERENCES }) : null);
+    if (added.length) setReferences(next);
+    for (const reference of added) {
+      if (!reference.loading) continue;
+      const lookup = resolveReference(reference.id, reference.url);
+      referenceLookups.current.set(reference.id, lookup);
+      void lookup.then(() => referenceLookups.current.delete(reference.id));
+    }
+    return next;
+  }
+
+  function detectDescriptionLinks(text: string, complete: boolean) {
+    if (chatLoading) return;
+    const urls = extractReferenceLinks(text, complete)
+      .filter((url) => !ignoredAutoReferences.current.has(url));
+    if (urls.length) addReferenceUrls(urls);
+  }
+
+  function changeChatDraft(text: string, complete = false) {
+    setChatDraft(text);
+    const present = new Set(extractReferenceLinks(text));
+    for (const url of ignoredAutoReferences.current) {
+      if (!present.has(url)) ignoredAutoReferences.current.delete(url);
+    }
+    detectDescriptionLinks(text, complete);
+  }
+
   // Returns whether the link was accepted, so the composer knows to clear its
   // input. App Store links resolve to icon + screenshots in the background;
   // anything else stays a plain named URL the model gets as text.
   function addReference(raw: string): boolean {
-    const value = raw.trim();
-    if (!value || chatLoading) return false;
-    setReferenceError(null);
-    if (references.length >= MAX_REFERENCES) {
-      setReferenceError(t("home.referenceLimit", { count: MAX_REFERENCES }));
-      return false;
-    }
-    let url: URL;
-    try {
-      url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
-    } catch {
+    if (!raw.trim() || chatLoading) return false;
+    const href = normalizeReferenceUrl(raw);
+    if (!href) {
       setReferenceError(t("home.referenceInvalid"));
       return false;
     }
-    if (url.protocol !== "https:" && url.protocol !== "http:") {
-      setReferenceError(t("home.referenceInvalid"));
-      return false;
-    }
-    const href = url.toString();
-    if (references.some((reference) => reference.url === href)) return true;
-
-    const id = chatId();
-    const host = url.hostname.toLowerCase().replace(/^www\./, "");
-    const isAppStore = host === "apps.apple.com" || host === "itunes.apple.com";
-    setReferences((current) => [
-      ...current,
-      { id, url: href, name: host, screenshotUrls: [], loading: isAppStore },
-    ]);
-    if (isAppStore) void resolveReference(id, href);
-    return true;
+    ignoredAutoReferences.current.delete(href);
+    return addReferenceUrls([href]).some((reference) => reference.url === href);
   }
 
   async function resolveReference(id: string, href: string) {
     try {
-      const response = await fetch("/api/app-store/lookup", {
+      const response = await apiFetch("/api/app-store/lookup", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ url: href }),
@@ -353,11 +388,15 @@ function Home() {
           reference.id === id ? { ...reference, loading: false } : reference,
         ),
       );
-      setReferenceError(error instanceof Error ? error.message : t("home.referenceFailed"));
+      if (referencesRef.current.some((reference) => reference.id === id)) {
+        setReferenceError(error instanceof Error ? error.message : t("home.referenceFailed"));
+      }
     }
   }
 
   function removeReference(id: string) {
+    const reference = referencesRef.current.find((entry) => entry.id === id);
+    if (reference) ignoredAutoReferences.current.add(reference.url);
     setReferences((current) => current.filter((reference) => reference.id !== id));
     setReferenceError(null);
   }
@@ -365,6 +404,7 @@ function Home() {
   async function submitChat(text: string) {
     const value = text.trim();
     if (!value || chatLoading) return;
+    detectDescriptionLinks(value, true);
     setChatDraft("");
     setAttachError(null);
     const userMessage: ChatMessage = { id: chatId(), role: "user", text: value };
@@ -372,30 +412,35 @@ function Home() {
     setChatMessages(nextMessages);
     setChatLoading(true);
     try {
+      // An immediate Send must include the resolved App Store screenshots,
+      // not just an unresolved URL chip from a paste moments earlier.
+      await Promise.all([...referenceLookups.current.values()]);
+      const styleReferences = referencesRef.current;
       // Upload the attached screenshots first so the model can see them.
-      const paths: string[] = [];
+      const screenshots = [...deckScreenshots];
+      if (screenshots.length + attachments.length > MAX_ATTACHMENTS) {
+        throw new Error(t("home.attachTooMany", { count: MAX_ATTACHMENTS }));
+      }
       for (const attachment of attachments) {
         const uploaded = await uploadDataUrl(attachment.dataUrl);
         if (!uploaded) {
           throw new Error(t("home.uploadFailed", { name: attachment.name }));
         }
-        paths.push(uploaded);
+        screenshots.push({ name: attachment.name, path: uploaded });
       }
-      const response = await fetch("/api/design/suggest-deck", {
+      const response = await apiFetch("/api/design/suggest-deck", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          messages: nextMessages.map(({ role, text: messageText }) => ({ role, text: messageText })),
+          messages: nextMessages.slice(-12).map(({ role, text: messageText }) => ({ role, text: messageText })),
           locales: chatLocales,
           device: chatDevice,
           // Deliberately unset: the route derives the count from the reference
           // deck's screen count and the attached screenshots. Sending a fixed
           // number here is what pinned every deck to 5 screens.
-          screenshots: attachments.length
-            ? paths.map((path, index) => ({ name: attachments[index].name, path }))
-            : undefined,
-          styleReferences: references.length
-            ? references.map(({ name, url, screenshotUrls }) => ({
+          screenshots: screenshots.length ? screenshots : undefined,
+          styleReferences: styleReferences.length
+            ? styleReferences.map(({ name, url, screenshotUrls }) => ({
                 name,
                 url,
                 ...(screenshotUrls.length ? { screenshotUrls } : {}),
@@ -404,11 +449,11 @@ function Home() {
         }),
       });
       const json = (await response.json()) as { ok?: boolean; deck?: DeckSuggestion; error?: string };
-      if (!response.ok || !json.ok || !json.deck) {
+      if (!response.ok || !json.ok || !json.deck?.slides?.length) {
         throw new Error(json.error || t("home.chatFailed"));
       }
       setDeck(json.deck);
-      setDeckPaths(paths);
+      setDeckScreenshots(screenshots);
       setDeckAppName(json.deck.appName);
       setAttachments([]);
       setChatMessages((messages) => [
@@ -429,11 +474,13 @@ function Home() {
   function openDeckInEditor() {
     if (!deck || !deckAppName.trim()) return;
     const locales = chatLocales.length ? chatLocales : ["en"];
-    const slides = buildSlidesFromAnalysis(deck.slides, deckPaths, locales, chatDevice);
+    const slides = suggestedSlides;
     createProject(deckAppName.trim(), locales);
     setState((prev) => ({
       ...prev,
       appName: deckAppName.trim(),
+      connectedCanvas: false,
+      locale: DECK_LOCALE(deck, locales),
       themeId: deck.themeId,
       // The AI palette wins over the built-in fallback — same mechanism the
       // editor's design proposals use (customThemesByDevice beats themeId).
@@ -476,9 +523,22 @@ function Home() {
     router.push("/editor");
   }
 
+  function startTemplate(template: TemplateEntry) {
+    const locales = chatLocales.length ? chatLocales : ["en"];
+    const slides = buildTemplateSlides(template, locales);
+    createProject(template.name, locales);
+    setState((prev) => ({
+      ...prev,
+      device: chatDevice,
+      themeId: template.themeId,
+      slidesByDevice: { ...prev.slidesByDevice, [chatDevice]: slides },
+    }));
+    router.push("/editor");
+  }
+
   if (!hydrated) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-[100dvh] items-center justify-center">
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
           <p className="text-sm">{t("home.loading")}</p>
@@ -488,28 +548,25 @@ function Home() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-[100dvh] overflow-hidden bg-background">
       {/* Persistent workspace rail. Hidden below lg, where it becomes a sheet. */}
-      <aside className="hidden w-[264px] shrink-0 border-r border-border/70 lg:block">
+      <aside className="hidden w-[224px] shrink-0 border-r border-border/70 lg:block">
         <StudioSidebar
           projects={projects}
           activeId={activeProjectId}
           onOpenProject={openProject}
           onNewDeck={startBlank}
-          onOpenTemplate={() => startBlank()}
+          onOpenTemplate={startTemplate}
           formatUpdatedAt={formatUpdatedAt}
         />
       </aside>
 
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            type="button"
-            aria-label={t("home.openMenu")}
-            className="absolute inset-0 bg-foreground/20 backdrop-blur-sm"
-            onClick={() => setSidebarOpen(false)}
-          />
-          <div className="absolute inset-y-0 left-0 w-[264px] border-r border-border/70 bg-card shadow-pop">
+      <DialogPrimitive.Root open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-foreground/20 backdrop-blur-sm" />
+          <DialogPrimitive.Content onCloseAutoFocus={(event) => { event.preventDefault(); menuButtonRef.current?.focus(); }} aria-describedby={undefined} className="fixed inset-y-0 left-0 z-50 w-[280px] max-w-[85vw] border-r border-border/70 bg-card pt-8 shadow-pop">
+            <DialogPrimitive.Title className="sr-only">{t("home.openMenu")}</DialogPrimitive.Title>
+            <DialogPrimitive.Close aria-label={t("home.closeMenu")} className="absolute right-3 top-2 flex h-8 w-8 items-center justify-center rounded-sm hover:bg-muted"><X className="h-4 w-4" /></DialogPrimitive.Close>
             <StudioSidebar
               projects={projects}
               activeId={activeProjectId}
@@ -517,22 +574,23 @@ function Home() {
                 setSidebarOpen(false);
                 openProject(id);
               }}
-              onNewDeck={startBlank}
-              onOpenTemplate={() => startBlank()}
+              onNewDeck={() => { setSidebarOpen(false); startBlank(); }}
+              onOpenTemplate={(template) => { setSidebarOpen(false); startTemplate(template); }}
               formatUpdatedAt={formatUpdatedAt}
             />
-          </div>
-        </div>
-      )}
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="glass sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
+        <header className="sticky top-0 z-40 flex h-16 bg-card shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
           <div className="flex min-w-0 items-center gap-2">
             <Button
               type="button"
               variant="outline"
               size="icon"
               className="h-9 w-9 shrink-0 rounded-sm lg:hidden"
+              ref={menuButtonRef}
               onClick={() => setSidebarOpen(true)}
               aria-label={t("home.openMenu")}
             >
@@ -544,6 +602,7 @@ function Home() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <ThemeToggle />
             <Button
               type="button"
               variant="outline"
@@ -560,23 +619,28 @@ function Home() {
               variant="outline"
               className="h-9 gap-1.5 rounded-sm px-3 text-footnote font-medium"
               onClick={startBlank}
+              aria-label={t("home.blankCardTitle")}
             >
               <Plus className="h-3.5 w-3.5" />
-              {t("home.blankCardTitle")}
+              <span className="hidden sm:inline">{t("home.blankCardTitle")}</span>
             </Button>
           </div>
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-5 pb-24 pt-10 sm:px-8 sm:pt-14">
+          <div className="mx-auto w-full max-w-5xl px-5 pb-24 pt-8 sm:px-8 sm:pt-12">
             <h1 className="text-title1 font-semibold tracking-tight sm:text-[34px] sm:leading-[1.15]">
               {t("home.welcome")}
             </h1>
+            <p className="mt-3 max-w-2xl text-body text-muted-foreground">{t("home.subtitle")}</p>
 
-            <div className="mt-6">
+            <div className="mt-6 grid items-start gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="min-w-0">
+            <div>
               <StudioComposer
                 draft={chatDraft}
-                onDraftChange={setChatDraft}
+                onDraftChange={changeChatDraft}
+                onDetectReferenceLinks={detectDescriptionLinks}
                 onSubmit={(text) => void submitChat(text)}
                 loading={chatLoading}
                 draftRef={draftRef}
@@ -613,7 +677,7 @@ function Home() {
                   <button
                     key={key}
                     type="button"
-                    className="rounded-sm border border-border/80 bg-card px-3 py-2 text-footnote text-muted-foreground transition-colors duration-150 ease-[var(--ease-out)] hover:border-border hover:text-foreground"
+                    className="rounded-sm border border-border/80 bg-card px-3 py-2 text-footnote text-muted-foreground transition-colors duration-150 ease-out hover:border-border hover:text-foreground"
                     onClick={() => void submitChat(t(key))}
                   >
                     {t(key)}
@@ -651,6 +715,18 @@ function Home() {
               </div>
             )}
 
+            </div>
+            <aside className="hidden overflow-hidden rounded-lg border border-border bg-card xl:block" aria-label={t("home.inspiration")}>
+              <div className="flex items-center justify-between gap-3 border-b border-border p-4">
+                <span className="text-footnote font-medium">{STUDIO_TEMPLATES[0].name}</span>
+                <button type="button" className="rounded-sm px-3 text-footnote text-primary" onClick={() => startTemplate(STUDIO_TEMPLATES[0])} aria-label={STUDIO_TEMPLATES[0].name}><ArrowRight className="h-4 w-4" /></button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 bg-muted p-4">
+                {["01-hero", "02-split-landscape", "03-device-bottom"].map((name, index) => <img key={name} src={`/deck/${name}.webp`} alt={`${STUDIO_TEMPLATES[0].name} ${index + 1}`} className="h-auto w-full rounded-xs" />)}
+              </div>
+              <p className="p-4 text-caption text-muted-foreground">{t("home.slideCount", { count: STUDIO_TEMPLATES[0].slides })}</p>
+            </aside>
+            </div>
             {importOpen && (
               <section className="mt-8" aria-label={t("home.linkSectionTitle")}>
                 <h2 className="mb-3 text-title3 font-semibold tracking-tight">
@@ -709,7 +785,7 @@ function Home() {
               <div className="mt-8">
                 <DeckPreview
                   deck={deck}
-                  paths={deckPaths}
+                  slides={suggestedSlides}
                   appName={deckAppName}
                   onAppNameChange={setDeckAppName}
                   device={chatDevice}
@@ -722,7 +798,22 @@ function Home() {
               </div>
             )}
 
-            <section className="mt-14" aria-label={t("home.inspiration")}>
+            {projects.length > 0 && (
+              <section className="mt-10" aria-label={t("home.recentTitle")}>
+                <h2 className="mb-4 text-title2 font-semibold tracking-tight">{t("home.recentTitle")}</h2>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {projects.slice(0, 6).map((project) => (
+                    <button key={project.id} type="button" onClick={() => openProject(project.id)}
+                      className="flex min-h-24 items-center justify-between gap-4 rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-primary/50">
+                      <span className="min-w-0"><span className="block truncate text-title3 font-semibold">{project.name}</span>
+                        <span className="mt-1 block text-caption text-muted-foreground">{formatUpdatedAt(project.updatedAt, t)}</span></span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+            <section className="mt-10" aria-label={t("home.inspiration")}>
               <h2 className="mb-3 text-title3 font-semibold tracking-tight">
                 {t("home.inspiration")}
               </h2>
@@ -731,7 +822,7 @@ function Home() {
                   <button
                     key={tpl.id}
                     type="button"
-                    onClick={startBlank}
+                    onClick={() => startTemplate(tpl)}
                     className="lift-hover group w-[168px] shrink-0 snap-start overflow-hidden rounded-xl border border-border/80 bg-card text-left shadow-card"
                   >
                     <img
@@ -761,7 +852,7 @@ function Home() {
 
 function DeckPreview({
   deck,
-  paths,
+  slides,
   appName,
   onAppNameChange,
   device,
@@ -772,7 +863,7 @@ function DeckPreview({
   onOpenEditor,
 }: {
   deck: DeckSuggestion;
-  paths: string[];
+  slides: Slide[];
   appName: string;
   onAppNameChange: (value: string) => void;
   device: Device;
@@ -801,7 +892,7 @@ function DeckPreview({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {deck.slides.map((slide, index) => (
+        {slides.map((slide, index) => (
           <div
             key={index}
             className="fade-up"
@@ -811,7 +902,7 @@ function DeckPreview({
               slide={slide}
               locale={DECK_LOCALE(deck, locales)}
               theme={theme}
-              thumbnail={paths[index]}
+              appName={appName}
               device={device}
             />
           </div>
@@ -1008,183 +1099,27 @@ function LookupResult({
 
 // ---------- Small pieces ----------
 
-function DeckSlideCard({
-  slide,
-  locale,
-  theme,
-  thumbnail,
-  device,
-}: {
-  slide: SlideAnalysis;
-  locale: string;
-  theme: Theme;
-  thumbnail?: string;
-  device: Device;
+function DeckSlideCard({ slide, locale, theme, appName, device }: {
+  slide: Slide; locale: string; theme: Theme; appName: string; device: Device;
 }) {
-  const copy = slide.copy[locale] || slide.copy.en || Object.values(slide.copy)[0];
-  const showDevice = !!thumbnail && slide.layout !== "no-device";
-  const canvas = CANVAS[device] ?? CANVAS.iphone;
-  const inverted = !!slide.inverted;
-  const bg = inverted ? theme.bgAlt : theme.bg;
-  const fg = inverted ? theme.fgAlt : theme.fg;
-
-  // Canvas pixels are mapped to percentages of the card so the miniature stays
-  // faithful at any card size, and font sizes use cqw against the card's own
-  // container so they scale with it too.
-  const px = (value: number) => `${(value / canvas.w) * 100}%`;
-  const py = (value: number) => `${(value / canvas.h) * 100}%`;
-  const cqw = (value: number) => `${(value / canvas.w) * 100}cqw`;
-  const textOnTop = slide.layout !== "device-top";
-
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [width, setWidth] = React.useState(0);
+  const { cW, cH } = getCanvas(device, "portrait");
+  React.useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   return (
-    <div
-      className="lift-hover relative aspect-[9/19] overflow-hidden rounded-xl border border-border/70 shadow-card"
-      style={{ backgroundColor: bg, color: fg, containerType: "size" }}
-    >
-      {/* Decorations first, so they sit behind the device unless a zIndex lifts them. */}
-      {(slide.decorations || []).map((element) => {
-        const background =
-          element.fill.type === "linear-gradient" && element.fill.colors.length > 1
-            ? `linear-gradient(${element.fill.angle ?? 135}deg, ${element.fill.colors.join(", ")})`
-            : element.fill.colors[0];
-        const Icon = element.kind === "icon-tile" ? decorationIcon(element.iconName) : null;
-        return (
-          <div
-            key={element.id}
-            aria-hidden
-            className="pointer-events-none absolute flex items-center justify-center"
-            style={{
-              left: px(element.transform.x),
-              top: py(element.transform.y),
-              width: px(element.transform.width),
-              height: py(element.transform.height),
-              zIndex: element.transform.zIndex ?? 1,
-              transform: element.transform.rotation
-                ? `rotate(${element.transform.rotation}deg)`
-                : undefined,
-              borderRadius:
-                element.kind === "ellipse"
-                  ? "50%"
-                  : element.kind === "line"
-                    ? "999px"
-                    : `${((element.borderRadius ?? element.transform.width * 0.18) / canvas.w) * 100}cqw`,
-              background,
-              opacity: element.opacity,
-              filter: element.blur ? `blur(${(element.blur / canvas.w) * 100}cqw)` : undefined,
-            }}
-          >
-            {Icon && (
-              <Icon
-                size="60%"
-                color={element.iconColor ?? "#FFFFFF"}
-                strokeWidth={1.75}
-                absoluteStrokeWidth
-              />
-            )}
-          </div>
-        );
-      })}
-
-      {showDevice &&
-        (slide.deviceTransform ? (
-          // Cloned placement — may bleed past an edge, which is the point.
-          <div
-            className="absolute overflow-hidden rounded-[6cqw] border-[0.8cqw] shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
-            style={{
-              left: px(slide.deviceTransform.x),
-              top: py(slide.deviceTransform.y),
-              width: px(slide.deviceTransform.width),
-              height: py(slide.deviceTransform.height),
-              zIndex: slide.deviceTransform.zIndex ?? 3,
-              transform: slide.deviceTransform.rotation
-                ? `rotate(${slide.deviceTransform.rotation}deg)`
-                : undefined,
-              borderColor: fg,
-              backgroundColor: inverted ? theme.bg : theme.bgAlt,
-            }}
-          >
-            <img src={thumbnail} alt="" className="h-full w-full object-cover object-top" />
-          </div>
-        ) : (
-          <div
-            className="absolute inset-x-[12%] bottom-[-6%] top-[38%] overflow-hidden rounded-t-[16px] border-[3px] border-b-0 shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
-            style={{ zIndex: 3, borderColor: fg, backgroundColor: inverted ? theme.bg : theme.bgAlt }}
-          >
-            <img src={thumbnail} alt="" className="h-full w-full object-cover object-top" />
-          </div>
-        ))}
-
-      {!showDevice && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-12 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full opacity-25 blur-2xl"
-          style={{ backgroundColor: theme.accent }}
-        />
-      )}
-
-      <div
-        className={cn(
-          "absolute z-[4] text-center",
-          // Only fall back to the layout-default band when the deck didn't
-          // draft its own caption position.
-          !slide.captionTransform && "inset-x-0 px-3",
-          !slide.captionTransform && (textOnTop ? "top-0 pt-4" : "bottom-0 pb-4"),
-          !slide.captionTransform && !showDevice && "top-1/2 -translate-y-1/2",
-        )}
-        style={
-          slide.captionTransform
-            ? {
-                left: px(slide.captionTransform.x),
-                top: py(slide.captionTransform.y),
-                width: px(slide.captionTransform.width),
-              }
-            : undefined
-        }
-      >
-        {copy?.label && (
-          <p
-            className="text-[9px] font-bold uppercase tracking-widest"
-            style={{ color: theme.accent }}
-          >
-            {copy.label}
-          </p>
-        )}
-        {copy?.headline && (
-          <p
-            className="mt-1.5 whitespace-pre-line text-[13px] font-semibold leading-tight"
-            style={{
-              fontFamily: slide.headlineFontFamily
-                ? HEADLINE_FONT_CSS[slide.headlineFontFamily]
-                : undefined,
-            }}
-          >
-            {copy.headline}
-          </p>
-        )}
+    <div ref={ref} data-suggestion-slide={slide.id}
+      className="relative overflow-hidden rounded-xl ring-1 ring-border/70"
+      style={{ aspectRatio: `${cW} / ${cH}` }}>
+      <div style={{ width: cW, height: cH, transform: `scale(${width / cW})`, transformOrigin: "top left" }}>
+        <SlideCanvas slide={slide} device={device} orientation="portrait" theme={theme}
+          locale={locale} appName={appName} hideEmpty />
       </div>
-
-      {/* Subheads and body copy keep their own drafted positions. */}
-      {(slide.textElements || []).map((element) => {
-        const text = element.text[locale] || element.text.en || Object.values(element.text)[0];
-        if (!text) return null;
-        return (
-          <p
-            key={element.id}
-            className="absolute z-[5] whitespace-pre-line leading-tight"
-            style={{
-              left: px(element.transform.x),
-              top: py(element.transform.y),
-              width: px(element.transform.width),
-              fontSize: cqw(element.fontSize ?? canvas.w * 0.04),
-              fontWeight: element.fontWeight ?? 400,
-              color: element.color ?? fg,
-              textAlign: element.align ?? "center",
-            }}
-          >
-            {text}
-          </p>
-        );
-      })}
     </div>
   );
 }

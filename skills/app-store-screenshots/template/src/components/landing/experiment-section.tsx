@@ -61,7 +61,7 @@ const MAX_DELTA = Math.max(...SAMPLE_RESULTS.map((r) => r.delta ?? 0));
 
 export const ExperimentSection: React.FC = () => {
   return (
-    <section className="border-t border-black/[0.06] bg-[#FAF9F6] py-24 text-black dark:border-white/[0.06] dark:bg-[#07080a] dark:text-white">
+    <section className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <Reveal className="text-center">
           <Kicker index="06" label="Generate, export, test" tone="violet" />
@@ -86,14 +86,14 @@ export const ExperimentSection: React.FC = () => {
             >
               <div className="flex items-center justify-between border-b border-black/[0.06] px-4 py-3 dark:border-white/[0.06]">
                 <div>
-                  <span className="block text-[11px] font-semibold text-black dark:text-white">{d.label}</span>
-                  <span className="block text-[10px] text-neutral-500 dark:text-neutral-500">{d.style}</span>
+                  <span className="block text-[12px] font-semibold text-black dark:text-white">{d.label}</span>
+                  <span className="block text-[12px] text-neutral-500 dark:text-neutral-500">{d.style}</span>
                 </div>
-                <span className="rounded-full bg-[#5241C4]/10 px-2 py-0.5 text-[10px] font-semibold text-[#5241C4] dark:bg-[#a89bff]/15 dark:text-[#a89bff]">
+                <span className="rounded-sm bg-[#006FE6]/10 px-2 py-0.5 text-[12px] font-semibold text-[#006FE6] dark:bg-[#409CFF]/15 dark:text-[#409CFF]">
                   Treatment {d.id}
                 </span>
               </div>
-              <div className="flex items-end justify-center gap-2 bg-[#F1F0EC] px-3 pb-0 pt-4 dark:bg-transparent">
+              <div className="flex items-end justify-center gap-2 bg-[#EAEAEC] px-3 pb-0 pt-4 dark:bg-transparent">
                 {d.images.map((src, i) => (
                   <img
                     key={src}
@@ -109,7 +109,7 @@ export const ExperimentSection: React.FC = () => {
                 {LOCALES.map((loc) => (
                   <span
                     key={loc}
-                    className="rounded-full bg-black/[0.04] px-2 py-0.5 text-[9px] font-medium text-neutral-600 dark:bg-white/[0.06] dark:text-neutral-400"
+                    className="rounded-sm bg-black/[0.04] px-2 py-0.5 text-[9px] font-medium text-neutral-600 dark:bg-white/[0.06] dark:text-neutral-400"
                   >
                     {loc}
                   </span>
@@ -126,10 +126,10 @@ export const ExperimentSection: React.FC = () => {
         <Reveal className="mt-4">
           <div className="mx-auto flex max-w-lg flex-col items-center gap-3 rounded-2xl border border-black/[0.08] bg-white px-6 py-5 text-center dark:border-white/[0.08] dark:bg-white/[0.02]">
             <div className="flex items-center gap-2 text-[12px] font-semibold text-black dark:text-white">
-              <UploadCloud className="h-4 w-4 text-[#5241C4] dark:text-[#a89bff]" />
+              <UploadCloud className="h-4 w-4 text-[#006FE6] dark:text-[#409CFF]" />
               <span>App Store Connect · Product Page Optimization</span>
-              <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="flex items-center gap-1 rounded-sm bg-emerald-500/10 px-2 py-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-sm bg-emerald-500" />
                 Running
               </span>
             </div>
@@ -140,7 +140,7 @@ export const ExperimentSection: React.FC = () => {
           </div>
         </Reveal>
 
-        <p className="mx-auto mt-6 max-w-lg text-center text-[11px] text-neutral-400 dark:text-neutral-600">
+        <p className="mx-auto mt-6 max-w-lg text-center text-[12px] text-neutral-400 dark:text-neutral-600">
           Screenova generates the treatments and locales. Uploading and running the experiment
           happens in your own App Store Connect account.
         </p>
@@ -152,10 +152,10 @@ export const ExperimentSection: React.FC = () => {
           <div className="mx-auto max-w-lg rounded-2xl border border-black/[0.08] bg-white px-6 py-5 dark:border-white/[0.08] dark:bg-white/[0.02]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-[12px] font-semibold text-black dark:text-white">
-                <TrendingUp className="h-4 w-4 text-[#5241C4] dark:text-[#a89bff]" />
+                <TrendingUp className="h-4 w-4 text-[#006FE6] dark:text-[#409CFF]" />
                 <span>Treatment conversion vs. current page</span>
               </div>
-              <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500 dark:bg-white/[0.06] dark:text-neutral-400">
+              <span className="rounded-sm bg-black/[0.05] px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-neutral-500 dark:bg-white/[0.06] dark:text-neutral-400">
                 Example report
               </span>
             </div>
@@ -163,14 +163,14 @@ export const ExperimentSection: React.FC = () => {
             <div className="mt-5 space-y-3.5">
               {SAMPLE_RESULTS.map((r) => (
                 <div key={r.id} className="flex items-center gap-3">
-                  <span className="w-24 shrink-0 text-[11px] font-medium text-neutral-600 dark:text-neutral-400">
+                  <span className="w-24 shrink-0 text-[12px] font-medium text-neutral-600 dark:text-neutral-400">
                     {r.label}
                   </span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-black/[0.05] dark:bg-white/[0.06]">
+                  <div className="h-2 flex-1 overflow-hidden rounded-sm bg-black/[0.05] dark:bg-white/[0.06]">
                     {r.delta !== null && (
                       <div
-                        className={`h-full rounded-full ${
-                          r.leading ? 'bg-[#5241C4] dark:bg-[#a89bff]' : 'bg-[#5241C4]/40 dark:bg-[#a89bff]/40'
+                        className={`h-full rounded-sm ${
+                          r.leading ? 'bg-[#006FE6] dark:bg-[#409CFF]' : 'bg-[#006FE6]/40 dark:bg-[#409CFF]/40'
                         }`}
                         style={{ width: `${Math.max(6, (r.delta / MAX_DELTA) * 100)}%` }}
                       />
@@ -191,7 +191,7 @@ export const ExperimentSection: React.FC = () => {
 
             <div className="mt-5 flex items-start gap-2 border-t border-black/[0.06] pt-4 dark:border-white/[0.06]">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400 dark:text-neutral-600" />
-              <p className="text-[11px] leading-relaxed text-neutral-400 dark:text-neutral-600">
+              <p className="text-[12px] leading-relaxed text-neutral-400 dark:text-neutral-600">
                 Illustrative example, not a Screenova measurement — Screenova has no analytics of
                 its own. Real percentages like these come from Apple, in your App Store Connect
                 dashboard, once your experiment collects enough traffic.
@@ -205,7 +205,7 @@ export const ExperimentSection: React.FC = () => {
             which describes what Screenova does today. */}
         <Reveal className="mt-14">
           <div className="mx-auto max-w-2xl rounded-2xl border border-dashed border-black/[0.12] px-6 py-6 text-center dark:border-white/[0.15]">
-            <div className="mx-auto flex w-fit items-center gap-2 rounded-full bg-[#5241C4]/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#5241C4] dark:bg-[#a89bff]/15 dark:text-[#a89bff]">
+            <div className="mx-auto flex w-fit items-center gap-2 rounded-sm bg-[#006FE6]/10 px-3 py-1 text-[12px] font-semibold uppercase tracking-wider text-[#006FE6] dark:bg-[#409CFF]/15 dark:text-[#409CFF]">
               <Repeat className="h-3 w-3" />
               <span>Coming soon</span>
             </div>

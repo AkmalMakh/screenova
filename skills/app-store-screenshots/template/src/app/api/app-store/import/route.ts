@@ -2,6 +2,9 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import sharp from "sharp";
+import { authorizeRequest, type Access } from "@/lib/supabase/access";
+import { storeAsset } from "@/lib/supabase/assets";
 import { normalizeLookupResult, parseAppStoreUrl } from "@/lib/app-store";
 
 export const dynamic = "force-dynamic";
@@ -31,22 +34,35 @@ const URL_EXT: Record<string, string> = {
 };
 
 /** Download an image into the public dir; returns the public path or null. */
-async function downloadImage(url: string, absFile: string): Promise<string | null> {
+async function downloadImage(url: string, absFile: string, access: Access): Promise<string | null> {
+  try {
+  const source = new URL(url);
+  if (source.protocol !== "https:" || !source.hostname.endsWith(".mzstatic.com")) return null;
   const response = await fetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
   if (!response.ok) return null;
   const buffer = Buffer.from(await response.arrayBuffer());
   if (!buffer.byteLength || buffer.byteLength > MAX_IMAGE_BYTES) return null;
-  const contentType = (response.headers.get("content-type") || "").toLowerCase();
+  const contentType = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
   const urlMatch = url.match(/\.([a-z0-9]+)(?:\?|$)/i);
   const ext = MIME_EXT[contentType] || URL_EXT[(urlMatch?.[1] || "").toLowerCase()];
   if (!ext) return null;
+  const metadata = await sharp(buffer, { limitInputPixels: 64_000_000 }).metadata();
+  if (metadata.format !== (ext === "jpg" ? "jpeg" : ext)) return null;
+  if (access.client) return storeAsset(access, buffer, ext === "jpg" ? "image/jpeg" : `image/${ext}`);
   const target = `${absFile}.${ext}`;
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, buffer);
   return `${path.basename(absFile)}.${ext}`;
+  } catch {
+    // One unavailable icon or screenshot must not turn the entire import into
+    // an unhandled error. The caller reports skipped images or an empty deck.
+    return null;
+  }
 }
 
 export async function POST(req: Request) {
+  const access = await authorizeRequest(req, "import");
+  if ("response" in access) return access.response;
   let body: unknown;
   try {
     body = await req.json();
@@ -95,8 +111,8 @@ export async function POST(req: Request) {
 
   let iconPath = "";
   if (app.artworkUrl512) {
-    const filename = await downloadImage(app.artworkUrl512, path.join(absDir, "icon"));
-    if (filename) iconPath = `${publicDir}/${filename}`;
+    const filename = await downloadImage(app.artworkUrl512, path.join(absDir, "icon"), access);
+    if (filename) iconPath = access.client ? filename : `${publicDir}/${filename}`;
   }
 
   const preferred = device === "ipad" ? app.ipadScreenshotUrls : app.screenshotUrls;
@@ -106,12 +122,12 @@ export async function POST(req: Request) {
   const screenshots: Array<{ name: string; path: string }> = [];
   let skipped = 0;
   for (let index = 0; index < sources.length; index += 1) {
-    const filename = await downloadImage(sources[index], path.join(absDir, `screen-${index + 1}`));
+    const filename = await downloadImage(sources[index], path.join(absDir, `screen-${index + 1}`), access);
     if (!filename) {
       skipped += 1;
       continue;
     }
-    screenshots.push({ name: `Screen ${index + 1}`, path: `${publicDir}/${filename}` });
+    screenshots.push({ name: `Screen ${index + 1}`, path: access.client ? filename : `${publicDir}/${filename}` });
   }
 
   if (!screenshots.length) {

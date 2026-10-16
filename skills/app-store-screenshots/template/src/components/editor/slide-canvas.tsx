@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { backgroundFillCss, type FrameStyle } from "@/lib/slide-appearance";
 import { Rnd } from "react-rnd";
 import { RotateCw } from "lucide-react";
 import { useT } from "@/lib/ui-i18n";
@@ -27,6 +28,7 @@ import {
   tabletPW,
 } from "@/lib/constants";
 import { decorationIcon } from "@/lib/decoration-icons";
+import { AwardBadge } from "./award-badge";
 import { toDecorationElementId, toTextElementId } from "@/lib/elements";
 import { img } from "@/lib/image-cache";
 import { pickText, resolveLocalizedScreenshot } from "@/lib/locale";
@@ -39,6 +41,7 @@ import {
 } from "./device-frames";
 
 type FrameComp = React.ComponentType<{
+  frameStyle?: FrameStyle;
   src: string;
   alt?: string;
   style?: React.CSSProperties;
@@ -252,8 +255,8 @@ function Caption({
   // produce headlines so tall they overlap the device frame.
   const unit = Math.min(cW, cH);
   return (
-    <div style={{ textAlign: align, position: "relative", width: "100%" }}>
-      <EditableText
+    <div style={{ textAlign: slide.headlineStyle?.align ?? align, position: "relative", width: "100%" }}>
+      {(pickText(slide.label, locale) || (editable && slide.backgroundStyle !== "plain")) && <EditableText
         value={pickText(slide.label, locale)}
         editable={editable}
         onChange={edit?.onLabelChange}
@@ -268,7 +271,7 @@ function Caption({
           marginBottom: unit * 0.018,
           minHeight: unit * 0.03,
         }}
-      />
+      />}
       <EditableText
         value={pickText(slide.headline, locale)}
         editable={editable}
@@ -277,10 +280,10 @@ function Caption({
         onFocus={onFocus}
         placeholder={hideEmpty ? undefined : t("canvas.headlinePlaceholder")}
         style={{
-          fontSize: unit * 0.092,
+          fontSize: slide.headlineStyle?.fontSize ?? unit * 0.092,
           fontFamily: HEADLINE_FONT_CSS[slide.headlineFontFamily || "modern"],
-          fontWeight: 700,
-          lineHeight: 0.96,
+          fontWeight: slide.headlineStyle?.fontWeight ?? 700,
+          lineHeight: slide.headlineStyle?.lineHeight ?? 0.96,
           letterSpacing: -unit * 0.001,
           color: fg,
         }}
@@ -829,7 +832,7 @@ function SlideBackground({
         position: "absolute",
         inset: 0,
         overflow: "hidden",
-        background: backgroundFor(theme, inverted),
+        background: slide.backgroundFill ? backgroundFillCss(slide.backgroundFill) : slide.backgroundStyle === "plain" ? (inverted ? theme.bgAlt : theme.bg) : backgroundFor(theme, inverted),
         color: inverted ? theme.fgAlt : theme.fg,
       }}
     >
@@ -848,8 +851,10 @@ function SlideBackground({
           }}
         />
       ) : null}
+      {!slide.backgroundFill && slide.backgroundStyle !== "plain" && <>
       <Blob cW={cW} color={theme.accent} x={-15} y={-10} size={55} opacity={inverted ? 0.25 : 0.32} />
       <Blob cW={cW} color={theme.accent} x={70} y={75} size={45} opacity={inverted ? 0.18 : 0.25} />
+      </>}
     </div>
   );
 }
@@ -1144,11 +1149,30 @@ function SlideElements({
         selected={selectedElementId === id}
         onSelect={() => edit?.onSelectElement?.(id)}
       >
-        <Frame
-          src={src}
-          hideEmpty={hideEmpty}
-          style={{ width: "100%", height: "100%", ...extraStyle }}
-        />
+        <div
+          data-device-element={id}
+          role={editable ? "button" : undefined}
+          tabIndex={editable ? 0 : undefined}
+          aria-label={editable ? `${t(id === "deviceSecondary" ? "inspector.secondary" : "inspector.primary")} ${t("inspector.screenshot")}` : undefined}
+          aria-pressed={editable ? selectedElementId === id : undefined}
+          onClick={editable ? () => edit?.onSelectElement?.(id) : undefined}
+          onKeyDown={editable ? (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              event.stopPropagation();
+              edit?.onSelectElement?.(id);
+            }
+          } : undefined}
+          className={editable ? "focus-visible:outline focus-visible:outline-4 focus-visible:outline-primary" : undefined}
+          style={{ width: "100%", height: "100%" }}
+        >
+          <Frame
+            frameStyle={slide.frameStyle}
+            src={src}
+            hideEmpty={hideEmpty}
+            style={{ width: "100%", height: "100%", ...extraStyle }}
+          />
+        </div>
       </Movable>
     );
   }
@@ -1243,6 +1267,7 @@ function SlideElements({
     return (
       <Movable
         key={element.id}
+        lockAspectRatio={element.kind === "award-badge" ? 2 : undefined}
         rect={toGlobal(rect)}
         boundsW={boundsW}
         boundsH={boundsH}
@@ -1270,7 +1295,7 @@ function SlideElements({
             width: "100%",
             height: "100%",
             borderRadius,
-            background,
+            background: element.kind === "award-badge" ? undefined : background,
             opacity: element.opacity,
             filter: element.blur ? `blur(${element.blur}px)` : undefined,
             ...(Icon
@@ -1283,6 +1308,7 @@ function SlideElements({
               : {}),
           }}
         >
+          {element.kind === "award-badge" && <AwardBadge badge={element.badge} color={element.fill.colors[0]} locale={locale} />}
           {Icon && (
             <Icon
               size={Math.min(rect.width, rect.height) * 0.56}

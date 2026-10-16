@@ -216,7 +216,7 @@ export function ProjectSwitcher({
                     {project.name}
                   </button>
                   {isActive && (
-                    <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className="flex shrink-0 items-center gap-1 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                       <Check className="h-3 w-3" /> {t("projectSwitcher.active")}
                     </span>
                   )}

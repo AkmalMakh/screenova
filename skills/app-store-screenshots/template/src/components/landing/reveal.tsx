@@ -4,8 +4,8 @@ import { motion, Variants, HTMLMotionProps } from 'motion/react';
 import { ease } from './theme';
 
 export const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: ease.out } },
+  hidden: { opacity: 0, y: 4 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.2, ease: ease.out } },
 };
 
 export const staggerContainer: Variants = {

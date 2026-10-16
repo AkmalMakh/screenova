@@ -1,3 +1,4 @@
+import { scopedKey } from "./account-scope";
 import type {
   Device,
   HeadlineFontFamily,
@@ -203,7 +204,7 @@ export const PROJECTS_INDEX_KEY = "app-store-screenshots:projects:v1";
 export const PROJECTS_FILE_VERSION = 1;
 // Per-project state key.
 export function projectStorageKey(id: string) {
-  return `app-store-screenshots:project:v1:${id}`;
+  return scopedKey(`app-store-screenshots:project:v1:${id}`);
 }
 export const PROJECT_SCHEMA_VERSION = 4;
 

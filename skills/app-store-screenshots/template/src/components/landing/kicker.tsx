@@ -38,12 +38,12 @@ export const Kicker: React.FC<KickerProps> = ({
       className={`flex items-center gap-3 ${align === 'center' ? 'justify-center' : 'justify-start'} ${className}`}
     >
       {index && (
-        <span className="font-mono text-[11px] tabular-nums" style={{ color: accent }}>
+        <span className="font-mono text-[12px] tabular-nums" style={{ color: accent }}>
           {index}
         </span>
       )}
       <span className="h-px w-8" style={{ backgroundColor: accent, opacity: 0.45 }} />
-      <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500 dark:text-neutral-400">
+      <span className="text-[12px] font-semibold uppercase tracking-[0.22em] text-neutral-500 dark:text-neutral-400">
         {label}
       </span>
     </div>

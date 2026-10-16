@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { awardBadgeSchema } from "./award-badge";
 import { DECORATION_ICON_NAMES } from "./decoration-icon-names";
 import type {
   DecorationElement,
@@ -44,7 +45,8 @@ export const textElementSchema = z.object({
 
 export const decorationElementSchema = z.object({
   id: z.string().trim().min(1).max(80),
-  kind: z.enum(["ellipse", "rounded-rectangle", "line", "icon-tile"]),
+  kind: z.enum(["ellipse", "rounded-rectangle", "line", "icon-tile", "award-badge"]),
+  badge: awardBadgeSchema.optional(),
   transform: elementTransformSchema,
   fill: z.object({
     type: z.enum(["solid", "linear-gradient"]),

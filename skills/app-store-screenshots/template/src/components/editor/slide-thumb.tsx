@@ -76,7 +76,7 @@ export function SlideThumb({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group relative flex items-stretch gap-2 rounded-lg border bg-card p-1.5 transition-all hover:border-foreground/30 hover:bg-accent",
+        "group relative grid grid-cols-2 items-stretch gap-1 rounded-lg border bg-card p-2 transition-colors hover:border-foreground/30 hover:bg-accent",
         active && "border-primary ring-1 ring-primary shadow-card",
       )}
     >
@@ -84,7 +84,7 @@ export function SlideThumb({
         <button
           type="button"
           className={cn(
-            "absolute right-1.5 top-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border bg-background/90 shadow-sm transition-colors",
+            "flex h-11 w-11 items-center justify-center rounded-xs border bg-background transition-colors",
             selectedForDesign && "border-primary bg-primary text-primary-foreground",
           )}
           onClick={(event) => {
@@ -101,7 +101,7 @@ export function SlideThumb({
       )}
       <button
         type="button"
-        className="flex w-3 cursor-grab items-center justify-center text-muted-foreground/60 hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing"
+        className="flex h-11 w-11 justify-self-end cursor-grab items-center justify-center text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing"
         {...attributes}
         {...listeners}
         aria-label={t("thumb.reorderA11y", { index: index + 1 })}
@@ -112,7 +112,7 @@ export function SlideThumb({
       <button
         type="button"
         onClick={onSelect}
-        className="flex flex-1 items-center gap-3 overflow-hidden text-left"
+        className="col-span-2 flex min-w-0 flex-col items-start gap-2 overflow-hidden text-left"
       >
         <div
           aria-hidden
@@ -158,7 +158,7 @@ export function SlideThumb({
           </div>
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+          <span className="truncate text-caption text-muted-foreground">
             {t("thumb.screenN", { index: index + 1, layout: layoutLabel(slide.layout, t) })}
           </span>
           <span className="truncate text-sm font-medium leading-tight">
@@ -167,7 +167,7 @@ export function SlideThumb({
             )}
           </span>
           {label ? (
-            <span className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+            <span className="truncate text-caption text-muted-foreground">
               {label}
             </span>
           ) : null}
@@ -175,7 +175,7 @@ export function SlideThumb({
       </button>
 
       {/* Always visible on touch (no hover); fades in on hover on desktop. */}
-      <div className="flex flex-col items-center justify-center gap-0.5 opacity-60 transition-opacity focus-within:opacity-100 group-hover:opacity-100 md:opacity-0">
+      <div className="col-span-2 flex items-center justify-end gap-1 border-t border-border pt-1">
         <Button
           type="button"
           size="icon"

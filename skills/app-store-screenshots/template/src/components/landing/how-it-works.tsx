@@ -39,13 +39,13 @@ const STEPS: Step[] = [
     n: '05',
     title: 'Export a bundle you own',
     description:
-      'Upload-ready files land in your own git repo. No account required, no vendor lock-in.',
+      'Download your PNG bundle, organized by device and language, and upload it to your store listing.',
   },
 ];
 
 export const HowItWorks: React.FC = () => {
   return (
-    <section className="border-t border-black/[0.06] bg-[#FAF9F6] py-24 text-black dark:border-white/[0.06] dark:bg-[#07080a] dark:text-white">
+    <section className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <Reveal className="text-center">
           <Kicker index="02" label="From screenshots to store page" tone="violet" />
@@ -65,7 +65,7 @@ export const HowItWorks: React.FC = () => {
               variants={fadeUp}
               className="flex flex-col gap-2 py-6 sm:flex-row sm:items-baseline sm:gap-8 sm:py-7"
             >
-              <span className="font-serif-headline shrink-0 text-2xl italic text-[#5241C4] sm:w-16 dark:text-[#a89bff]">
+              <span className="font-sans shrink-0 text-2xl italic text-[#006FE6] sm:w-16 dark:text-[#409CFF]">
                 {step.n}
               </span>
               <div>

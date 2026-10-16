@@ -3,7 +3,9 @@
 Approved on 2026-10-16 through `/design-consultation`. This file is the
 canonical design source for the landing page, Studio, and editor. It supersedes
 `design-md/apple/DESIGN.md`. Approval covers the design direction and this
-documentation; the live application has not yet been restyled to match it.
+documentation. The live application styling was subsequently applied on
+2026-10-16 at the user's request; verification details are in
+`skills/app-store-screenshots/template/TESTING.md`.
 
 ## Product Context
 
@@ -166,7 +168,9 @@ Approved HTML: `~/.gstack/projects/AkmalMakh-DesignPage/designs/design-system-20
 Includes Studio, Editor, Landing, and design-system views with light/dark modes.
 Browser checks covered tab switching, theme switching, sample headline editing,
 desktop/390px horizontal overflow, and console errors. This was a concept
-verification, not a full accessibility audit or a live-app implementation.
+verification, not a full accessibility audit. The subsequent live implementation
+uses real project data and preserves editing, reference detection, and export
+behavior rather than copying the preview's illustrative actions.
 
 Implementation defaults retained or resolved from the existing system include
 the type scale details, semantic dark colors, responsive panel behavior, and
@@ -182,3 +186,4 @@ a package; individual pixel values were not separately reviewed.
 | 2026-10-16 | Approve the quiet-studio HTML preview | One coordinated direction across Studio, Editor, and Landing. |
 | 2026-10-16 | Make this root document canonical | Replace competing UI guidance with one source of truth. |
 | 2026-10-16 | Keep chrome separate from exported artwork | App branding must not restrict users' screenshot styles. |
+| 2026-10-16 | Apply the direction to the live app | Shared light/dark appearance, Studio creation and recent projects, separated editor panels, and output-led landing. |

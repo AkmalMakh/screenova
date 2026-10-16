@@ -1,10 +1,12 @@
 "use client";
 import * as React from "react";
+import type { FrameStyle } from "@/lib/slide-appearance";
 import { PHONE_SCREEN } from "@/lib/constants";
 import { img } from "@/lib/image-cache";
 import { useT } from "@/lib/ui-i18n";
 
 type FrameProps = {
+  frameStyle?: FrameStyle;
   src: string;
   alt?: string;
   style?: React.CSSProperties;
@@ -13,7 +15,8 @@ type FrameProps = {
 };
 
 // iPhone — uses pre-measured mockup.png overlay
-export function Phone({ src, alt = "", style, hideEmpty }: FrameProps) {
+export function Phone({ src, alt = "", style, hideEmpty, frameStyle = "device" }: FrameProps) {
+  if (frameStyle !== "device") return <MinimalPhone src={src} alt={alt} style={style} hideEmpty={hideEmpty} frameStyle={frameStyle} />;
   const resolved = img(src);
   return (
     <div style={{ position: "relative", aspectRatio: "1022 / 2082", ...style }}>
@@ -51,7 +54,8 @@ export function Phone({ src, alt = "", style, hideEmpty }: FrameProps) {
   );
 }
 
-export function AndroidPhone({ src, alt = "", style, hideEmpty }: FrameProps) {
+export function AndroidPhone({ src, alt = "", style, hideEmpty, frameStyle = "device" }: FrameProps) {
+  if (frameStyle !== "device") return <MinimalPhone src={src} alt={alt} style={style} hideEmpty={hideEmpty} frameStyle={frameStyle} />;
   const resolved = img(src);
   return (
     <div style={{ position: "relative", aspectRatio: "9 / 19.5", ...style }}>
@@ -276,7 +280,7 @@ export function IPad({ src, alt = "", style, hideEmpty }: FrameProps) {
   );
 }
 
-function EmptySlot() {
+function EmptySlot({ light = false }: { light?: boolean } = {}) {
   const { t } = useT();
   return (
     <div
@@ -286,9 +290,9 @@ function EmptySlot() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: "rgba(255,255,255,0.4)",
-        fontSize: "min(2vw, 14px)",
-        background: "linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)",
+        color: light ? "#70737c" : "rgba(255,255,255,0.4)",
+        fontSize: light ? 42 : "min(2vw, 14px)",
+        background: light ? "#fdfdfe" : "linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)",
         textAlign: "center",
         padding: "4%",
       }}
@@ -296,4 +300,17 @@ function EmptySlot() {
       {t("canvas.dropHere")}
     </div>
   );
+}
+
+// Neutral phone bezel for references with soft white or minimal dark hardware.
+function MinimalPhone({ src, alt = "", style, hideEmpty, frameStyle }: FrameProps) {
+  const resolved = img(src);
+  const light = frameStyle === "white";
+  return <div data-frame-style={frameStyle} style={{ position: "relative", aspectRatio: "1022 / 2082", ...style }}>
+    <div style={{ position: "absolute", inset: 0, borderRadius: "12% / 5.9%", background: light ? "#f5f5f7" : "#232428",
+      boxShadow: light ? "inset 0 0 0 1px #e3e4e8, 0 16px 45px #34374526" : "inset 0 0 0 1px #45464b, 0 16px 45px #14151a40" }} />
+    <div style={{ position: "absolute", inset: "1.5% 3%", overflow: "hidden", borderRadius: "10% / 4.9%", background: light ? "#fdfdfe" : "#141519" }}>
+      {resolved ? <img src={resolved} alt={alt} draggable={false} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} /> : hideEmpty ? null : <EmptySlot light={light} />}
+    </div>
+  </div>;
 }

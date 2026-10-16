@@ -102,7 +102,7 @@ export function NewProjectDialog({ open, onOpenChange, importing, onSubmit }: Pr
   const busy = !!importing;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("newProject.title")}</DialogTitle>

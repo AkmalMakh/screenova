@@ -1,4 +1,6 @@
 "use client";
+import { apiFetch } from "@/lib/account-scope";
+import { cn } from "@/lib/utils";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import JSZip from "jszip";
@@ -173,6 +175,7 @@ function Editor() {
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [importing, setImporting] = React.useState<string | null>(null);
   const exportRef = React.useRef<HTMLDivElement | null>(null);
+  const exportInProgress = React.useRef(false);
   const designAbortRef = React.useRef<AbortController | null>(null);
 
   const currentSlides = state.slidesByDevice[state.device] || [];
@@ -563,7 +566,7 @@ function Editor() {
 
     try {
       const renderedPreviews = await captureDesignPreviews(requestTargets);
-      const response = await fetch("/api/design", {
+      const response = await apiFetch("/api/design", {
         method: "POST",
         headers: { "content-type": "application/json" },
         signal: controller.signal,
@@ -692,7 +695,7 @@ function Editor() {
 
   function applyPendingDesign() {
     if (!pendingDesign) return;
-    setState(pendingDesign.state);
+    setState(pendingDesign.state, { coalesce: false });
     markProposalStatus(pendingDesign.assistantMessageId, "applied");
     setPendingDesign(null);
     setShowProposal(true);
@@ -726,8 +729,8 @@ function Editor() {
 
   async function handleCreateProject(name: string, files: File[], locales: string[]) {
     if (importing) return; // double-submit guard
-    const created = createProject(name.trim(), locales);
     if (files.length === 0) {
+      createProject(name.trim(), locales);
       setImporting(null);
       setImportDialogOpen(false);
       toast.success(t("toasts.projectCreated"));
@@ -745,12 +748,12 @@ function Editor() {
         }),
       );
       setImporting(t("toasts.analyzingScreens"));
-      const response = await fetch("/api/design/analyze-screenshots", {
+      const response = await apiFetch("/api/design/analyze-screenshots", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          appName: created.appName,
-          locales: created.locales,
+          appName: name.trim() || "My App",
+          locales,
           screenshots: files.map((file, index) => ({ name: file.name, path: paths[index] })),
         }),
       });
@@ -759,9 +762,10 @@ function Editor() {
         slides?: SlideAnalysis[];
         error?: string;
       };
-      if (!response.ok || !json.ok || !json.slides) {
+      if (!response.ok || !json.ok || !json.slides?.length) {
         throw new Error(json.error || t("toasts.analysisFailed", { status: response.status }));
       }
+      const created = createProject(name.trim(), locales);
       const slides = buildSlidesFromAnalysis(json.slides, paths, created.locales, created.device);
       // Replace the new project's starter deck for the current device.
       setState((prev) => ({
@@ -773,13 +777,12 @@ function Editor() {
       }));
       if (slides[0]) setActiveSlideId(slides[0].id);
       toast.success(t("toasts.projectCreatedFromScreens", { count: slides.length }));
+      setImportDialogOpen(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : t("toasts.importFailed");
-      // Keep the (empty) project — the user can fill it in or delete it.
       toast.error(t("toasts.createFromScreensFailed"), { description: message });
     } finally {
       setImporting(null);
-      setImportDialogOpen(false);
     }
   }
 
@@ -871,6 +874,10 @@ function Editor() {
   }
 
   async function exportAll() {
+    if (exportInProgress.current || generatingDesign || pendingDesign || importing) return;
+    exportInProgress.current = true;
+    setExporting("0/1");
+    try {
     if (!currentSlides.length) {
       toast.error(t("toasts.noScreensToExport"));
       return;
@@ -966,7 +973,6 @@ function Editor() {
     }
 
     setExportLocaleOverride(null);
-    setExporting(null);
 
     if (okCount > 0) {
       try {
@@ -995,6 +1001,14 @@ function Editor() {
       toast.error(t("toasts.rendersFailedSome", { count: failed, total: totalUnits }), {
         description: errors.slice(0, 3).join("\n"),
       });
+    }
+    } catch (error) {
+      toast.error(t("toasts.bundleFailed"));
+      console.error("Export failed", error);
+    } finally {
+      exportInProgress.current = false;
+      setExportLocaleOverride(null);
+      setExporting(null);
     }
   }
 
@@ -1030,6 +1044,8 @@ function Editor() {
         canvasHeight: exportH,
         pixelRatio: 1,
         cacheBust: false,
+        // Editor typefaces use system font stacks; landing webfonts are unrelated.
+        skipFonts: true,
         backgroundColor: "#ffffff",
       });
       return dataUrl;
@@ -1047,7 +1063,7 @@ function Editor() {
 
   if (!hydrated || !ready) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-[100dvh] items-center justify-center">
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
           <p className="text-sm">{t("common.loading")}</p>
@@ -1134,7 +1150,7 @@ function Editor() {
   ];
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
       <Toaster position="top-right" richColors closeButton />
       <Toolbar
         projects={projects}
@@ -1212,7 +1228,14 @@ function Editor() {
               onHeadlineChange={(slide, v) => patchLocalized(slide, "headline", v)}
               onTextElementTextChange={patchTextElementText}
               onElementChange={patchElementTransform}
-              onSelectElement={setSelectedElement}
+              onSelectElement={(element) => {
+                setSelectedElement(element);
+                if (element?.elementId === "device" || element?.elementId === "deviceSecondary") {
+                  setActiveSlideId(element.slideId);
+                  setScreenSettingsOpen(true);
+                  if (window.innerWidth < 640) { setScreensOpen(false); setChatOpen(false); }
+                }
+              }}
               editable={!busy}
             />
           ) : (
@@ -1260,8 +1283,12 @@ function Editor() {
         ) : (
           <button
             type="button"
-            onClick={() => setChatOpen(true)}
-            className="absolute left-4 top-4 z-30 inline-flex h-10 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-4 text-footnote font-medium shadow-pop backdrop-blur-md transition-colors hover:bg-card"
+            onClick={() => {
+              setChatOpen(true);
+              setScreensOpen(false);
+              if (window.innerWidth < 640) { setScreensOpen(false); setScreenSettingsOpen(false); }
+            }}
+            className={cn("absolute left-4 top-4 z-30 inline-flex h-11 items-center gap-2 rounded-sm border border-border bg-card px-4 text-footnote font-medium shadow-card transition-colors hover:bg-card", screensOpen && "sm:left-[216px]", (screensOpen || screenSettingsOpen) && "hidden sm:inline-flex")}
           >
             <Sparkles className="h-4 w-4 text-primary" />
             {t("designSidebar.expand")}
@@ -1312,7 +1339,11 @@ function Editor() {
             variant={screensOpen ? "secondary" : "ghost"}
             size="icon"
             className="h-9 w-9 rounded-sm"
-            onClick={() => setScreensOpen(!screensOpen)}
+            onClick={() => {
+              setScreensOpen(!screensOpen);
+              if (!screensOpen) setChatOpen(false);
+              if (window.innerWidth < 640) { setScreenSettingsOpen(false); setChatOpen(false); }
+            }}
             aria-pressed={screensOpen}
             aria-controls="screens-panel"
             aria-label={screensOpen ? t("toolbar.hideScreens") : t("toolbar.showScreens")}
@@ -1325,7 +1356,10 @@ function Editor() {
             variant={screenSettingsOpen ? "secondary" : "ghost"}
             size="icon"
             className="h-9 w-9 rounded-sm"
-            onClick={() => setScreenSettingsOpen(!screenSettingsOpen)}
+            onClick={() => {
+              setScreenSettingsOpen(!screenSettingsOpen);
+              if (window.innerWidth < 640) { setScreensOpen(false); setChatOpen(false); }
+            }}
             aria-pressed={screenSettingsOpen}
             aria-controls="screen-settings-panel"
             aria-label={
@@ -1339,12 +1373,12 @@ function Editor() {
 
         {/* Floating right panels, anchored beside the rail. */}
         {(screensOpen || screenSettingsOpen) && (
-          <div className="absolute bottom-32 right-14 top-3 z-20 flex flex-row-reverse gap-3 sm:top-4">
+          <div className="contents">
             {screensOpen && (
               <section
                 id="screens-panel"
                 aria-label={t("toolbar.screens")}
-                className="flex w-72 max-w-[78vw] flex-col overflow-hidden rounded-xl border border-border/80 bg-card/95 shadow-pop backdrop-blur-md"
+                className="absolute bottom-32 right-[76px] top-3 z-20 flex w-[184px] max-w-[78vw] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-card sm:left-4 sm:right-auto sm:top-4"
               >
                 <Sidebar
                   slides={displaySlides}
@@ -1378,11 +1412,12 @@ function Editor() {
               <section
                 id="screen-settings-panel"
                 aria-label={t("toolbar.settings")}
-                className="flex w-80 max-w-[78vw] flex-col overflow-hidden rounded-xl border border-border/80 bg-card/95 shadow-pop backdrop-blur-md"
+                className="absolute bottom-32 right-[76px] top-3 z-20 flex w-[250px] max-w-[78vw] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-card sm:top-4"
               >
                 {activeSlide && !pendingDesign && !generatingDesign ? (
                   <Inspector
                     slide={activeSlide}
+                    artworkColor={activeSlide.inverted ? theme.fgAlt : theme.fg}
                     device={state.device}
                     orientation={state.orientation}
                     locale={state.locale}
@@ -1468,7 +1503,7 @@ function Editor() {
         )}
 
         {/* Composer — floating bottom center (Stitch's prompt bar). */}
-        <div className="absolute inset-x-3 bottom-3 z-30 sm:inset-x-auto sm:left-1/2 sm:bottom-5 sm:w-[min(62vw,640px)] sm:-translate-x-1/2">
+        <div className={cn("absolute inset-x-3 bottom-3 z-30 sm:block sm:inset-x-auto sm:left-1/2 sm:bottom-5 sm:w-[min(62vw,640px)] sm:-translate-x-1/2", !chatOpen && "hidden")}>
           <DesignComposer
             scope={designScope}
             onScopeChange={(scope) => {
@@ -1576,6 +1611,7 @@ async function captureSlideForModel(el: HTMLElement, sourceW: number, sourceH: n
       pixelRatio: 1,
       quality: 0.82,
       cacheBust: false,
+      skipFonts: true,
       backgroundColor: "#ffffff",
     });
   } finally {
@@ -1592,7 +1628,7 @@ async function uploadDesignReference(
   reference: DesignReference,
   t: ReturnType<typeof useT>["t"],
 ): Promise<string> {
-  const response = await fetch("/api/upload", {
+  const response = await apiFetch("/api/upload", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ dataUrl: reference.dataUrl }),

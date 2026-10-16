@@ -5,8 +5,8 @@
 @layer base {
   :root {
     /* Apple-like palette: system grays, one calm blue accent. */
-    --background: 240 10% 97%;
-    --foreground: 240 8% 8%;
+    --background: 240 11% 96.5%;
+    --foreground: 240 7% 8%;
     --card: 0 0% 100%;
     --card-foreground: 240 8% 8%;
     --popover: 0 0% 100%;
@@ -27,29 +27,30 @@
     --radius: 0.75rem;
 
     /* Custom easings — built-in CSS curves are too weak for UI (emil-design-eng). */
-    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
     --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  .dark {
-    --background: 240 12% 5%;
+  .dark,
+  :root.screenova-dark {
+    --background: 240 6% 7%;
     --foreground: 240 12% 96%;
-    --card: 240 12% 7%;
+    --card: 240 3% 11%;
     --card-foreground: 240 12% 96%;
-    --popover: 240 12% 7%;
+    --popover: 240 3% 11%;
     --popover-foreground: 240 12% 96%;
-    --primary: 211 100% 52%;
+    --primary: 211 100% 63%;
     --primary-foreground: 240 12% 5%;
     --secondary: 240 8% 16%;
     --secondary-foreground: 240 12% 96%;
     --muted: 240 8% 14%;
-    --muted-foreground: 240 6% 75%;
+    --muted-foreground: 240 5% 68%;
     --accent: 240 8% 16%;
     --accent-foreground: 240 12% 96%;
     --destructive: 0 70% 52%;
     --destructive-foreground: 240 12% 96%;
-    --border: 240 8% 18%;
+    --border: 240 3% 23%;
     --input: 240 8% 18%;
     --ring: 211 100% 60%;
   }
@@ -159,12 +160,7 @@
 
   /* Canvas stage backdrop: soft radial wash + faint dot grid for depth. */
   .dot-grid {
-    background-image:
-      radial-gradient(70% 70% at 50% 35%, hsl(var(--background)) 0%, hsl(var(--muted)) 100%),
-      radial-gradient(circle, hsl(var(--muted-foreground) / 0.12) 1px, transparent 1px);
-    background-size:
-      100% 100%,
-      24px 24px;
+    background-color: #eaeaec;
   }
 
 }
@@ -216,11 +212,7 @@
     transform: none !important;
   }
 
-  /* A spinner that cannot spin reads as frozen, so keep it turning — just
-     slowly enough that it informs without pulsing in someone's periphery. */
-  .animate-spin {
-    animation: spin 2.4s linear infinite !important;
-  }
+
 }
 
 /* Editor canvas: screens read as grabbable objects under the select tool.
@@ -300,49 +292,43 @@
 --------------------------------------------------------------------------- */
 
 .screenova-landing {
-  /* Light editorial palette: warm off-white paper, near-black ink, one violet. */
-  --font-serif: "Newsreader", "Playfair Display", Georgia, serif;
-  --font-sans:
-    "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, sans-serif;
-  --bg: #faf9f6;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: var(--font-sans);
+  --bg: #f5f5f7;
   --bg-raised: #fff;
-  --bg-inset: #f1f0ec;
-  --line: #0a0a0a14;
-  --line-strong: #0a0a0a26;
-  --ink: #0a0a0a;
-  --ink-muted: #0a0a0a99;
-  --ink-faint: #0a0a0a61;
-  --violet: #6e5ce0;
-  --violet-strong: #5241c4;
-  --violet-soft: #6e5ce01a;
+  --bg-inset: #eaeaec;
+  --line: #dedee3;
+  --line-strong: #a0a0a8;
+  --ink: #131316;
+  --ink-muted: #6e6e77;
+  --ink-faint: #6e6e77;
+  /* Compatibility aliases for existing marketing components. */
+  --violet: #006fe6;
+  --violet-strong: #006fe6;
+  --violet-soft: #eaf3ff;
   font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--ink);
 }
-
-/* Dark override — activates the `dark:` Tailwind variants inside the landing. */
-.screenova-dark {
-  --bg: #07080a;
-  --bg-raised: #0c0d10;
-  --bg-inset: #101114;
-  --line: #f5f4f214;
-  --line-strong: #f5f4f229;
-  --ink: #f4f3f0;
-  --ink-muted: #f4f3f094;
-  --ink-faint: #f4f3f05c;
-  --violet: #8477ec;
-  --violet-strong: #a89bff;
-  --violet-soft: #8477ec24;
+.screenova-dark .screenova-landing, .screenova-landing.screenova-dark {
+  --bg: #111113;
+  --bg-raised: #1c1c1e;
+  --bg-inset: #141416;
+  --line: #38383c;
+  --line-strong: #74747d;
+  --ink: #f5f5f7;
+  --ink-muted: #aaaab2;
+  --ink-faint: #aaaab2;
+  --violet: #409cff;
+  --violet-strong: #409cff;
+  --violet-soft: #152c45;
 }
-
-.screenova-landing ::selection {
-  background-color: rgb(132 119 236 / 0.3);
-  color: #c9c1fb;
-}
-
-/* Editorial serif display face for headlines and numerals. */
-.font-serif-headline {
-  font-family: Newsreader, "Playfair Display", Georgia, serif;
-}
+.screenova-landing ::selection { background: #006fe633; }
+.font-serif-headline { font-family: "Newsreader", "Playfair Display", Georgia, serif; }
+.screenova-landing button, .screenova-landing nav a { min-height: 44px; min-width: 44px; }
+.screenova-landing input, .screenova-landing textarea { font-size: 16px; }
+.screenova-landing section { scroll-margin-top: 80px; }
+.screenova-landing nav a { display: inline-flex; align-items: center; }
 
 /* Button press feedback — shared by every landing CTA. */
 .btn-press {
@@ -355,3 +341,17 @@
 .btn-press:active {
   transform: scale(0.97);
 }
+
+@media (hover: none) {
+  .attachment-remove { opacity: 1; }
+}
+
+:root.screenova-dark .dot-grid { background-color: #141416; }
+
+/* Interface sizing never targets rendered screenshot artwork. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea {
+  font-size: 16px;
+}
+button:not([data-screen-id] *):not(.rnd-rotate-handle),
+[role="combobox"] { min-height: 44px; }
+button:not([data-screen-id] *):not(.rnd-rotate-handle) { min-width: 44px; }

@@ -1,11 +1,15 @@
 "use client";
+import { AccountButton } from "@/components/auth/account-button";
 import * as React from "react";
 import { ChevronDown, Clock, Link2, Plus, Search, Send, Paperclip, Loader2, Wand2, X } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { deviceLabel, useT } from "@/lib/ui-i18n";
 import type { Device } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { STUDIO_TEMPLATES, type TemplateEntry } from "@/lib/studio-templates";
+export { STUDIO_TEMPLATES, type TemplateEntry } from "@/lib/studio-templates";
 
 type T = ReturnType<typeof useT>["t"];
 
@@ -15,12 +19,6 @@ export type SidebarProject = {
   updatedAt: number;
 };
 
-export type TemplateEntry = {
-  id: string;
-  name: string;
-  thumb: string;
-  slides: number;
-};
 
 /** A design-reference link the user attached to the composer. App Store links
     resolve to the app's icon/name (and screenshots, held by the page state);
@@ -34,11 +32,6 @@ export type ComposerReference = {
 };
 
 /** Deck assets that ship with the template — the sidebar's Templates group. */
-export const STUDIO_TEMPLATES: TemplateEntry[] = [
-  { id: "deck", name: "Feature tour", thumb: "/deck/01-hero.webp", slides: 9 },
-  { id: "deck-b", name: "Minimal three", thumb: "/deck-b/01-hero.webp", slides: 3 },
-  { id: "deck-c", name: "Bold contrast", thumb: "/deck-c/01-hero.webp", slides: 3 },
-];
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -97,6 +90,7 @@ export function StudioSidebar({
         <span className="truncate text-footnote font-semibold tracking-tight">
           {t("home.brand")}
         </span>
+        <AccountButton />
       </div>
 
       <div className="px-3 pb-3">
@@ -243,6 +237,7 @@ function ProjectRow({
 export function StudioComposer({
   draft,
   onDraftChange,
+  onDetectReferenceLinks,
   onSubmit,
   loading,
   draftRef,
@@ -261,10 +256,11 @@ export function StudioComposer({
   onRemoveReference,
 }: {
   draft: string;
-  onDraftChange: (value: string) => void;
+  onDraftChange: (value: string, complete?: boolean) => void;
+  onDetectReferenceLinks: (text: string, complete: boolean) => void;
   onSubmit: (text: string) => void;
   loading: boolean;
-  draftRef: React.RefObject<HTMLTextAreaElement>;
+  draftRef: React.RefObject<HTMLTextAreaElement | null>;
   attachments: Array<{ id: string; name: string; dataUrl: string }>;
   attachError: string | null;
   onAttachClick: () => void;
@@ -288,14 +284,14 @@ export function StudioComposer({
   }
 
   return (
-    <div className="rounded-2xl border border-border/80 bg-card shadow-card transition-shadow focus-within:border-primary/40 focus-within:shadow-pop">
+    <div className="rounded-lg border border-input bg-card shadow-sm transition-shadow focus-within:border-primary/60 focus-within:shadow-card">
       {references.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-4 pt-4">
           {references.map((reference) => (
             <span
               key={reference.id}
               title={reference.url}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border/80 bg-muted/40 pl-1.5 pr-1 text-footnote"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xs border border-border bg-muted/40 pl-2 pr-1 text-footnote"
             >
               {reference.loading ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
@@ -315,7 +311,7 @@ export function StudioComposer({
                 onClick={() => onRemoveReference(reference.id)}
                 disabled={loading}
                 aria-label={t("home.referenceRemove", { name: reference.name })}
-                className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex h-11 w-11 items-center justify-center rounded-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -338,7 +334,7 @@ export function StudioComposer({
               />
               <button
                 type="button"
-                className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-xs bg-background/90 opacity-0 transition-opacity hover:bg-background focus-visible:opacity-100 group-hover:opacity-100"
+                className="attachment-remove absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-xs bg-background/90 opacity-0 transition-opacity hover:bg-background focus-visible:opacity-100 group-hover:opacity-100"
                 onClick={() => onRemoveAttachment(attachment.id)}
                 disabled={loading}
                 aria-label={t("home.removeAttachment", { name: attachment.name })}
@@ -353,7 +349,9 @@ export function StudioComposer({
       <textarea
         ref={draftRef}
         value={draft}
-        onChange={(event) => onDraftChange(event.target.value)}
+        onChange={(event) => onDraftChange(event.target.value, (event.nativeEvent as InputEvent).inputType === "insertFromPaste")}
+        onPaste={(event) => onDetectReferenceLinks(event.clipboardData.getData("text"), true)}
+        onBlur={() => onDetectReferenceLinks(draft, true)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
             event.preventDefault();
@@ -366,6 +364,8 @@ export function StudioComposer({
         rows={4}
         className="block max-h-[320px] min-h-[132px] w-full resize-none bg-transparent px-4 pb-3 pt-4 text-body leading-relaxed outline-none placeholder:text-muted-foreground disabled:opacity-60"
       />
+
+      <p className="px-4 pb-3 text-caption text-muted-foreground">{t("home.referenceAutoHint")}</p>
 
       {linkOpen && (
         <div className="border-t border-border/70 px-3 py-2">
@@ -449,13 +449,13 @@ export function StudioComposer({
 
         <Button
           type="button"
-          size="icon"
-          className="ml-auto h-9 w-9 shrink-0 rounded-full"
+          className="ml-auto h-11 shrink-0 rounded-sm px-4"
           onClick={() => onSubmit(draft)}
           disabled={loading || !draft.trim()}
           aria-label={t("home.chatSend")}
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          <span>{t("home.chatSend")}</span>
         </Button>
       </div>
     </div>
@@ -517,76 +517,42 @@ function LocaleMenu({
   disabled?: boolean;
 }) {
   const { t } = useT();
-  const [open, setOpen] = React.useState(false);
-  const ref = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!open) return;
-    function onPointerDown(event: MouseEvent) {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   const primary = CONTENT_LANGUAGES.find((language) => language.code === locales[0]);
   const extra = locales.length - 1;
 
   return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((value) => !value)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-border/80 px-3 text-footnote font-medium transition-colors hover:bg-muted/70 disabled:opacity-50"
-      >
-        {primary?.name ?? t("home.languages")}
-        {extra > 0 && <span className="text-muted-foreground">+{extra}</span>}
-        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-      </button>
-
-      {open && (
-        <div
-          role="menu"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
           aria-label={t("home.languages")}
-          className="absolute bottom-full left-0 z-50 mb-2 max-h-64 w-52 overflow-y-auto rounded-md border border-border/80 bg-popover p-1 shadow-pop"
+          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-sm border border-border/80 px-3 text-footnote font-medium transition-colors hover:bg-muted/70 disabled:opacity-50"
         >
-          {CONTENT_LANGUAGES.map((language) => {
-            const on = locales.includes(language.code);
-            return (
-              <button
-                key={language.code}
-                type="button"
-                role="menuitemcheckbox"
-                aria-checked={on}
-                onClick={() => onToggle(language.code)}
-                className="flex w-full items-center justify-between gap-2 rounded-xs px-2.5 py-2 text-left text-footnote transition-colors hover:bg-muted"
-              >
-                {language.name}
-                <span
-                  aria-hidden
-                  className={cn(
-                    "h-1.5 w-1.5 rounded-full",
-                    on ? "bg-primary" : "bg-transparent",
-                  )}
-                />
-              </button>
-            );
-          })}
-          <p className="px-2.5 pb-1 pt-2 text-caption leading-relaxed text-muted-foreground">
-            {t("home.languagesHint")}
-          </p>
-        </div>
-      )}
-    </div>
+          {primary?.name ?? t("home.languages")}
+          {extra > 0 && <span className="text-muted-foreground">+{extra}</span>}
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="start" collisionPadding={12}
+        aria-label={t("home.languages")}
+        className="max-h-[min(24rem,var(--radix-dropdown-menu-content-available-height))] w-52 overflow-y-auto rounded-md"
+      >
+        {CONTENT_LANGUAGES.map((language) => (
+          <DropdownMenuCheckboxItem
+            key={language.code}
+            checked={locales.includes(language.code)}
+            onCheckedChange={() => onToggle(language.code)}
+            onSelect={(event) => event.preventDefault()}
+            className="py-2 text-footnote"
+          >
+            {language.name}
+          </DropdownMenuCheckboxItem>
+        ))}
+        <p className="px-2.5 pb-1 pt-2 text-caption leading-relaxed text-muted-foreground">
+          {t("home.languagesHint")}
+        </p>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

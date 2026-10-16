@@ -1,4 +1,6 @@
 "use client";
+import { accountScope, apiFetch, scopedKey } from "./account-scope";
+import { backgroundFillSchema, frameStyleSchema, headlineStyleSchema } from "./slide-appearance";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { deleteDesignMessages, migrateLegacyDesignChat } from "./chat-storage";
 import {
@@ -11,8 +13,9 @@ import {
   projectStorageKey,
 } from "./constants";
 import { isDecorationIconName } from "./decoration-icon-names";
+import { cleanAwardBadge } from "./award-badge";
 import { DEFAULT_PROJECT } from "./defaults";
-import { coerceLocalized } from "./locale";
+import { coerceLocalized, normalizeProjectCopy } from "./locale";
 import {
   createProjectState,
   deleteProjectFromBundle,
@@ -94,7 +97,8 @@ function cleanDecoration(value: unknown): DecorationElement | undefined {
     raw.kind !== "ellipse" &&
     raw.kind !== "rounded-rectangle" &&
     raw.kind !== "line" &&
-    raw.kind !== "icon-tile"
+    raw.kind !== "icon-tile" &&
+    raw.kind !== "award-badge"
   ) {
     return undefined;
   }
@@ -107,6 +111,7 @@ function cleanDecoration(value: unknown): DecorationElement | undefined {
   return {
     id: raw.id,
     kind: raw.kind,
+    ...(raw.kind === "award-badge" ? { badge: cleanAwardBadge(raw.badge) } : {}),
     transform,
     fill: {
       type: raw.fill.type === "linear-gradient" ? "linear-gradient" : "solid",
@@ -202,6 +207,10 @@ function migrateSlide(slide: Slide): Slide {
     ...(transforms && Object.keys(transforms).length > 0 ? { transforms } : { transforms: undefined }),
     ...(textElements && textElements.length > 0 ? { textElements } : { textElements: undefined }),
     ...(decorations && decorations.length > 0 ? { decorations } : { decorations: undefined }),
+    backgroundFill: backgroundFillSchema.safeParse(slide.backgroundFill).data,
+    frameStyle: frameStyleSchema.safeParse(slide.frameStyle).data,
+    headlineStyle: headlineStyleSchema.safeParse(slide.headlineStyle).data,
+    backgroundStyle: slide.backgroundStyle === "plain" ? "plain" : undefined,
     visualAsset: cleanVisualAsset(slide.visualAsset),
     canvasOffset: cleanCanvasOffset(slide.canvasOffset),
   };
@@ -262,7 +271,7 @@ export function mergeWithDefaults(parsed: Partial<ProjectState>): ProjectState {
 function loadIndexFromLocalStorage(): ProjectIndex | null {
   if (typeof window === "undefined") return null;
   try {
-    return parseIndex(window.localStorage.getItem(PROJECTS_INDEX_KEY));
+    return parseIndex(window.localStorage.getItem(scopedKey(PROJECTS_INDEX_KEY)));
   } catch {
     return null;
   }
@@ -271,7 +280,7 @@ function loadIndexFromLocalStorage(): ProjectIndex | null {
 function saveIndexToLocalStorage(index: ProjectIndex): { ok: true } | { ok: false; error: string } {
   if (typeof window === "undefined") return { ok: true };
   try {
-    window.localStorage.setItem(PROJECTS_INDEX_KEY, JSON.stringify(index));
+    window.localStorage.setItem(scopedKey(PROJECTS_INDEX_KEY), JSON.stringify(index));
     return { ok: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -364,7 +373,7 @@ function bootstrapLocal(): { bundle: ProjectBundle; migratedLegacyId: string | n
 
   let legacy: Partial<ProjectState> | null = null;
   try {
-    const raw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    const raw = window.localStorage.getItem(scopedKey(LEGACY_STORAGE_KEY));
     if (raw) legacy = JSON.parse(raw) as Partial<ProjectState>;
   } catch {
     legacy = null;
@@ -376,7 +385,7 @@ function bootstrapLocal(): { bundle: ProjectBundle; migratedLegacyId: string | n
     const index: ProjectIndex = { version: PROJECTS_FILE_VERSION, activeId: id, order: [id] };
     saveIndexToLocalStorage(index);
     try {
-      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      window.localStorage.removeItem(scopedKey(LEGACY_STORAGE_KEY));
     } catch {
       // Harmless: once the index exists the legacy key is ignored.
     }
@@ -402,15 +411,21 @@ function seedFreshProject(): ProjectBundle {
 
 // ---------- File I/O (git-tracked bundle mirror) ----------
 
+let fileRevision: string | undefined;
+let pendingFileSave: Promise<unknown> = Promise.resolve();
+
 async function loadFromFile(): Promise<
   LoadedProjectFile | { ok: false; error: string }
 > {
   if (typeof window === "undefined") return { ok: false, error: "Window is not available" };
   try {
-    const resp = await fetch("/api/project", { cache: "no-store" });
+    // Wait for the previous route's flush before hydrating its successor.
+    await pendingFileSave;
+    const resp = await apiFetch("/api/project", { cache: "no-store" });
     if (!resp.ok) return { ok: false, error: `HTTP ${resp.status}` };
-    const json = (await resp.json()) as { ok: boolean; state: unknown };
+    const json = (await resp.json()) as { ok: boolean; state: unknown; revision?: string };
     if (!json.ok) return { ok: false, error: "Project response was not ok" };
+    fileRevision = json.revision;
     if (!json.state) return { kind: "none" };
     return parseProjectFile(
       typeof json.state === "string" ? json.state : JSON.stringify(json.state),
@@ -426,19 +441,26 @@ function wrapLegacyFile(state: Partial<ProjectState>, preferredId?: string): Pro
   return { version: PROJECTS_FILE_VERSION, activeId: id, order: [id], projects: { [id]: project } };
 }
 
-async function saveToFile(bundle: ProjectBundle): Promise<{ ok: true } | { ok: false; error: string }> {
+function saveToFile(bundle: ProjectBundle): Promise<{ ok: true } | { ok: false; error: string }> {
+  const save = pendingFileSave.then(() => writeToFile(bundle));
+  pendingFileSave = save.then(() => undefined, () => undefined);
+  return save;
+}
+
+async function writeToFile(bundle: ProjectBundle): Promise<{ ok: true } | { ok: false; error: string }> {
   if (typeof window === "undefined") return { ok: true };
   try {
-    const resp = await fetch("/api/project", {
+    const resp = await apiFetch("/api/project", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(fileRevision ? { "if-match": fileRevision } : {}) },
       body: JSON.stringify(bundle),
     });
-    if (!resp.ok) {
-      return { ok: false, error: `HTTP ${resp.status}` };
+    const json = (await resp.json()) as { ok: boolean; error?: string; revision?: string };
+    if (!resp.ok || !json.ok) return { ok: false, error: json.error || `HTTP ${resp.status}` };
+    fileRevision = json.revision;
+    if (accountScope() && fileRevision) {
+      try { window.localStorage.setItem(scopedKey("base-revision"), fileRevision); } catch { /* Cache optional. */ }
     }
-    const json = (await resp.json()) as { ok: boolean; error?: string };
-    if (!json.ok) return { ok: false, error: json.error || "Unknown error" };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
@@ -480,6 +502,8 @@ export function useProject() {
     projects: {},
   });
   latestBundleRef.current = bundle;
+  const canFlushRef = useRef(false);
+  canFlushRef.current = hydrated && fileReady;
 
   // Flush pending writes on unmount: the autosave is debounced, and a page
   // navigation (e.g. home page → editor right after importing a project)
@@ -489,7 +513,7 @@ export function useProject() {
     return () => {
       if (timer.current) clearTimeout(timer.current);
       const current = latestBundleRef.current;
-      if (!current.order.length) return;
+      if (!current.order.length || !canFlushRef.current) return;
       saveAllToLocalStorage(current);
       void saveToFile(current);
     };
@@ -500,6 +524,8 @@ export function useProject() {
   useEffect(() => {
     let cancelled = false;
     const local = bootstrapLocal();
+    let cachedRevision: string | null = null;
+    try { cachedRevision = window.localStorage.getItem(scopedKey("base-revision")); } catch { /* Cache optional. */ }
     _setBundle(local.bundle);
     if (local.migratedLegacyId) migrateLegacyDesignChat(local.migratedLegacyId);
 
@@ -526,7 +552,13 @@ export function useProject() {
           fromFile.kind === "legacy"
             ? wrapLegacyFile(fromFile.state, local.migratedLegacyId ?? undefined)
             : fromFile.bundle;
-        const merged = mergeBundles(local.bundle, fileBundle);
+        // A different cloud revision may contain deletions from another device.
+        // Do not resurrect deleted projects from a stale browser cache.
+        const changedRemotely = !!accountScope() && cachedRevision !== fileRevision;
+        if (changedRemotely && local.bundle.order.length) {
+          try { window.localStorage.setItem(scopedKey("recovery-workspace"), JSON.stringify(local.bundle)); } catch { /* Preserve server state even if browser quota is full. */ }
+        }
+        const merged = changedRemotely ? fileBundle : mergeBundles(local.bundle, fileBundle);
         // Never zero projects: an empty projects object in the file is
         // treated like a missing file.
         const finalBundle = Object.keys(merged.projects).length ? merged : seedFreshProject();
@@ -538,6 +570,9 @@ export function useProject() {
       futureRef.current = [];
       lastPushAt.current = 0;
       setHydrated(true);
+      if (accountScope() && fileRevision) {
+        try { window.localStorage.setItem(scopedKey("base-revision"), fileRevision); } catch { /* Browser cache optional. */ }
+      }
     })();
 
     return () => {
@@ -547,10 +582,12 @@ export function useProject() {
 
   // Debounced autosave of the whole bundle to localStorage and the file.
   useEffect(() => {
-    if (!hydrated || !fileReady) return;
+    if (!hydrated) return;
+    // Cache edits immediately, including during a server outage or refresh.
+    const localResult = saveAllToLocalStorage(bundle);
+    if (!fileReady) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      const localResult = saveAllToLocalStorage(bundle);
       void saveToFile(bundle).then((fileResult) => {
         if (fileResult.ok && localResult.ok) {
           setSavedAt(Date.now());
@@ -560,7 +597,7 @@ export function useProject() {
         } else if (!fileResult.ok) {
           // Local cache succeeded but file save failed — work isn't git-portable yet.
           setSavedAt(Date.now());
-          setSaveError(`File save failed: ${fileResult.error}`);
+          setSaveError(`${accountScope() ? "Cloud" : "File"} save failed: ${fileResult.error}`);
         } else {
           setSavedAt(Date.now());
           setSaveError(localResult.ok ? null : localResult.error);
@@ -578,20 +615,27 @@ export function useProject() {
     lastPushAt.current = 0;
   }, []);
 
-  const setState = useCallback((updater: Updater) => {
+  const setState = useCallback((updater: Updater, options?: { coalesce?: boolean }) => {
     _setBundle((prevBundle) => {
       const id = resolveActiveId(prevBundle);
       if (!id) return prevBundle;
       const prev = prevBundle.projects[id] ?? DEFAULT_PROJECT;
-      const next = applyUpdater(updater, prev);
-      if (next === prev) return prevBundle;
+      const updated = applyUpdater(updater, prev);
+      if (updated === prev) return prevBundle;
+      const next = normalizeProjectCopy(updated);
       const now = Date.now();
-      if (now - lastPushAt.current > COALESCE_MS) {
+      const structuralChange = prev.device !== next.device || prev.locale !== next.locale ||
+        Object.keys(next.slidesByDevice).some((device) => {
+          const key = device as Device;
+          return (prev.slidesByDevice[key] || []).map((slide) => slide.id).join("\n") !==
+            (next.slidesByDevice[key] || []).map((slide) => slide.id).join("\n");
+        });
+      if (structuralChange || options?.coalesce === false || now - lastPushAt.current > COALESCE_MS) {
         pastRef.current.push(prev);
         if (pastRef.current.length > HISTORY_LIMIT) pastRef.current.shift();
-        futureRef.current.length = 0;
       }
-      lastPushAt.current = now;
+      futureRef.current.length = 0;
+      lastPushAt.current = structuralChange || options?.coalesce === false ? 0 : now;
       return {
         ...prevBundle,
         projects: {
@@ -611,7 +655,7 @@ export function useProject() {
       futureRef.current.push(cur.projects[id] ?? DEFAULT_PROJECT);
       // Reset coalescing so the next edit after an undo creates a fresh history entry.
       lastPushAt.current = 0;
-      return { ...cur, projects: { ...cur.projects, [id]: prev } };
+      return { ...cur, projects: { ...cur.projects, [id]: { ...prev, updatedAt: Date.now() } } };
     });
   }, []);
 
@@ -623,7 +667,7 @@ export function useProject() {
       if (next === undefined) return cur;
       pastRef.current.push(cur.projects[id] ?? DEFAULT_PROJECT);
       lastPushAt.current = 0;
-      return { ...cur, projects: { ...cur.projects, [id]: next } };
+      return { ...cur, projects: { ...cur.projects, [id]: { ...next, updatedAt: Date.now() } } };
     });
   }, []);
 

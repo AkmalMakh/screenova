@@ -193,3 +193,34 @@ describe("buildSlidesFromAnalysis", () => {
     expect(slide.transforms).toBeUndefined();
   });
 });
+
+import { buildSuggestedSlides } from "./import-slides";
+
+describe("approved suggestion conversion", () => {
+  it("keeps screenshot-free suggestions device-free without losing drafted placement", () => {
+    const captionTransform = { x: 100, y: 300, width: 1100, height: 500 };
+    const [slide] = buildSuggestedSlides([{ layout: "device-top", copy: { en: { label: "LOOK BACK", headline: "Notice what supports you" } },
+      deviceTransform: { x: 100, y: -400, width: 1000, height: 2100 }, captionTransform,
+    }], [], ["en"], "iphone");
+    expect(slide.layout).toBe("no-device");
+    expect(slide.transforms).toEqual({ caption: captionTransform });
+    expect(slide.backgroundStyle).toBe("plain");
+  });
+  it("retains real screenshots and their device placement", () => {
+    const deviceTransform = { x: 100, y: 700, width: 1000, height: 2100 };
+    const [slide] = buildSuggestedSlides([{ layout: "device-bottom", copy: { en: { label: "PLAN", headline: "A calmer day" } }, deviceTransform }], ["/screenshots/app.png"], ["en"], "iphone");
+    expect(slide.layout).toBe("device-bottom");
+    expect(slide.transforms?.device).toEqual(deviceTransform);
+    expect(slide.screenshot).toBe("/screenshots/app.png");
+  });
+});
+
+it("preserves an explicitly designed reference phone even before an app screenshot is uploaded", () => {
+  const deviceTransform = { x: 150, y: -600, width: 1000, height: 2170, rotation: -8 };
+  const [result] = buildSuggestedSlides([{ layout: "device-top", showDeviceFrame: true,
+    deviceTransform, copy: { en: { label: "REFLECT", headline: "Make time for yourself" } },
+  }], [], ["en"], "iphone");
+  expect(result.layout).toBe("device-top");
+  expect(result.transforms?.device).toEqual(deviceTransform);
+  expect(result.screenshot).toBe("");
+});

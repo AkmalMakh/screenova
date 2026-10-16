@@ -1,8 +1,9 @@
-import { promises as fs } from "node:fs";
 import path from "node:path";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/supabase/access";
+import { readAsset } from "@/lib/supabase/assets";
 import { z } from "zod";
 import {
   buildDeckPrompt,
@@ -47,7 +48,7 @@ const screenshotInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   path: z
     .string()
-    .regex(/^\/screenshots\/uploaded\/[\w.-]+\.(png|jpe?g|webp)$/i)
+    .regex(/^\/(?:screenshots\/uploaded\/[\w.-]+|api\/assets\/[a-f0-9-]+\/[\w/.-]+)\.(png|jpe?g|webp)$/i)
     .refine((value) => path.posix.normalize(value) === value && !value.includes(".."), {
       message: "Invalid screenshot path",
     }),
@@ -81,6 +82,8 @@ const suggestDeckRequestSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const access = await authorizeRequest(req, "ai");
+  if ("response" in access) return access.response;
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
       { ok: false, error: "OpenAI is not configured. Add OPENAI_API_KEY to .env.local." },
@@ -141,10 +144,9 @@ export async function POST(req: Request) {
     let totalBytes = 0;
     for (let i = 0; i < screenshots.length; i += 1) {
       const entry = screenshots[i];
-      const absPath = path.join(process.cwd(), "public", entry.path.slice(1));
       let buf: Buffer;
       try {
-        buf = await fs.readFile(absPath);
+        buf = await readAsset(access, entry.path);
       } catch {
         return NextResponse.json(
           { ok: false, error: `Uploaded screenshot ${entry.name} is missing from the server.` },

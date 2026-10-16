@@ -19,20 +19,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // dark class before hydration, which intentionally diverges from SSR html.
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Screenova landing typography: Newsreader (serif display),
-            Playfair Display (fallback), Plus Jakarta Sans (UI). */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..800;1,6..72,400..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-        {/* Landing defaults to dark. Apply before paint to avoid a light flash;
-            only on the landing route so app pages keep their light theme. */}
+        {/* Shared, light-first workspace appearance. Apply to html before paint. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{if(location.pathname==='/'&&localStorage.getItem('screenova-theme')!=='light'){document.body.classList.add('screenova-dark')}}catch(e){}",
+              "try{var d=localStorage.getItem('screenova-theme')==='dark';document.documentElement.classList.toggle('screenova-dark',d);document.documentElement.style.colorScheme=d?'dark':'light'}catch(e){}",
           }}
         />
       </head>

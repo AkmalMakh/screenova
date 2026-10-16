@@ -14,7 +14,10 @@ import {
   RotateCw,
   Trash2,
   Type,
+  Award,
 } from "lucide-react";
+import { createAwardBadge, type AwardBadgePreset } from "@/lib/award-badge";
+import { AwardBadgePanel, AwardBadgePresets } from "./award-badge-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,6 +67,7 @@ import { getCanvas, getElementTransform } from "./slide-canvas";
 
 type Props = {
   slide: Slide;
+  artworkColor?: string;
   device: Device;
   orientation: Orientation;
   locale: string;
@@ -75,6 +79,7 @@ type Props = {
 
 export function Inspector({
   slide,
+  artworkColor = "#131316",
   device,
   orientation,
   locale,
@@ -84,6 +89,11 @@ export function Inspector({
   onSelectElement,
 }: Props) {
   const { t } = useT();
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const selectedDevice = selectedElementId === "device" || selectedElementId === "deviceSecondary" ? selectedElementId : null;
+  React.useEffect(() => {
+    if (selectedDevice) scrollRef.current?.scrollTo({ top: 0 });
+  }, [selectedDevice, slide.id]);
   const isFeatureGraphic = device === "feature-graphic" || slide.layout === "feature-graphic";
   const isNoDevice = slide.layout === "no-device";
   const layoutValue = device === "feature-graphic" ? "feature-graphic" : slide.layout;
@@ -108,6 +118,26 @@ export function Inspector({
     onChange({ [key]: writeLocalized(slide[key], locale, value) } as Partial<Slide>);
   }
 
+  function screenshotControl(secondary: boolean) {
+    const elementId = secondary ? "deviceSecondary" : "device";
+    if (isFeatureGraphic || isNoDevice || (secondary && slide.layout !== "two-devices")) return null;
+    return <div key={elementId} data-screenshot-control={elementId}
+      className={selectedDevice === elementId ? "space-y-2 rounded-lg border border-primary/40 bg-accent/30 p-2" : "space-y-1.5"}>
+      <Label className="text-[13px]">
+        {secondary ? t("inspector.backScreenshot") : slide.layout === "two-devices" ? t("inspector.frontScreenshot") : t("inspector.screenshot")}
+      </Label>
+      <ScreenshotPicker
+        key={`${slide.id}-${elementId}-${locale}`}
+        label={secondary ? t("inspector.secondary") : t("inspector.primary")}
+        value={secondary ? slide.screenshotSecondary || "" : slide.screenshot}
+        locale={locale}
+        locales={locales}
+        localizedSlug={`${slide.id}-${secondary ? "secondary" : "primary"}`}
+        onChange={(value) => onChange(secondary ? { screenshotSecondary: value } : { screenshot: value })}
+      />
+    </div>;
+  }
+
   React.useEffect(() => {
     if (device === "feature-graphic" && slide.layout !== "feature-graphic") {
       onChange({ layout: "feature-graphic", transforms: undefined, screenshotSecondary: undefined });
@@ -121,14 +151,15 @@ export function Inspector({
           <h2 className="text-[13px] font-semibold tracking-tight">
             {t("inspector.screenSettings")}
           </h2>
-          <span className="rounded-full border border-border/70 bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="rounded-full border border-border/70 bg-muted/60 px-1.5 py-0.5 text-caption font-medium uppercase tracking-wide text-muted-foreground">
             {t("inspector.editingLocale", { locale: locale.toUpperCase() })}
           </span>
         </div>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">{layoutHint(layoutValue, t)}</p>
+        <p className="mt-0.5 text-caption text-muted-foreground">{layoutHint(layoutValue, t)}</p>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto p-3">
+      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-3">
+        {selectedDevice && screenshotControl(selectedDevice === "deviceSecondary")}
         <div className="space-y-1.5">
           <Label className="text-xs">{t("inspector.layout")}</Label>
           <Select
@@ -160,6 +191,7 @@ export function Inspector({
           <div className="space-y-1.5">
             <Label className="text-xs">{t("inspector.label")}</Label>
             <Input
+              aria-label={t("inspector.label")}
               value={localeLabel}
               onChange={(e) => setLocaleField("label", e.target.value)}
               placeholder={labelPlaceholder}
@@ -172,9 +204,10 @@ export function Inspector({
             <Label className="text-xs">
               {isFeatureGraphic ? t("inspector.tagline") : t("inspector.headline")}
             </Label>
-            <span className="text-[10px] text-muted-foreground">{t("inspector.newlineBreak")}</span>
+            <span className="text-caption text-muted-foreground">{t("inspector.newlineBreak")}</span>
           </div>
           <Textarea
+            aria-label={isFeatureGraphic ? t("inspector.tagline") : t("inspector.headline")}
             value={localeHeadline}
             onChange={(e) => setLocaleField("headline", e.target.value)}
             rows={3}
@@ -215,7 +248,7 @@ export function Inspector({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-[10px] hover:text-destructive"
+                className="h-6 px-2 text-caption hover:text-destructive"
                 onClick={() => onChange({ visualAsset: undefined })}
               >
                 {t("inspector.remove")}
@@ -227,7 +260,7 @@ export function Inspector({
               className="h-20 w-full rounded border object-cover"
             />
             <div className="space-y-1">
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <div className="flex items-center justify-between text-caption text-muted-foreground">
                 <span>{t("inspector.opacity")}</span>
                 <span>{Math.round(slide.visualAsset.opacity * 100)}%</span>
               </div>
@@ -249,47 +282,18 @@ export function Inspector({
                 aria-label={t("inspector.opacityA11y")}
               />
             </div>
-            <p className="line-clamp-3 text-[10px] leading-relaxed text-muted-foreground">
+            <p className="line-clamp-3 text-caption leading-relaxed text-muted-foreground">
               {slide.visualAsset.prompt}
             </p>
           </div>
         )}
 
-        {!isFeatureGraphic && !isNoDevice && (
-          <div className="space-y-1.5">
-            <Label className="text-xs">
-              {slide.layout === "two-devices"
-                ? t("inspector.frontScreenshot")
-                : t("inspector.screenshot")}
-            </Label>
-            <ScreenshotPicker
-              label={t("inspector.primary")}
-              value={slide.screenshot}
-              locale={locale}
-              locales={locales}
-              localizedSlug={`${slide.id}-primary`}
-              onChange={(v) => onChange({ screenshot: v })}
-            />
-          </div>
-        )}
+        {selectedDevice !== "device" && screenshotControl(false)}
+        {selectedDevice !== "deviceSecondary" && screenshotControl(true)}
 
-        {slide.layout === "two-devices" && (
-          <div className="space-y-1.5">
-            <Label className="text-xs">{t("inspector.backScreenshot")}</Label>
-            <ScreenshotPicker
-              label={t("inspector.secondary")}
-              value={slide.screenshotSecondary || ""}
-              locale={locale}
-              locales={locales}
-              localizedSlug={`${slide.id}-secondary`}
-              onChange={(v) => onChange({ screenshotSecondary: v })}
-            />
-          </div>
-        )}
-
-        {!isFeatureGraphic && (
           <ElementTransformControls
             slide={slide}
+            artworkColor={artworkColor}
             device={device}
             orientation={orientation}
             locale={locale}
@@ -297,10 +301,9 @@ export function Inspector({
             onChange={onChange}
             onSelectElement={onSelectElement}
           />
-        )}
 
         {isFeatureGraphic && (
-          <p className="rounded-md border bg-muted/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="rounded-md border bg-muted/40 p-3 text-caption leading-relaxed text-muted-foreground">
             {t("inspector.appIconNote")}
           </p>
         )}
@@ -311,6 +314,7 @@ export function Inspector({
 
 function ElementTransformControls({
   slide,
+  artworkColor,
   device,
   orientation,
   locale,
@@ -319,6 +323,7 @@ function ElementTransformControls({
   onSelectElement,
 }: {
   slide: Slide;
+  artworkColor: string;
   device: Device;
   orientation: Orientation;
   locale: string;
@@ -466,6 +471,30 @@ function ElementTransformControls({
     onSelectElement(toDecorationElementId(id));
   }
 
+  function addBadge(preset?: AwardBadgePreset) {
+    const { cW, cH } = getCanvas(device, orientation);
+    const id = nid();
+    const zIndex = Math.max(5, ...present.map((elementId) => getTransform(elementId)?.zIndex ?? defaultZ(elementId))) + 1;
+    const badge = createAwardBadge(id, locale, cW, cH, zIndex, preset);
+    if (!preset) {
+      badge.fill.colors = [artworkColor];
+      badge.badge!.textColor = artworkColor;
+    }
+    onChange({ decorations: [...(slide.decorations || []), badge] });
+    onSelectElement(toDecorationElementId(id));
+  }
+
+  function duplicateDecoration() {
+    if (!activeDecoration) return;
+    const id = nid();
+    const copy = structuredClone(activeDecoration);
+    copy.id = id;
+    copy.transform = { ...copy.transform, x: copy.transform.x + 32, y: copy.transform.y + 32,
+      zIndex: Math.max(5, ...present.map((elementId) => getTransform(elementId)?.zIndex ?? defaultZ(elementId))) + 1 };
+    onChange({ decorations: [...(slide.decorations || []), copy] });
+    onSelectElement(toDecorationElementId(id));
+  }
+
   // Z-order: re-rank zIndex among present elements so they remain contiguous.
   function reorder(id: ElementId, dir: "front" | "back" | "up" | "down") {
     const ranked = [...present].sort((a, b) => {
@@ -516,14 +545,14 @@ function ElementTransformControls({
 
   return (
     <div className="space-y-3 rounded-md border bg-muted/30 p-3">
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <Label className="text-xs font-semibold">{t("inspector.elements")}</Label>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             {activeId ? t("inspector.elementsHintSelected") : t("inspector.elementsHint")}
           </p>
         </div>
-        <div className="flex shrink-0 gap-1">
+        <div className="flex flex-wrap gap-1">
           <Button
             type="button"
             variant="outline"
@@ -546,6 +575,11 @@ function ElementTransformControls({
           </Button>
         </div>
       </div>
+
+      <Button type="button" variant="outline" className="w-full justify-start text-[13px]" onClick={() => addBadge()}>
+        <Award className="h-4 w-4" /> {t("badge.add")}
+      </Button>
+      {activeDecoration?.kind !== "award-badge" && <AwardBadgePresets locale={locale} onSelect={addBadge} />}
 
       {activeId ? (
         <ActiveElementPanel
@@ -571,9 +605,10 @@ function ElementTransformControls({
           onDeleteDecoration={() => {
             if (activeDecoration) deleteDecoration(activeDecoration);
           }}
+          onDuplicateDecoration={duplicateDecoration}
         />
       ) : (
-        <div className="rounded border border-dashed bg-background/40 p-4 text-center text-[11px] text-muted-foreground">
+        <div className="rounded border border-dashed bg-background/40 p-4 text-center text-caption text-muted-foreground">
           {t("inspector.noElement")}
         </div>
       )}
@@ -594,6 +629,7 @@ function ActiveElementPanel({
   onDeleteText,
   onDecorationPatch,
   onDeleteDecoration,
+  onDuplicateDecoration,
 }: {
   activeId: ElementId;
   transform: ElementTransform | undefined;
@@ -607,11 +643,12 @@ function ActiveElementPanel({
   onDeleteText: () => void;
   onDecorationPatch: (patch: Partial<DecorationElement>) => void;
   onDeleteDecoration: () => void;
+  onDuplicateDecoration: () => void;
 }) {
   const { t } = useT();
   const engaged = !!transform;
   const rotation = transform?.rotation ?? 0;
-  const label = elementLabelFor(activeId, t);
+  const label = decoration?.kind === "award-badge" ? t("badge.name") : elementLabelFor(activeId, t);
   return (
     <div className="space-y-2 rounded border bg-background/60 p-2.5">
       <div className="flex items-center justify-between">
@@ -628,12 +665,12 @@ function ActiveElementPanel({
             className="h-6 w-6 hover:text-destructive"
             onClick={decoration ? onDeleteDecoration : onDeleteText}
             title={
-              decoration
+              decoration?.kind === "award-badge" ? t("badge.delete") : decoration
                 ? t("inspector.deleteDecorationA11y")
                 : t("inspector.deleteTextA11y")
             }
             aria-label={
-              decoration
+              decoration?.kind === "award-badge" ? t("badge.delete") : decoration
                 ? t("inspector.deleteDecorationA11y")
                 : t("inspector.deleteTextA11y")
             }
@@ -641,7 +678,7 @@ function ActiveElementPanel({
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         ) : !engaged ? (
-          <span className="text-[10px] text-muted-foreground">{t("inspector.dragToEnable")}</span>
+          <span className="text-caption text-muted-foreground">{t("inspector.dragToEnable")}</span>
         ) : null}
       </div>
 
@@ -654,16 +691,18 @@ function ActiveElementPanel({
         />
       )}
 
-      {decoration && (
+      {decoration?.kind === "award-badge" ? (
+        <AwardBadgePanel element={decoration} locale={locale} onPatch={onDecorationPatch} onDuplicate={onDuplicateDecoration} />
+      ) : decoration && (
         <DecorationPanel element={decoration} onPatch={onDecorationPatch} />
       )}
 
       <div className="space-y-1">
         <div className="flex items-center justify-between">
-          <Label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Label className="flex items-center gap-1 text-caption text-muted-foreground">
             <RotateCw className="h-3 w-3" /> {t("inspector.rotation")}
           </Label>
-          <span className="text-[11px] tabular-nums text-muted-foreground">
+          <span className="text-caption tabular-nums text-muted-foreground">
             {rotation}°
           </span>
         </div>
@@ -681,7 +720,7 @@ function ActiveElementPanel({
       </div>
 
       <div className="space-y-1">
-        <Label className="text-[11px] text-muted-foreground">{t("inspector.layer")}</Label>
+        <Label className="text-caption text-muted-foreground">{t("inspector.layer")}</Label>
         <div className="grid grid-cols-4 gap-1">
           <LayerButton
             disabled={!engaged}
@@ -733,7 +772,7 @@ function TextElementPanel({
   return (
     <div className="space-y-2 rounded border bg-muted/30 p-2">
       <div className="space-y-1">
-        <Label className="text-[11px] text-muted-foreground">{t("inspector.text")}</Label>
+        <Label className="text-caption text-muted-foreground">{t("inspector.text")}</Label>
         <Textarea
           value={text}
           rows={2}
@@ -743,7 +782,7 @@ function TextElementPanel({
       </div>
       <div className="grid grid-cols-[1fr_76px] gap-2">
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">{t("inspector.size")}</Label>
+          <Label className="text-caption text-muted-foreground">{t("inspector.size")}</Label>
           <Input
             type="number"
             min={12}
@@ -753,7 +792,7 @@ function TextElementPanel({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">{t("inspector.color")}</Label>
+          <Label className="text-caption text-muted-foreground">{t("inspector.color")}</Label>
           <Input
             type="color"
             value={element.color || "#171717"}
@@ -802,7 +841,7 @@ function DecorationPanel({
   return (
     <div className="space-y-2 rounded border bg-muted/30 p-2">
       <div className="space-y-1">
-        <Label className="text-[11px] text-muted-foreground">{t("inspector.shape")}</Label>
+        <Label className="text-caption text-muted-foreground">{t("inspector.shape")}</Label>
         <Select
           value={element.kind}
           onValueChange={(kind) =>
@@ -823,7 +862,7 @@ function DecorationPanel({
       {element.kind === "icon-tile" && (
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">{t("inspector.icon")}</Label>
+            <Label className="text-caption text-muted-foreground">{t("inspector.icon")}</Label>
             <Select
               value={element.iconName ?? DEFAULT_DECORATION_ICON}
               onValueChange={(iconName) => onPatch({ iconName })}
@@ -841,7 +880,7 @@ function DecorationPanel({
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">{t("inspector.iconColor")}</Label>
+            <Label className="text-caption text-muted-foreground">{t("inspector.iconColor")}</Label>
             <Input
               type="color"
               value={element.iconColor ?? "#FFFFFF"}
@@ -853,7 +892,7 @@ function DecorationPanel({
       )}
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">{t("inspector.fill")}</Label>
+          <Label className="text-caption text-muted-foreground">{t("inspector.fill")}</Label>
           <Input
             type="color"
             value={primary}
@@ -864,7 +903,7 @@ function DecorationPanel({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">{t("inspector.style")}</Label>
+          <Label className="text-caption text-muted-foreground">{t("inspector.style")}</Label>
           <Select
             value={element.fill.type}
             onValueChange={(type) =>
@@ -912,7 +951,7 @@ function DecorationPanel({
       )}
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">{t("inspector.opacity")}</Label>
+          <Label className="text-caption text-muted-foreground">{t("inspector.opacity")}</Label>
           <Input
             type="number"
             min={5}
@@ -924,7 +963,7 @@ function DecorationPanel({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">{t("inspector.blur")}</Label>
+          <Label className="text-caption text-muted-foreground">{t("inspector.blur")}</Label>
           <Input
             type="number"
             min={0}

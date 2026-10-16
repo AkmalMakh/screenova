@@ -3,6 +3,19 @@ import type { TranslationKey } from "./en";
 
 export const es: Record<TranslationKey, string> = {
   // ---- common ----
+  "badge.add": "Añadir insignia",
+  "badge.name": "Insignia",
+  "badge.placeholder": "Tu premio",
+  "badge.eyebrow": "Año o subtítulo",
+  "badge.title": "Título del premio",
+  "badge.stars": "Estrellas (0–5)",
+  "badge.laurels": "Mostrar laureles",
+  "badge.artColor": "Color de laureles y estrellas",
+  "badge.textColor": "Color del texto",
+  "badge.width": "Ancho de insignia (px)",
+  "badge.duplicate": "Duplicar insignia",
+  "badge.delete": "Eliminar insignia",
+  "badge.hint": "Decoración editable, no un premio verificado. Usa solo reconocimientos que tu app haya recibido.",
   "common.loading": "Cargando el editor…",
 
   // ---- toolbar ----
@@ -88,7 +101,7 @@ export const es: Record<TranslationKey, string> = {
   "canvas.oneIdeaPlaceholder": "Una idea\npor pantalla.",
 
   // ---- screenshot picker ----
-  "picker.formatError": "Usa PNG o JPG (la App Store rechaza otros formatos)",
+  "picker.formatError": "Usa PNG, JPEG o WebP. Las exportaciones siempre son PNG.",
   "picker.tooLarge": "Imagen demasiado grande (>8MB)",
   "picker.readFailed": "No se pudo leer el archivo",
   "picker.saving": "guardando…",
@@ -326,7 +339,7 @@ export const es: Record<TranslationKey, string> = {
 
   // ---- home page ----
   "home.loading": "Cargando…",
-  "home.brand": "App Store Screenshots",
+  "home.brand": "Screenova",
   "home.tagline": "Diseña → Exporta → Publica",
   "home.badge": "Motor de plantillas con IA",
   "home.title1": "Capturas para el App Store,",
@@ -348,12 +361,13 @@ export const es: Record<TranslationKey, string> = {
   "home.searchProjects": "Buscar decks",
   "home.templates": "Plantillas",
   "home.inspiration": "¿Necesitas inspiración?",
-  "home.welcome": "¿Qué publicamos hoy?",
+  "home.welcome": "Empieza con tu app. Daremos forma a su historia.",
   "home.groupRecent": "Últimos 7 días",
   "home.groupEarlier": "Anteriores",
   "home.importCta": "Importar desde el App Store",
   "home.emptyProjects": "Aún no hay decks",
   "home.slideCount": "{count} diapositivas",
+  "home.closeMenu": "Cerrar menú",
   "home.openMenu": "Abrir menú del proyecto",
   "home.updatedNow": "ahora mismo",
   "home.updatedMinutes": "hace {minutes} min",
@@ -390,6 +404,7 @@ export const es: Record<TranslationKey, string> = {
   "home.referencePlaceholder": "Pega un enlace del App Store de una app cuyo estilo te guste…",
   "home.referenceAdd": "Añadir",
   "home.referenceRemove": "Quitar referencia {name}",
+  "home.referenceAutoHint": "Pega enlaces de referencia en la descripción: se añaden automáticamente.",
   "home.referenceLimit": "Añade como máximo {count} enlaces de referencia.",
   "home.referenceInvalid": "Ese enlace no parece válido.",
   "home.referenceFailed": "No se pudo cargar ese enlace del App Store.",

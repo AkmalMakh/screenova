@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/supabase/access";
 import { z } from "zod";
 import { normalizeLookupResult, parseAppStoreUrl } from "@/lib/app-store";
 
@@ -12,6 +13,8 @@ const requestSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const access = await authorizeRequest(req, "import");
+  if ("response" in access) return access.response;
   let body: unknown;
   try {
     body = await req.json();

@@ -1,3 +1,4 @@
+import { backgroundFillSchema, frameStyleSchema, headlineStyleSchema } from "./slide-appearance";
 import { z } from "zod";
 import { CANVAS, DEFAULT_THEME_ID, THEMES } from "./constants";
 import { DECORATION_ICON_NAMES } from "./decoration-icon-names";
@@ -101,7 +102,7 @@ export type StyleReferenceSummary = {
 };
 
 const slideCopySchema = z.object({
-  label: z.string().trim().min(1).max(40),
+  label: z.string().trim().max(40),
   headline: z.string().trim().min(1).max(120),
 });
 
@@ -162,6 +163,9 @@ export function buildDeckSchema(
       .array(
         z.object({
           layout: z.enum(layouts),
+          backgroundFill: backgroundFillSchema.nullable(),
+          frameStyle: frameStyleSchema.nullable(),
+          headlineStyle: headlineStyleSchema.nullable(),
           copy: z.object(copyByLocale),
           headlineFontFamily: headlineFontFamilySchema.nullable(),
           inverted: z.boolean().nullable(),
@@ -192,22 +196,29 @@ export function buildDeckPrompt(
   const canvas = CANVAS[device] ?? CANVAS.iphone;
   const themeGuide = DECK_THEME_IDS.map((id) => `- ${id}: ${THEMES[id].name}`).join("\n");
   const surplus = Math.max(0, count - screenshotCount);
+  const hasVisualReference = styleReferences.some((reference) => reference.hasImages);
   const slideRules =
     screenshotCount > 0
       ? surplus > 0
-        ? `The user attached ${screenshotCount} screenshots of their app, and you are drafting ${count} screens. Screens 1–${screenshotCount} map to the attached screenshots IN ORDER — screen 1 is about screenshot 1, and so on — and must use a layout that shows a device frame (hero, device-bottom, device-top, two-devices). Ground each of those labels and headlines in what that screenshot actually shows; never invent features the screenshots don't display. The remaining ${surplus} screen${surplus === 1 ? "" : "s"} (${screenshotCount + 1}–${count}) have NO screenshot behind them, so they must use the "no-device" layout and carry the deck on copy and decoration alone — a summarizing closer, a value statement, a feature roundup built from icon tiles. Do not use "no-device" for screens 1–${screenshotCount}.`
+        ? `The user attached ${screenshotCount} screenshots of their app, and you are drafting ${count} screens. Screens 1–${screenshotCount} map to the attached screenshots IN ORDER — screen 1 is about screenshot 1, and so on — and must use a layout that shows a device frame (hero, device-bottom, device-top, two-devices). Ground each of those labels and headlines in what that screenshot actually shows; never invent features the screenshots don't display. The remaining ${surplus} screen${surplus === 1 ? "" : "s"} (${screenshotCount + 1}–${count}) have NO screenshot behind them, so ${hasVisualReference ? 'retain the reference phone placement where it matters, using an empty screenshot slot; otherwise use the "no-device" layout' : 'they must use the "no-device" layout and carry the deck on copy and decoration alone'} — a summarizing closer, a value statement, a feature roundup built from icon tiles. Do not use "no-device" for screens 1–${screenshotCount}.`
         : `The user attached ${screenshotCount} screenshots of their app. Write exactly one slide per screenshot, in the same order — the first slide is about screenshot 1, and so on. Ground each label and headline in what that screenshot actually shows; never invent features the screenshots don't display. Every slide must use a layout that shows a device frame (hero, device-bottom, device-top, two-devices) — never "no-device". Vary the layouts for rhythm.`
-      : `Vary the layouts across screens for visual rhythm; the first screen is a "hero" and the last is a "no-device" closer. Use at most one "two-devices" screen.`;
+      : hasVisualReference
+        ? `No app screenshots were uploaded. Preserve each visible reference phone's scale, crop, rotation and position using a device layout and explicit deviceTransform. Leave its screen as an upload slot; never reuse the reference app's screen content. Use "no-device" only where the reference is device-free or the user explicitly requests it. Do not impose a generic hero/closer sequence on the reference.`
+        : `Choose the sequence for this app's core benefit and audience. Without uploaded screenshots, prefer finished "no-device" compositions with app-relevant typography and illustrations made from supported decorations. Include a phone upload slot only when it serves the concept; do not fill the campaign with empty phones. There is no mandatory hero layout or closer layout. Use at most one "two-devices" screen.`;
   const referenceRules = styleReferences.length
     ? `\n\nSTYLE REFERENCES — CLONE THE LAYOUT SYSTEM
 The user attached ${styleReferences.length} reference app${styleReferences.length === 1 ? "" : "s"} whose App Store presence they want to match:
 ${styleReferences
   .map(
     (reference, index) =>
-      `${index + 1}. ${reference.name}${reference.hasImages ? " — its store screenshots are attached below, labeled STYLE REFERENCE" : " — no screenshots available; go by what you know of this product"}`,
+      `${index + 1}. ${reference.name}${reference.hasImages ? " — its store screenshots are attached below, labeled STYLE REFERENCE" : " — link only: its visual appearance is unavailable; do not guess or claim to have inspected it"}`,
   )
   .join("\n")}
+Use the first reference with attached images as the primary visual source unless the user names another. Other references are supporting direction, not additional decks to concatenate. A link without attached images is context only; mention the limitation briefly in the summary and use the app-specific creative rules for any unavailable visual details.
 Your job is to REPRODUCE THE REFERENCE'S VISUAL STRUCTURE as closely as the schema allows, then pour the user's content into it. This is the primary objective — a deck that merely borrows the reference's colors is a failure. Work through the reference's screens IN ORDER, one of your screens per reference screen, so the finished deck walks the same sequence. For each reference screen, read off and reproduce:
+- BACKGROUND: inspect EACH screen separately. Reproduce its actual color progression with backgroundFill, including the gradient angle and stop positions. Angles follow CSS: 0deg runs bottom-to-top, 90deg left-to-right, 180deg top-to-bottom, 270deg right-to-left. For white at the TOP and pastel at the BOTTOM, order white stops first and use 180deg (vertical), 135deg (toward bottom-right), or 225deg (toward bottom-left). Do NOT use 35deg or 45deg for a bottom-colored fade: those put the final pastel colors at the TOP. Match where the white/neutral top ends, where color begins, and which pastel colors reach each bottom corner. A mostly white screen fading pink at the bottom needs white stops through the upper area followed by pink, not a full-screen saturated gradient. Preserve screen-to-screen pink/lilac/cyan variation; a shared theme accent is not a substitute. Use large blurred decorations only for visible localized glows, not as a default substitute for the gradient.
+- PHONE MATERIAL: set frameStyle to "white" for a white/light rounded bezel with soft shadow, "dark" for a dark minimal bezel, or "device" only when the reference uses realistic metallic hardware. Do not substitute a gold phone for a white phone.
+- RESTRAINT: if the reference has only a headline and phone, output an empty label, no extra subhead and an empty decorations array. Do not invent floating icons, stickers or accent eyebrows. Match visible icon count and position when they exist; never copy the reference app's logo or screen contents.
 - DEVICE PLACEMENT: where the phone sits and how much of it is visible. Reference decks very often crop the device hard against an edge — only the bottom third of a phone hanging from the top of the screen, or the top half rising from the bottom. Reproduce that with deviceTransform, including negative x/y to push the device past the canvas edge.
 - TEXT POSITION: is the copy above the device, below it, or overlaid? Reproduce it. If the reference puts the headline under a top-cropped phone, yours does too.
 - TEXT STACK DEPTH: count the distinct blocks of type. A screen with an eyebrow label, a large headline, a bold one-line subhead, and a smaller body paragraph is four blocks — the label and headline go in copy, and the subhead and paragraph become textElements with their own sizes, weights, and positions.
@@ -217,6 +228,8 @@ Your job is to REPRODUCE THE REFERENCE'S VISUAL STRUCTURE as closely as the sche
 - BACKGROUND RHYTHM: which screens are light and which invert to a dark background.
 What you must NOT take from the references: their headlines, subheads, body copy, feature claims, prices, statistics, brand names, product names, and logos. Structure and styling are yours to reuse; their words are not. Every string you emit must describe the USER'S app as they described it.`
     : "";
+  const creativeRules = !hasVisualReference ? `\n\nAPP-SPECIFIC CREATIVE DIRECTION
+Without a visual reference, infer the audience, core job, emotional tone and real brand cues from the description and uploaded screenshots. Silently explore three distinct concepts, then execute the strongest coherent direction. Keep one typography and palette system across the deck, with deliberate changes in phone scale, crop, tilt, negative space and text placement. A journal can feel calm and reflective; a fitness app can feel energetic; a finance app should communicate clarity and trust, but avoid category clichés. Use decoration only when it supports the app's story. Do not default every app to pastel blobs, identical centered phones, or repeated icon tiles. Keep uploaded app UI intact inside frames. Explain the chosen direction briefly in the summary.` : "";
   const geometryRules = `\n\nCANVAS GEOMETRY
 The canvas is ${canvas.w}×${canvas.h} pixels. All coordinates you emit are in these full-resolution canvas pixels.
 - The origin is the TOP-LEFT corner. x grows right, y grows down.
@@ -241,18 +254,21 @@ TYPOGRAPHY DISCIPLINE
 - Set the headline width to the caption box width and center it, unless the reference clearly left-aligns its copy.
 - The eyebrow label is the theme accent on the theme background. If your accent is a pale tint of the background the label becomes invisible — pick an accent with real contrast against bg, or drop the label for that screen rather than shipping unreadable text.
 - Extra text elements should share the caption's x and width so the block reads as one column. A narrow text element pushed to one side looks like a mistake unless the reference does exactly that.`;
-  return `You are the template engine inside an App Store screenshot editor. The user has described their app and wants a starter template deck to begin designing from.${referenceRules}${geometryRules}
+  return `You are the template engine inside an App Store screenshot editor. The user has described their app and wants a starter template deck to begin designing from.${referenceRules}${creativeRules}${geometryRules}
 
 Draft exactly ${count} screens for a ${device}-frame App Store campaign:
 - ${slideRules}
-- label: a short feature keyword (≤40 characters). It renders as a small uppercase accent line.
+- label: a short feature keyword (≤40 characters), or an empty string when the reference has no eyebrow label. It renders as a small uppercase accent line.
 - headline: punchy, outcome-led copy (≤120 characters). It renders as the main text. Keep it readable at thumbnail size.
 - Never invent features, testimonials, prices, or facts beyond what the user described. If the description is thin, propose plausible, on-brand framing rather than specifics.
 - For every screen, write label and headline in EACH of the project's languages: ${locales.join(", ")}. The response's copy object must contain an entry for every one of these locale codes, with no extra codes.
 
 Per-screen structure. Every field below is required on every screen; send null (or an empty array) when a screen genuinely does not need it — but ${styleReferences.length ? "with references attached, screens that use none of these are almost certainly under-designed" : "use them wherever they earn their place"}.
 - headlineFontFamily: "modern", "editorial" (serif), "geometric", "rounded", or "mono". Null inherits the theme default.
-- inverted: true renders the screen on the theme's dark background instead of the light one. Use it for 1–2 emphasis screens.
+- backgroundFill: {angle, stops: [{color, position}]} specifies this screen's background gradient in degrees and percentage stops (0–100). Use identical stop colors for a solid fill. This overrides the shared theme background; reproduce each reference screen independently.
+- frameStyle: "white", "dark", or "device". Match the reference bezel material.
+- headlineStyle: {fontSize, fontWeight, lineHeight, align}. fontSize is in canvas pixels; match the reference headline scale, weight and alignment consistently across screens.
+- inverted: true uses the dark text/background variant. Match the reference light/dark sequence; never force dark emphasis screens into an all-light reference.
 - deviceTransform: {x, y, width, height, rotation, zIndex} for the device, or null to keep the layout's default placement. Preserve the device's aspect ratio when you resize it — for a phone, height is roughly 2.17× width.
 - textElements: up to ${MAX_DECK_TEXT_ELEMENTS} extra text blocks beyond label and headline — subheads, body paragraphs, small captions. Each carries its own transform, fontSize, fontWeight (400 body, 700 bold subhead), color, and align. The text object needs an entry for every project language, exactly like copy. Give each a short unique id like "subhead" or "body".
 - decorations: up to ${MAX_DECK_DECORATIONS} decorative shapes. kind is "ellipse", "rounded-rectangle", "line", or "icon-tile". Every decoration needs a unique id, a transform, a fill ({type: "solid" | "linear-gradient", colors: 1–3 hex values, angle}), and an opacity. "icon-tile" additionally takes iconName from this list — ${DECORATION_ICON_NAMES.join(", ")} — plus iconColor for the glyph drawn on the tile. Pick the icon that matches the feature the screen is selling.
@@ -266,7 +282,7 @@ Also return:
   - accent: the small uppercase label color and highlight color (must be readable on bg)
   - muted: subdued secondary text on bg
   ${
-    styleReferences.length
+    hasVisualReference
       ? "Sample this palette FROM THE STYLE REFERENCE screenshots: match their dominant background color, their accent, their light-or-dark mood — the finished deck should sit naturally next to the references on the App Store. Do not fall back to a generic palette when references are attached."
       : "Derive the palette from the described vibe. Commit to a point of view — a real brand color story, not default white with black text."
   }
@@ -306,11 +322,12 @@ export function normalizeDeck(
       if (!pair || typeof pair !== "object") return null;
       const label = typeof pair.label === "string" ? pair.label.trim().slice(0, 40) : "";
       const headline = typeof pair.headline === "string" ? pair.headline.trim().slice(0, 120) : "";
-      if (!label || !headline) return null;
+      if (!headline) return null;
       localized[locale] = { label, headline };
     }
     const slide: SlideAnalysis = {
       layout: entry.layout as DeckSlideLayout,
+      showDeviceFrame: entry.layout !== "no-device",
       copy: localized,
       ...normalizeDeckSlideDesign(entry, locales),
     };
@@ -338,6 +355,12 @@ function normalizeDeckSlideDesign(
   locales: string[],
 ): Partial<SlideAnalysis> {
   const design: Partial<SlideAnalysis> = {};
+  const background = backgroundFillSchema.safeParse(entry.backgroundFill);
+  if (background.success) design.backgroundFill = background.data;
+  const frame = frameStyleSchema.safeParse(entry.frameStyle);
+  if (frame.success) design.frameStyle = frame.data;
+  const headline = headlineStyleSchema.safeParse(entry.headlineStyle);
+  if (headline.success) design.headlineStyle = headline.data;
 
   const font = entry.headlineFontFamily;
   if (headlineFontFamilySchema.safeParse(font).success) {
@@ -472,7 +495,7 @@ function captionTextBottom(
   const labelHeight = hasLabel
     ? Math.max(unit * LABEL_MIN_HEIGHT_RATIO, unit * LABEL_SIZE_RATIO) + unit * LABEL_MARGIN_RATIO
     : 0;
-  const headlineSize = unit * HEADLINE_SIZE_RATIO;
+  const headlineSize = slide.headlineStyle?.fontSize ?? unit * HEADLINE_SIZE_RATIO;
   const charsPerLine = Math.max(
     8,
     Math.floor(caption.width / (headlineSize * HEADLINE_CHAR_ADVANCE)),
@@ -485,7 +508,7 @@ function captionTextBottom(
       .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
     return Math.max(worst, wrapped);
   }, 1);
-  return caption.y + labelHeight + lines * headlineSize * HEADLINE_LINE_HEIGHT;
+  return caption.y + labelHeight + lines * headlineSize * (slide.headlineStyle?.lineHeight ?? HEADLINE_LINE_HEIGHT);
 }
 
 /**

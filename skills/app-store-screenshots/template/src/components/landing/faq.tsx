@@ -14,15 +14,15 @@ interface FaqItem {
 const FAQS: FaqItem[] = [
   {
     q: 'Do I need an account to use Screenova?',
-    a: 'No login on the Free tier. It’s a self-hosted editor — your project state lives in a git-trackable JSON file plus a localStorage mirror, so it’s yours from the start.',
+    a: 'Not in local mode. Open Studio and start designing; projects stay on your computer without sign-in or email verification. Cloud installations require a verified email account.',
   },
   {
     q: 'Do I need my own OpenAI key?',
-    a: 'On Free, yes — the AI redesign chat calls OpenAI directly from your own .env.local key. Pro adds managed hosting and AI credits, so you can skip local setup and API keys entirely.',
+    a: 'For a local installation, the operator configures an OpenAI key on the server. In the hosted beta, the organizer provides it and daily usage limits apply. Keys are never sent to the browser. Manual editing and exports do not require AI.',
   },
   {
     q: 'If the AI generates a background, can I still edit it afterward?',
-    a: 'Yes. Generated decorations — gradients, shapes, ellipses — stay live canvas elements. Nothing gets flattened into a raster image, so you can keep adjusting after the AI hands it off.',
+    a: 'Generated shapes, gradients, and text remain editable canvas elements. Image-generated artwork is a raster backdrop: you can replace it, remove it, or change its opacity, but not edit individual objects inside that image.',
   },
   {
     q: 'Which devices and languages are covered?',
@@ -42,7 +42,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: 'Where does my project live?',
-    a: 'In your own git repo. The Skill scaffolds the editor into your existing codebase — there’s no hosted account holding your project hostage.',
+    a: 'Cloud mode stores project designs and images privately under your account. Local mode keeps a JSON workspace and images on your computer. Design-chat history stays in your browser, and exported PNG/ZIP files download to your device.',
   },
 ];
 
@@ -50,7 +50,7 @@ export const FAQ: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section className="border-t border-black/[0.06] bg-[#FAF9F6] py-24 text-black dark:border-white/[0.06] dark:bg-[#07080a] dark:text-white">
+    <section className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <Reveal className="text-center">
           <Kicker index="08" label="Frequently asked" tone="violet" />

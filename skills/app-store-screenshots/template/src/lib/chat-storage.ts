@@ -1,4 +1,5 @@
 "use client";
+import { scopedKey } from "./account-scope";
 
 import type { DesignConversationMessage, DesignReference } from "./design";
 
@@ -8,7 +9,7 @@ const DB_VERSION = 1;
 const STORE_NAME = "references";
 const MAX_MESSAGES = 50;
 
-const chatKey = (projectId: string) => `app-store-screenshots:design-chat:v1:${projectId}`;
+const chatKey = (projectId: string) => scopedKey(`app-store-screenshots:design-chat:v1:${projectId}`);
 
 function readMessages(key: string): DesignConversationMessage[] {
   try {
@@ -49,12 +50,12 @@ export function migrateLegacyDesignChat(projectId: string) {
   if (typeof window === "undefined") return;
   try {
     if (window.localStorage.getItem(chatKey(projectId)) === null) {
-      const legacy = window.localStorage.getItem(LEGACY_CHAT_KEY);
+      const legacy = window.localStorage.getItem(scopedKey(LEGACY_CHAT_KEY));
       if (legacy !== null) {
         window.localStorage.setItem(chatKey(projectId), legacy);
       }
     }
-    window.localStorage.removeItem(LEGACY_CHAT_KEY);
+    window.localStorage.removeItem(scopedKey(LEGACY_CHAT_KEY));
   } catch {
     // Best effort — chat history is a convenience cache.
   }
@@ -96,7 +97,7 @@ export async function loadDesignReference(id: string): Promise<DesignReference |
 
 function openDatabase() {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(scopedKey(DB_NAME), DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {

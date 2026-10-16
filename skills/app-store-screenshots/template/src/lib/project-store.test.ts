@@ -124,6 +124,14 @@ describe("createProjectState / duplicateProjectState", () => {
 });
 
 describe("mergeBundles", () => {
+  it("recovers browser edits newer than the last completed file save", () => {
+    const local = { ...minimal("p1"), updatedAt: 200, appName: "Unsaved edit" };
+    const disk = { ...minimal("p1"), updatedAt: 100, appName: "Before edit" };
+    expect(mergeBundles(
+      bundle({ order: ["p1"], projects: { p1: local } }),
+      bundle({ order: ["p1"], projects: { p1: disk } }),
+    ).projects.p1.appName).toBe("Unsaved edit");
+  });
   it("lets the file win per project id", () => {
     const localProject = { ...minimal("p1"), appName: "Local App" };
     const fileProject = { ...minimal("p1"), appName: "File App" };

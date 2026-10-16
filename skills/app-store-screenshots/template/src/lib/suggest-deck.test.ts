@@ -26,6 +26,9 @@ const THEME = {
 function slide(layout: string, copy: Record<string, { label: string; headline: string }>) {
   return {
     layout,
+    backgroundFill: null,
+    frameStyle: null,
+    headlineStyle: null,
     copy,
     headlineFontFamily: null,
     inverted: null,
@@ -507,5 +510,26 @@ describe("screenshot-driven decks", () => {
     const without = buildDeckPrompt(["en"], "iphone", 5);
     expect(without).not.toContain("screenshots of their app");
     expect(without).toContain("no-device");
+  });
+});
+
+describe("reference framing and creative direction", () => {
+  it("retains explicit framing intent through model normalization", () => {
+    const deck = normalizeDeck({ appName: "Journal", themeId: "clean-light", theme: THEME, summary: "Reference composition",
+      slides: [slide("device-top", { en: { label: "REFLECT", headline: "Find your rhythm" } })],
+    }, ["en"], 1, "iphone");
+    expect(deck?.slides[0].showDeviceFrame).toBe(true);
+  });
+  it("prioritizes visible reference geometry without forcing empty-asset slides to lose phones", () => {
+    const prompt = buildDeckPrompt(["en"], "iphone", 8, 2, [{ name: "Reference", hasImages: true }]);
+    expect(prompt).toContain("retain the reference phone placement");
+    expect(prompt).not.toContain('they must use the "no-device" layout');
+    expect(prompt).toContain("first reference with attached images");
+  });
+  it("uses app-specific creativity without pretending to have seen link-only references", () => {
+    const prompt = buildDeckPrompt(["en"], "iphone", 5, 0, [{ name: "Website", hasImages: false }]);
+    expect(prompt).toContain("APP-SPECIFIC CREATIVE DIRECTION");
+    expect(prompt).toContain("its visual appearance is unavailable");
+    expect(prompt).not.toContain("Sample this palette FROM THE STYLE REFERENCE screenshots");
   });
 });

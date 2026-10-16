@@ -71,7 +71,7 @@ export function parseProjectFile(raw: string | null): LoadedProjectFile {
   if (candidate.projects && typeof candidate.projects === "object" && !Array.isArray(candidate.projects)) {
     const projects: Record<string, ProjectState> = {};
     for (const [id, state] of Object.entries(candidate.projects)) {
-      if (state && typeof state === "object") projects[id] = sanitizeProject(state as Partial<ProjectState>);
+      if (state && typeof state === "object" && !Array.isArray(state)) projects[id] = sanitizeProject(state as Partial<ProjectState>, id);
     }
     const order = Array.isArray(candidate.order)
       ? [...new Set([...candidate.order, ...Object.keys(projects)])].filter((id) => projects[id])
@@ -128,12 +128,19 @@ export function duplicateProjectState(src: ProjectState, name?: string): Project
 }
 
 /**
- * Merge the local bundle with the file bundle. The file is canonical per
- * project (matches the "file wins" hydration rule); ids that exist only on
- * one side are kept, with local ordering preserved first.
+ * Merge file and local projects, recovering strictly newer browser edits
+ * interrupted before autosave. Equal timestamps prefer the file. Projects
+ * present on only one side are retained, with local ordering preserved first.
  */
 export function mergeBundles(local: ProjectBundle, file: ProjectBundle): ProjectBundle {
   const projects = { ...local.projects, ...file.projects };
+  // Recover edits cached before a refresh interrupted the file debounce.
+  // Equal timestamps still prefer the file.
+  for (const [id, project] of Object.entries(local.projects)) {
+    if (file.projects[id] && (project.updatedAt || 0) > (file.projects[id].updatedAt || 0)) {
+      projects[id] = project;
+    }
+  }
   const order = [...new Set([...local.order, ...file.order])].filter((id) => projects[id]);
   return {
     version: PROJECTS_FILE_VERSION,

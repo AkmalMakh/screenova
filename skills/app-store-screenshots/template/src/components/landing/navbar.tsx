@@ -38,22 +38,22 @@ export const Navbar: React.FC<NavbarProps> = ({
       id="main-header"
       className={`sticky top-0 z-40 w-full transition-colors duration-300 [transition-timing-function:var(--ease-out)] ${
         scrolled
-          ? 'border-b border-black/[0.08] bg-[#FAF9F6]/85 backdrop-blur-xl dark:border-white/[0.08] dark:bg-[#07080a]/80'
+          ? 'border-b border-black/[0.08] bg-[#F5F5F7]/85 backdrop-blur-xl dark:border-white/[0.08] dark:bg-[#111113]/80'
           : 'border-b border-transparent bg-transparent'
       }`}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         {/* Brand mark — quiet monogram, no gradient icon chip */}
-        <div
+        <button type="button" aria-label="Screenova home"
           onClick={onNavigateHome}
           className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-75"
           id="brand-logo"
         >
-          <span className="font-serif-headline text-[19px] italic text-black dark:text-white">S.</span>
+          <span className="font-sans text-[19px] italic text-black dark:text-white">S.</span>
           <span className="text-[13px] font-semibold tracking-tight text-black dark:text-white">
             Screenova
           </span>
-        </div>
+        </button>
 
         {/* Center Nav Links */}
         <nav className="hidden items-center gap-9 md:flex" id="nav-links">
@@ -91,7 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={onToggleTheme}
               aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              className="btn-press flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-black/[0.08] text-neutral-600 transition-colors hover:border-black/20 hover:text-black dark:border-white/[0.1] dark:text-neutral-400 dark:hover:border-white/25 dark:hover:text-white"
+              className="btn-press flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-black/[0.08] text-neutral-600 transition-colors hover:border-black/20 hover:text-black dark:border-white/[0.1] dark:text-neutral-400 dark:hover:border-white/25 dark:hover:text-white"
             >
               {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
             </button>
@@ -102,13 +102,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={onOpenLogin}
             className="hidden text-[12px] font-medium text-neutral-500 transition-colors hover:text-black dark:text-neutral-400 dark:hover:text-white sm:block"
           >
-            Sign in
+            Your workspace
           </button>
 
           <button
             id="get-started-btn"
             onClick={() => onOpenStudio()}
-            className="btn-press group inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-black px-4 py-2 text-[12px] font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+            className="btn-press group inline-flex cursor-pointer items-center gap-1.5 rounded-sm bg-primary px-4 py-2 text-[12px] font-semibold text-primary-foreground hover:bg-primary/90 "
           >
             <span>Open Studio</span>
             <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-0.5" />

@@ -23,7 +23,7 @@ export const LocalizationSection: React.FC = () => {
   ];
 
   return (
-    <section className="border-t border-black/[0.06] bg-[#FAF9F6] py-24 text-black dark:border-white/[0.06] dark:bg-[#07080a] dark:text-white">
+    <section className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-center">
           {/* Left */}
@@ -54,7 +54,7 @@ export const LocalizationSection: React.FC = () => {
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors duration-200 ${
+                        className={`flex h-5 w-5 items-center justify-center rounded-sm border transition-colors duration-200 ${
                           isSelected
                             ? 'border-transparent bg-black text-white dark:bg-white dark:text-black'
                             : 'border-black/15 bg-transparent dark:border-white/15'
@@ -64,7 +64,7 @@ export const LocalizationSection: React.FC = () => {
                       </div>
                       <div>
                         <div className="text-[12px] font-semibold text-black dark:text-white">{lang.label}</div>
-                        <div className="text-[10px] text-neutral-500 dark:text-neutral-500">{lang.native}</div>
+                        <div className="text-[12px] text-neutral-500 dark:text-neutral-500">{lang.native}</div>
                       </div>
                     </div>
 
@@ -79,7 +79,7 @@ export const LocalizationSection: React.FC = () => {
             </div>
 
             <div className="mt-6 flex items-center gap-2 text-[12px] text-neutral-500 dark:text-neutral-500">
-              <Globe2 className="h-4 w-4 text-[#5241C4] dark:text-[#a89bff]" />
+              <Globe2 className="h-4 w-4 text-[#006FE6] dark:text-[#409CFF]" />
               <span>Full export bundle includes localized folders ready for App Store Connect.</span>
             </div>
           </Reveal>

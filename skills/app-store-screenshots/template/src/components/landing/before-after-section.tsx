@@ -34,13 +34,13 @@ const pairs = [
 
 export const BeforeAfterSection: React.FC<BeforeAfterSectionProps> = ({ onTryItNow }) => {
   return (
-    <section id="product" className="border-t border-black/[0.06] bg-[#FAF9F6] py-24 text-black dark:border-white/[0.06] dark:bg-[#07080a] dark:text-white">
+    <section id="product" className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 text-center">
         <Reveal>
           <Kicker index="03" label="Before & after" tone="gold" />
           <h2 className="mx-auto mt-4 max-w-xl text-3xl font-semibold tracking-tight text-black sm:text-4xl dark:text-white">
             From flat screenshots to an{' '}
-            <span className="font-serif-headline font-normal italic text-[#5241C4] dark:text-[#a89bff]">editorial</span>{' '}
+            <span className="font-sans font-semibold text-[#006FE6] dark:text-[#409CFF]">editorial</span>{' '}
             App Store story
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-neutral-600 dark:text-neutral-400">
@@ -56,7 +56,7 @@ export const BeforeAfterSection: React.FC<BeforeAfterSectionProps> = ({ onTryItN
               variants={fadeUp}
               className="flex flex-col items-center overflow-hidden rounded-[24px] border border-black/[0.08] bg-black/[0.015] px-5 pb-6 pt-5 dark:border-white/[0.08] dark:bg-white/[0.015]"
             >
-              <span className="mb-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-500">
+              <span className="mb-4 text-[12px] font-semibold uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-500">
                 {pair.label}
               </span>
 
@@ -89,7 +89,7 @@ export const BeforeAfterSection: React.FC<BeforeAfterSectionProps> = ({ onTryItN
           </div>
           <button
             onClick={onTryItNow}
-            className="btn-press inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full bg-black px-5 py-2.5 text-[12px] font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+            className="btn-press inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-sm bg-primary px-5 py-2.5 text-[12px] font-semibold text-primary-foreground hover:bg-primary/90 "
           >
             <span>Transform my store page</span>
             <ArrowRight className="h-3.5 w-3.5" />

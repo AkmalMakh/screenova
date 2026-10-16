@@ -79,8 +79,8 @@ export function Sidebar({
   return (
     <div className={`flex h-full flex-col ${disabled ? "pointer-events-none opacity-60" : ""}`}>
       <div className="border-b border-border/70 px-3 py-3">
-        <h2 className="text-[13px] font-semibold tracking-tight">{t("sidebar.screens")}</h2>
-        <p className="text-[11px] text-muted-foreground">
+        <h2 className="text-title3 font-semibold tracking-tight">{t("sidebar.screens")}</h2>
+        <p className="text-caption text-muted-foreground">
           {t("sidebar.screensCount", { count: slides.length })}
         </p>
       </div>
@@ -117,7 +117,7 @@ export function Sidebar({
                   <p className="text-xs font-medium text-foreground">
                     {t("sidebar.noScreensYet")}
                   </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className="mt-1 text-caption text-muted-foreground">
                     {t("sidebar.noScreensHintBefore")}
                     <span className="font-semibold">{t("sidebar.addScreen")}</span>
                     {t("sidebar.noScreensHintAfter")}

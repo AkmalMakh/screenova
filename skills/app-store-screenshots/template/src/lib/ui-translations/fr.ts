@@ -3,6 +3,19 @@ import type { TranslationKey } from "./en";
 
 export const fr: Record<TranslationKey, string> = {
   // ---- common ----
+  "badge.add": "Ajouter une distinction",
+  "badge.name": "Distinction",
+  "badge.placeholder": "Votre prix",
+  "badge.eyebrow": "Année ou légende",
+  "badge.title": "Titre du prix",
+  "badge.stars": "Étoiles (0–5)",
+  "badge.laurels": "Afficher les lauriers",
+  "badge.artColor": "Couleur des lauriers et étoiles",
+  "badge.textColor": "Couleur du texte",
+  "badge.width": "Largeur (px)",
+  "badge.duplicate": "Dupliquer la distinction",
+  "badge.delete": "Supprimer la distinction",
+  "badge.hint": "Décoration modifiable, pas un prix vérifié. Utilisez uniquement les distinctions reçues par votre app.",
   "common.loading": "Chargement de l'éditeur…",
 
   // ---- toolbar ----
@@ -88,7 +101,7 @@ export const fr: Record<TranslationKey, string> = {
   "canvas.oneIdeaPlaceholder": "Une idée\npar écran.",
 
   // ---- screenshot picker ----
-  "picker.formatError": "Utilisez PNG ou JPG (l'App Store refuse les autres formats)",
+  "picker.formatError": "Utilisez PNG, JPEG ou WebP. Les exports sont toujours en PNG.",
   "picker.tooLarge": "Image trop grande (>8 Mo)",
   "picker.readFailed": "Impossible de lire le fichier",
   "picker.saving": "enregistrement…",
@@ -326,7 +339,7 @@ export const fr: Record<TranslationKey, string> = {
 
   // ---- home page ----
   "home.loading": "Chargement…",
-  "home.brand": "App Store Screenshots",
+  "home.brand": "Screenova",
   "home.tagline": "Concevez → Exportez → Publiez",
   "home.badge": "Moteur de modèles IA",
   "home.title1": "Des captures App Store,",
@@ -348,12 +361,13 @@ export const fr: Record<TranslationKey, string> = {
   "home.searchProjects": "Rechercher des decks",
   "home.templates": "Modèles",
   "home.inspiration": "Besoin d'inspiration ?",
-  "home.welcome": "Qu'est-ce qu'on publie aujourd'hui ?",
+  "home.welcome": "Votre app. Nous façonnons son histoire.",
   "home.groupRecent": "7 derniers jours",
   "home.groupEarlier": "Plus ancien",
   "home.importCta": "Importer depuis l'App Store",
   "home.emptyProjects": "Aucun deck pour l'instant",
   "home.slideCount": "{count} diapositives",
+  "home.closeMenu": "Fermer le menu",
   "home.openMenu": "Ouvrir le menu du projet",
   "home.updatedNow": "à l'instant",
   "home.updatedMinutes": "il y a {minutes} min",
@@ -390,6 +404,7 @@ export const fr: Record<TranslationKey, string> = {
   "home.referencePlaceholder": "Collez un lien App Store d'une app dont vous aimez le style…",
   "home.referenceAdd": "Ajouter",
   "home.referenceRemove": "Supprimer la référence {name}",
+  "home.referenceAutoHint": "Collez les liens de référence dans la description : ils sont ajoutés automatiquement.",
   "home.referenceLimit": "Ajoutez au maximum {count} liens de référence.",
   "home.referenceInvalid": "Ce lien ne semble pas valide.",
   "home.referenceFailed": "Impossible de charger ce lien App Store.",

@@ -16,6 +16,19 @@ import {
 
 export const en = {
   // ---- common ----
+  "badge.add": "Add award badge",
+  "badge.name": "Award badge",
+  "badge.placeholder": "Your award",
+  "badge.eyebrow": "Year or caption",
+  "badge.title": "Award title",
+  "badge.stars": "Stars (0–5)",
+  "badge.laurels": "Show laurels",
+  "badge.artColor": "Laurel & star color",
+  "badge.textColor": "Badge text color",
+  "badge.width": "Badge width (px)",
+  "badge.duplicate": "Duplicate badge",
+  "badge.delete": "Delete badge",
+  "badge.hint": "Editable decoration, not a verified award. Only use recognition your app has received.",
   "common.loading": "Loading editor…",
 
   // ---- toolbar ----
@@ -101,7 +114,7 @@ export const en = {
   "canvas.oneIdeaPlaceholder": "One idea\nper slide.",
 
   // ---- screenshot picker ----
-  "picker.formatError": "Use PNG or JPG (App Store rejects other formats)",
+  "picker.formatError": "Use PNG, JPEG, or WebP. Exports are always PNG.",
   "picker.tooLarge": "Image too large (>8MB)",
   "picker.readFailed": "Failed to read file",
   "picker.saving": "saving…",
@@ -339,7 +352,7 @@ export const en = {
 
   // ---- home page ----
   "home.loading": "Loading…",
-  "home.brand": "App Store Screenshots",
+  "home.brand": "Screenova",
   "home.tagline": "Design → Export → Ship",
   "home.badge": "AI template engine",
   "home.title1": "App Store screenshots,",
@@ -361,12 +374,13 @@ export const en = {
   "home.searchProjects": "Search decks",
   "home.templates": "Templates",
   "home.inspiration": "Need inspiration?",
-  "home.welcome": "What are we shipping today?",
+  "home.welcome": "Start with your app. We’ll shape the story.",
   "home.groupRecent": "Last 7 days",
   "home.groupEarlier": "Earlier",
   "home.importCta": "Import from App Store",
   "home.emptyProjects": "No decks yet",
   "home.slideCount": "{count} slides",
+  "home.closeMenu": "Close menu",
   "home.openMenu": "Open project menu",
   "home.updatedNow": "just now",
   "home.updatedMinutes": "{minutes}m ago",
@@ -403,6 +417,7 @@ export const en = {
   "home.referencePlaceholder": "Paste an App Store link to an app whose style you like…",
   "home.referenceAdd": "Add",
   "home.referenceRemove": "Remove reference {name}",
+  "home.referenceAutoHint": "Paste reference links into your description — they’re added automatically.",
   "home.referenceLimit": "Add at most {count} reference links.",
   "home.referenceInvalid": "That doesn't look like a valid link.",
   "home.referenceFailed": "Couldn't load that App Store link.",

@@ -1,3 +1,4 @@
+import type { BackgroundFill, FrameStyle, HeadlineStyle } from "./slide-appearance";
 export type Device =
   | "iphone"
   | "ipad"
@@ -63,11 +64,19 @@ export type TextElement = {
   align?: "left" | "center" | "right";
 };
 
+export type AwardBadge = {
+  eyebrow: LocalizedText;
+  title: LocalizedText;
+  stars: number;
+  laurels: boolean;
+  textColor: string;
+};
+
 export type DecorationElement = {
   id: string;
   // "icon-tile" draws a rounded tile filled with `fill` and a centered glyph
   // from lib/decoration-icons.ts; every other kind is a plain filled shape.
-  kind: "ellipse" | "rounded-rectangle" | "line" | "icon-tile";
+  kind: "ellipse" | "rounded-rectangle" | "line" | "icon-tile" | "award-badge";
   transform: ElementTransform;
   fill: {
     type: "solid" | "linear-gradient";
@@ -80,6 +89,7 @@ export type DecorationElement = {
   // icon-tile only: allowlisted icon key, and the glyph color drawn on the tile.
   iconName?: string;
   iconColor?: string;
+  badge?: AwardBadge;
 };
 
 export type VisualAsset = {
@@ -89,6 +99,9 @@ export type VisualAsset = {
 };
 
 export type Slide = {
+  backgroundFill?: BackgroundFill;
+  frameStyle?: FrameStyle;
+  headlineStyle?: HeadlineStyle;
   id: string;
   layout: SlideLayout;
   label: LocalizedText;       // tiny uppercase caption above headline, per locale
@@ -99,6 +112,7 @@ export type Slide = {
   screenshotByLocale?: Partial<Record<string, string>>;
   screenshotSecondaryByLocale?: Partial<Record<string, string>>;
   inverted?: boolean;         // dark background variant
+  backgroundStyle?: "plain"; // AI decorations own the background; no implicit editor glows
   // Per-element overrides; when present, replaces layout default placement.
   transforms?: Partial<Record<BuiltInElementId, ElementTransform>>;
   textElements?: TextElement[];

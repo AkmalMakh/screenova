@@ -2,15 +2,15 @@
 // Kept in one place so every section pulls from the same restrained palette
 // instead of re-inventing a color per component.
 //
-// Light editorial palette: warm off-white paper, near-black type, and a
-// single restrained violet accent. No gold/dual-accent, no gradients as
+// Approved quiet-studio palette: neutral surfaces, near-black type, and a
+// single blue accent (legacy violet aliases below). No gradients as
 // decoration — accents are earned (links, active states, one CTA) rather
 // than sprinkled for "AI product" flavor.
 //
-// Values reference the CSS custom properties defined in index.css so that
+// Values reference the CSS custom properties defined in globals.css so that
 // anything using these tokens in inline styles (e.g. Kicker) automatically
 // follows the light/dark toggle without needing to read theme state itself
-// — see the `.dark` override block in index.css and useTheme.ts.
+// — see the `.screenova-dark` override in globals.css and useTheme.ts.
 
 export const color = {
   bg: 'var(--bg)',

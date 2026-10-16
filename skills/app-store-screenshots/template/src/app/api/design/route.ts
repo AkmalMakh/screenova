@@ -4,6 +4,8 @@ import path from "node:path";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
+import { authorizeRequest, type Access } from "@/lib/supabase/access";
+import { storeAsset } from "@/lib/supabase/assets";
 import {
   designProposalResponseSchema,
   normalizeDesignResponse,
@@ -58,6 +60,8 @@ Hard constraints:
 - All colors must be six-digit hex values.`;
 
 export async function POST(req: Request) {
+  const access = await authorizeRequest(req, "ai");
+  if ("response" in access) return access.response;
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
       { ok: false, error: "OpenAI is not configured. Add OPENAI_API_KEY to .env.local." },
@@ -136,7 +140,7 @@ export async function POST(req: Request) {
           proposal.newSlides?.map((slide) => slide.sourceReferenceId) || [],
           body.references.map((reference) => reference.id),
         );
-        const generatedVisualAssets = await generateVisualAssets(client, proposal, project);
+        const generatedVisualAssets = await generateVisualAssets(client, proposal, project, access);
         return NextResponse.json({ ok: true, proposal, generatedVisualAssets });
       } catch (error) {
         lastError = error;
@@ -181,13 +185,22 @@ function validateRequest(
     return { ok: false, error: "Missing project state." };
   }
   const project = value.project as ProjectState;
+  if (!Object.hasOwn(CANVAS, project.device) || typeof project.locale !== "string") {
+    return { ok: false, error: "Invalid device or project language." };
+  }
   const slides = project.slidesByDevice?.[project.device];
   if (!Array.isArray(slides)) return { ok: false, error: "Active deck is invalid." };
+  if (slides.some((slide) => !slide || typeof slide.id !== "string")) {
+    return { ok: false, error: "Active deck is invalid." };
+  }
   if (!value.scope || !["current", "selected", "deck"].includes(value.scope.type)) {
     return { ok: false, error: "Invalid design scope." };
   }
   if (!Array.isArray(value.scope.slideIds)) {
     return { ok: false, error: "Invalid screen selection." };
+  }
+  if (value.scope.slideIds.length > 20 || value.scope.slideIds.some((id) => typeof id !== "string")) {
+    return { ok: false, error: "Select at most 20 valid screens." };
   }
   const requestedIds = new Set(value.scope.slideIds);
   if (requestedIds.size !== value.scope.slideIds.length) {
@@ -200,12 +213,23 @@ function validateRequest(
   if (!Array.isArray(value.renderedPreviews) || value.renderedPreviews.length !== targetSlides.length) {
     return { ok: false, error: "A rendered preview is required for every target screen." };
   }
+  if (value.renderedPreviews.some((preview) => !preview || typeof preview.slideId !== "string")) {
+    return { ok: false, error: "Invalid rendered preview." };
+  }
   const previewIds = new Set(value.renderedPreviews.map((preview) => preview.slideId));
   if (previewIds.size !== requestedIds.size || [...requestedIds].some((id) => !previewIds.has(id))) {
     return { ok: false, error: "Rendered previews do not match the selected screens." };
   }
   if (!Array.isArray(value.references) || value.references.length > MAX_REFERENCES) {
     return { ok: false, error: `Attach at most ${MAX_REFERENCES} reference images.` };
+  }
+  if (value.references.some((reference) => !reference || typeof reference !== "object")) {
+    return { ok: false, error: "Invalid attachment." };
+  }
+  if (value.conversation !== undefined && (!Array.isArray(value.conversation) || value.conversation.some(
+    (message) => !message || !["user", "assistant"].includes(message.role) || typeof message.text !== "string",
+  ))) {
+    return { ok: false, error: "Invalid conversation." };
   }
   if (value.scope.slideIds.length === 0 && value.references.length === 0) {
     return { ok: false, error: "Select a screen or attach an image to create one." };
@@ -312,6 +336,7 @@ async function generateVisualAssets(
   client: OpenAI,
   proposal: DesignProposal,
   project: ProjectState,
+  access: Access,
 ): Promise<GeneratedVisualAsset[]> {
   const requests: Array<
     | { targetType: "existing"; targetId: string; prompt: string }
@@ -338,7 +363,7 @@ async function generateVisualAssets(
   const size = generatedImageSize(width, height);
   return Promise.all(
     requests.map(async (request) => {
-      const generatedPath = await generateVisualAsset(client, request.prompt, size);
+      const generatedPath = await generateVisualAsset(client, request.prompt, size, access);
       return request.targetType === "existing"
         ? { targetType: "existing", targetId: request.targetId, path: generatedPath }
         : { targetType: "new", targetIndex: request.targetIndex, path: generatedPath };
@@ -358,7 +383,7 @@ function generatedImageSize(width: number, height: number): string {
   return `${outputWidth}x${outputHeight}`;
 }
 
-async function generateVisualAsset(client: OpenAI, prompt: string, size: string): Promise<string> {
+async function generateVisualAsset(client: OpenAI, prompt: string, size: string, access: Access): Promise<string> {
   const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
   const finalPrompt = [
     "Create a premium full-canvas visual backdrop for an App Store screenshot campaign.",
@@ -374,6 +399,7 @@ async function generateVisualAsset(client: OpenAI, prompt: string, size: string)
   const absolutePath = path.join(process.cwd(), GENERATED_ASSET_DIR, `${cacheKey}.jpg`);
 
   try {
+    if (access.client) throw new Error("Private assets do not use the shared local cache");
     await fs.access(absolutePath);
     return publicPath;
   } catch {
@@ -391,6 +417,7 @@ async function generateVisualAsset(client: OpenAI, prompt: string, size: string)
   });
   const encoded = result.data?.[0]?.b64_json;
   if (!encoded) throw new Error("GPT Image returned no visual asset.");
+  if (access.client) return storeAsset(access, Buffer.from(encoded, "base64"), "image/jpeg");
   await fs.mkdir(path.dirname(absolutePath), { recursive: true });
   await fs.writeFile(absolutePath, Buffer.from(encoded, "base64"));
   return publicPath;

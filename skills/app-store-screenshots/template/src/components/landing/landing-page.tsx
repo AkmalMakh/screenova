@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { MotionConfig } from "motion/react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Navbar } from "./navbar";
@@ -10,12 +11,10 @@ import { BeforeAfterSection } from "./before-after-section";
 import { LocalizationSection } from "./localization-section";
 import { ComparisonTable } from "./comparison-table";
 import { ExperimentSection } from "./experiment-section";
-import { Testimonials } from "./testimonials";
 import { FAQ } from "./faq";
 import { PricingSection } from "./pricing-section";
 import { CtaBanner } from "./cta-banner";
 import { Footer } from "./footer";
-import { StudioEditorModal } from "./studio-editor-modal";
 import { TemplatesModal } from "./templates-modal";
 import { LoginModal } from "./login-modal";
 import { CheckoutModal } from "./checkout-modal";
@@ -24,20 +23,23 @@ import type { PricingPlan } from "./types";
 
 /**
  * Screenova marketing landing — the public home page. Sections and copy match
- * the design-html preview; the interactive studio demo opens as a modal, and
- * the primary CTAs route into the real app at /studio (describe → editor).
+ * the design-html preview; creation CTAs route into the real app at /studio
+ * (describe → editor), with no simulated editor or checkout.
  */
 export function LandingPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
 
-  const [studioPrompt, setStudioPrompt] = React.useState<string | null>(null);
   const [templatesOpen, setTemplatesOpen] = React.useState(false);
   const [loginOpen, setLoginOpen] = React.useState(false);
   const [checkoutPlan, setCheckoutPlan] = React.useState<PricingPlan | null>(null);
 
-  const openStudio = (prompt?: string) =>
-    setStudioPrompt(prompt ?? "Make this feel like a calm premium wellness app.");
+  const openStudio = (prompt?: string) => {
+    if (prompt?.trim()) {
+      try { sessionStorage.setItem("screenova:studio-prompt", prompt.trim()); } catch { /* storage is optional */ }
+    }
+    router.push("/studio");
+  };
   const goStudio = () => router.push("/studio");
   const scrollToPricing = () =>
     document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
@@ -51,7 +53,7 @@ export function LandingPage() {
   }
 
   return (
-    <div
+    <MotionConfig reducedMotion="user"><div
       className={cn(
         "screenova-landing min-h-screen antialiased",
         theme === "dark" && "screenova-dark",
@@ -67,22 +69,19 @@ export function LandingPage() {
         onToggleTheme={toggleTheme}
       />
 
-      <HeroSection onGenerate={openStudio} onStart={goStudio} />
+      <main><HeroSection onGenerate={openStudio} onStart={goStudio} />
       <SocialProof />
       <HowItWorks />
       <BeforeAfterSection onTryItNow={goStudio} />
       <LocalizationSection />
       <ComparisonTable />
       <ExperimentSection />
-      <Testimonials />
+      {/* Add testimonials only after real customer approval and verification. */}
       <FAQ />
       <PricingSection onSelectPlan={handleSelectPlan} />
-      <CtaBanner onStart={goStudio} />
+      <CtaBanner onStart={goStudio} /></main>
       <Footer onOpenTemplates={() => setTemplatesOpen(true)} onOpenPricing={scrollToPricing} />
 
-      {studioPrompt !== null && (
-        <StudioEditorModal initialPrompt={studioPrompt} onClose={() => setStudioPrompt(null)} />
-      )}
       {templatesOpen && (
         <TemplatesModal
           onClose={() => setTemplatesOpen(false)}
@@ -92,14 +91,14 @@ export function LandingPage() {
           }}
         />
       )}
-      {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} onSuccess={() => {}} />}
+      {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} onSuccess={goStudio} />}
       {checkoutPlan && (
         <CheckoutModal
           plan={checkoutPlan}
           onClose={() => setCheckoutPlan(null)}
-          onSuccess={() => {}}
+          onSuccess={goStudio}
         />
       )}
-    </div>
+    </div></MotionConfig>
   );
 }

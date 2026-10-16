@@ -1,4 +1,4 @@
-import type { LocalizedText } from "./types";
+import type { Device, LocalizedText, ProjectState } from "./types";
 
 export const DEFAULT_LOCALE = "en";
 
@@ -15,6 +15,12 @@ export const CONTENT_LANGUAGES: readonly { code: string; name: string }[] = [
   { code: "ko", name: "한국어" },
 ];
 
+// AI/imported copy can contain literal (sometimes double-escaped) newline
+// tokens. They are not intentional Enter line breaks; render them as spaces.
+export function normalizeCopyText(value: string): string {
+  return value.replace(/(?:[ \t]*\\+(?:r\\+n|[nr])[ \t]*)+/g, " ");
+}
+
 // Read the value for `locale` from a localized field. Falls back to en, then to
 // the first locale that has a non-empty value, then to empty string. Used by
 // the canvas/preview/thumb so switching to a locale the user hasn't filled in
@@ -22,12 +28,12 @@ export const CONTENT_LANGUAGES: readonly { code: string; name: string }[] = [
 export function pickText(field: LocalizedText | undefined, locale: string): string {
   if (!field) return "";
   const direct = field[locale];
-  if (direct && direct.length) return direct;
+  if (direct && direct.length) return normalizeCopyText(direct);
   const en = field[DEFAULT_LOCALE];
-  if (en && en.length) return en;
+  if (en && en.length) return normalizeCopyText(en);
   for (const k of Object.keys(field)) {
     const v = field[k];
-    if (v && v.length) return v;
+    if (v && v.length) return normalizeCopyText(v);
   }
   return "";
 }
@@ -52,8 +58,17 @@ export function resolveLocalizedScreenshot(
 // Convert legacy `string` headline/label fields to the per-locale shape. Safe
 // to call on already-migrated data.
 export function coerceLocalized(value: unknown): LocalizedText {
-  if (typeof value === "string") return { [DEFAULT_LOCALE]: value };
-  if (value && typeof value === "object") return value as LocalizedText;
+  if (typeof value === "string") return { [DEFAULT_LOCALE]: normalizeCopyText(value) };
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const next: LocalizedText = {};
+    let changed = false;
+    for (const [locale, text] of Object.entries(value)) {
+      if (typeof text !== "string") { changed = true; continue; }
+      next[locale] = normalizeCopyText(text);
+      if (next[locale] !== text) changed = true;
+    }
+    return changed ? next : value as LocalizedText;
+  }
   return {};
 }
 
@@ -66,6 +81,32 @@ export function writeLocalized(
 ): LocalizedText {
   const next: LocalizedText = { ...(field || {}) };
   if (value.length === 0) delete next[locale];
-  else next[locale] = value;
+  else next[locale] = normalizeCopyText(value);
   return next;
+}
+
+// Cover every incoming editor update (AI Apply, imports, new text elements),
+// not just edits routed through writeLocalized. Preserve unchanged identities
+// and all non-copy assets/transforms so canvas dragging is unaffected.
+export function normalizeProjectCopy(project: ProjectState): ProjectState {
+  const slidesByDevice = { ...project.slidesByDevice };
+  let changed = false;
+  for (const [device, deck] of Object.entries(project.slidesByDevice)) {
+    const slides = deck.map((slide) => {
+      const label = coerceLocalized(slide.label);
+      const headline = coerceLocalized(slide.headline);
+      const textElements = slide.textElements?.map((element) => {
+        const text = coerceLocalized(element.text);
+        return text === element.text ? element : { ...element, text };
+      });
+      const elementsChanged = textElements?.some((element, i) => element !== slide.textElements![i]);
+      if (label === slide.label && headline === slide.headline && !elementsChanged) return slide;
+      return { ...slide, label, headline, ...(elementsChanged ? { textElements } : {}) };
+    });
+    if (slides.some((slide, i) => slide !== deck[i])) {
+      changed = true;
+      slidesByDevice[device as Device] = slides;
+    }
+  }
+  return changed ? { ...project, slidesByDevice } : project;
 }

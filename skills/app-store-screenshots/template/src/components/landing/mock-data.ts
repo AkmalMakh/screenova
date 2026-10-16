@@ -58,7 +58,7 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
   },
   {
     feature: 'Starting price',
-    storeCanvas: '$15/mo',
+    storeCanvas: 'Local editor: free; AI usage billed separately',
     traditionalTools: '$25/mo',
   },
 ];

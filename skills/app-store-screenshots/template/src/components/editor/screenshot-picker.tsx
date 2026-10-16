@@ -1,4 +1,5 @@
 "use client";
+import { accountScope, apiFetch } from "@/lib/account-scope";
 import * as React from "react";
 import { Image as ImageIcon, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ type Props = {
   onChange: (v: string) => void;
 };
 
-const ACCEPTED = ["image/png", "image/jpeg"];
+const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
 
 export async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -31,7 +32,7 @@ export async function uploadDataUrl(
   options: { targetPath?: string; seedFromPath?: string; seedPaths?: string[] } = {},
 ): Promise<string | null> {
   try {
-    const resp = await fetch("/api/upload", {
+    const resp = await apiFetch("/api/upload", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ dataUrl, ...options }),
@@ -98,9 +99,16 @@ export function ScreenshotPicker({ label, value, locale, locales = [], localized
     });
     setUploading(false);
     if (uploadedPath) {
-      setImage(localizedPath || uploadedPath, dataUrl);
-      onChange(localizedPattern || uploadedPath);
+      const savedPattern = uploadedPath.startsWith("/api/assets/") && localizedPattern && locale
+        ? uploadedPath.replace(`/localized/${locale}/`, "/localized/{locale}/")
+        : localizedPattern || uploadedPath;
+      setImage(resolveScreenshot(savedPattern, locale || "en"), dataUrl);
+      onChange(savedPattern);
     } else {
+      if (accountScope()) {
+        setError("Image was not saved to your account. Please try again.");
+        return;
+      }
       setImage(dataUrl, dataUrl);
       onChange(dataUrl);
     }
@@ -123,7 +131,7 @@ export function ScreenshotPicker({ label, value, locale, locales = [], localized
   return (
     <div className="space-y-1">
       <div
-        className={`flex items-center gap-3 rounded-md border p-2 transition-colors ${
+        className={`flex flex-wrap items-center gap-3 rounded-md border p-2 transition-colors ${
           dragging ? "border-primary bg-accent ring-2 ring-primary/30" : "border-input"
         }`}
         onDragOver={(e) => {
@@ -156,14 +164,16 @@ export function ScreenshotPicker({ label, value, locale, locales = [], localized
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-xs font-medium">{label}</span>
-          <span className="truncate text-[10px] text-muted-foreground">
+          <span className="truncate text-xs text-muted-foreground">
             {dragging ? t("picker.dropToUpload") : valueLabel}
           </span>
         </div>
         <input
           ref={inputRef}
           type="file"
-          accept="image/png,image/jpeg"
+          accept="image/png,image/jpeg,image/webp"
+          aria-label={label}
+          disabled={uploading}
           className="hidden"
           onChange={async (e) => {
             const input = e.currentTarget;
@@ -172,12 +182,14 @@ export function ScreenshotPicker({ label, value, locale, locales = [], localized
             input.value = "";
           }}
         />
+        <div className="flex w-full gap-2">
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="h-8"
+          className="h-11 min-w-0 flex-1"
           onClick={() => inputRef.current?.click()}
+          disabled={uploading}
         >
           <Upload className="h-3.5 w-3.5" />
           {t("picker.pick")}
@@ -198,11 +210,12 @@ export function ScreenshotPicker({ label, value, locale, locales = [], localized
             <X className="h-4 w-4" />
           </Button>
         )}
+        </div>
       </div>
       {error ? (
-        <p className="text-[11px] text-destructive">{error}</p>
+        <p className="text-xs text-destructive">{error}</p>
       ) : knownMissing ? (
-        <p className="text-[11px] text-destructive">
+        <p className="text-xs text-destructive">
           {t("picker.imageNotFound", { path: resolvedValue })}
         </p>
       ) : null}

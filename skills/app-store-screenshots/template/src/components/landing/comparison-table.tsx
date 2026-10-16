@@ -7,7 +7,7 @@ import { Kicker } from './kicker';
 
 export const ComparisonTable: React.FC = () => {
   return (
-    <section className="border-t border-black/[0.06] bg-[#FAF9F6] py-24 text-black dark:border-white/[0.06] dark:bg-[#07080a] dark:text-white">
+    <section className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <Reveal className="text-center">
           <Kicker index="05" label="Screenova vs. AppScreens" tone="violet" />
@@ -24,13 +24,13 @@ export const ComparisonTable: React.FC = () => {
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-black/[0.08] dark:border-white/[0.08]">
-                <th className="w-1/3 bg-black/[0.02] px-6 py-4 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:bg-white/[0.02] dark:text-neutral-500">
+                <th className="w-1/3 bg-black/[0.02] px-6 py-4 text-[12px] font-semibold uppercase tracking-wider text-neutral-500 dark:bg-white/[0.02] dark:text-neutral-500">
                   Feature
                 </th>
-                <th className="w-1/3 border-x border-black/[0.08] bg-black/[0.03] px-6 py-4 text-[11px] font-semibold uppercase tracking-wider text-black dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white">
+                <th className="w-1/3 border-x border-black/[0.08] bg-black/[0.03] px-6 py-4 text-[12px] font-semibold uppercase tracking-wider text-black dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white">
                   Screenova
                 </th>
-                <th className="w-1/3 bg-black/[0.02] px-6 py-4 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:bg-white/[0.02] dark:text-neutral-500">
+                <th className="w-1/3 bg-black/[0.02] px-6 py-4 text-[12px] font-semibold uppercase tracking-wider text-neutral-500 dark:bg-white/[0.02] dark:text-neutral-500">
                   AppScreens
                 </th>
               </tr>
@@ -42,9 +42,9 @@ export const ComparisonTable: React.FC = () => {
 
                   <td className="border-x border-black/[0.06] bg-black/[0.02] px-6 py-4 dark:border-white/[0.06] dark:bg-white/[0.02]">
                     {typeof row.storeCanvas === 'boolean' ? (
-                      <Check className="h-4 w-4 stroke-[3] text-[#5241C4] dark:text-[#a89bff]" />
+                      <Check className="h-4 w-4 stroke-[3] text-[#006FE6] dark:text-[#409CFF]" />
                     ) : (
-                      <span className="text-[12px] font-semibold text-[#5241C4] dark:text-[#a89bff]">{row.storeCanvas}</span>
+                      <span className="text-[12px] font-semibold text-[#006FE6] dark:text-[#409CFF]">{row.storeCanvas}</span>
                     )}
                   </td>
 
@@ -61,7 +61,7 @@ export const ComparisonTable: React.FC = () => {
           </table>
         </Reveal>
 
-        <p className="mt-4 text-center text-[10px] text-neutral-400 dark:text-neutral-600">
+        <p className="mt-4 text-center text-[12px] text-neutral-400 dark:text-neutral-600">
           AppScreens details based on their publicly listed pricing and feature pages.
         </p>
       </div>
