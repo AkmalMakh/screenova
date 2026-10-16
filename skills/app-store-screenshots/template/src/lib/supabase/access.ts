@@ -12,9 +12,16 @@ export async function authorizeRequest(req?: Request, budget?: "ai" | "upload" |
   try {
     const client = await serverSupabase();
     const { data: { user }, error } = await client.auth.getUser();
-    if (error || !user) return { response: NextResponse.json({ ok: false, error: "Please sign in again." }, { status: 401, headers: privateHeaders }) };
+    if (error || !user) {
+      // Safe operational signals only: never log sessions, emails or provider bodies.
+      console.warn("screenova_access_denied", { stage: "identity", status: error?.status ?? null, hasUser: !!user });
+      return { response: NextResponse.json({ ok: false, error: "Please sign in again." }, { status: 401, headers: privateHeaders }) };
+    }
     const { data: member, error: membershipError } = await client.from("beta_members").select("user_id").eq("user_id", user.id).maybeSingle();
-    if (membershipError) throw membershipError;
+    if (membershipError) {
+      console.error("screenova_access_unavailable", { stage: "membership", code: /^[A-Z0-9]{5,12}$/.test(membershipError.code || "") ? membershipError.code : "unknown" });
+      throw membershipError;
+    }
     if (!member) return { response: NextResponse.json({ ok: false, error: "Workspace access is unavailable. Confirm your email or contact support." }, { status: 403, headers: privateHeaders }) };
     if (req && (req.method !== "GET" || req.headers.has("x-screenova-owner")) && req.headers.get("x-screenova-owner") !== user.id) {
       return { response: NextResponse.json({ ok: false, error: "Account changed. Reload before saving; your edits remain in this browser." }, { status: 409, headers: privateHeaders }) };
