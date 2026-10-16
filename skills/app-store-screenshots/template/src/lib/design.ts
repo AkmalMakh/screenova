@@ -305,6 +305,7 @@ export type DesignRequest = {
   prompt: string;
   scope: { type: DesignScope; slideIds: string[] };
   project: ProjectState;
+  // dataUrl carries an inline image locally, or a private /api/assets/ path in cloud mode.
   renderedPreviews: Array<{ slideId: string; dataUrl: string }>;
   references: Array<{ id: string; name: string; mimeType: string; dataUrl: string }>;
   conversation: Array<{ role: "user" | "assistant"; text: string }>;

@@ -1,0 +1,126 @@
+# Screenova Vercel deployment preparation
+
+## Current release status — 2026-10-16
+
+Production deployment is approved and prepared for `https://screenova-sigma.vercel.app`; live deployment verification is pending. No custom domain is configured. This section supersedes the historical deployment diary below.
+
+- Google and GitHub sign-in enabled; local login and second-account separation user-verified. Email UI remains disabled; no SMTP dependency or email sending for this release.
+- Supabase Site URL and exact production `/auth/callback` saved; localhost callback retained.
+- All five existing Vercel application variables now target Preview and Production. The OpenAI key remains sensitive and server-only.
+- Production domain is public; Preview and unique deployment URLs remain Vercel-protected (`prod_deployment_urls_and_all_previews`). Application auth, RLS and private Storage are unchanged.
+- Fresh checks: 242 unit tests, TypeScript, zero production dependency advisories; previous unchanged production build and browser suite: 47 passed, two opt-in provider tests skipped. Focused auth/storage source review found no additional blocking defect. Secret scan found no credential blockers; non-credential advisories were reviewed, including excluded personal-workspace data.
+- Dry upload: 166 entries / 2,090,624 bytes before documentation updates, with no local secrets, personal project JSON or screenshots. Cloud runtime files included.
+- User explicitly replaced the failing gstack orchestration with standard release checks. Incomplete gstack review/evidence steps are not certified as complete.
+- Still requires hosted authenticated verification: OAuth return, private upload/save/reload/export and two-account isolation. Provider spend budgets, backups and orphan-asset cleanup are operational follow-ups, not claimed complete.
+
+## Historical protected-preview deployment
+
+Preview: https://screenova-304b16uzw-stylerxs-projects.vercel.app
+
+Dashboard: https://vercel.com/stylerxs-projects/screenova/H3c1PiRZm45tp1UQiN162r3ps2kY
+
+Deployment ID: `dpl_H3c1PiRZm45tp1UQiN162r3ps2kY`; Vercel reports **Preview / Ready**. Opening it requires Vercel access. Application email authentication is a separate layer and is not yet release-verified.
+
+## Approved target
+
+- Vercel team: **StylerX's projects** (`stylerxs-projects`).
+- Created project: **screenova** (`prj_0aIlKTkm58K1Omz6bkQFkEZkNByb`). Other projects were untouched.
+- Application root: this `template/` directory; Node `22.x`; Next.js; `npm ci` and `npm run build`. Package and project runtime settings are pinned to Node 22.
+- Manual CLI deployment; no Git integration, commit, push, merge or successful production promotion.
+- Repeatable settings and commands are recorded in `CLAUDE.md` under Deploy Configuration.
+
+## Verified on the hosted preview
+
+- Remote dependency installation, Next.js compilation, type checking and function deployment succeeded.
+- `/` and `/login`: HTTP 200 through authenticated Vercel CLI access; login includes the email form without a missing-configuration warning.
+- Without a Supabase app session, `/studio` and `/editor`: HTTP 307 to this preview's `/login`.
+- Anonymous `/api/project`, POST `/api/upload`, POST `/api/design`, and `/api/assets/<owner>/private.png`: HTTP 401. The project endpoint returns `{ "ok": false, "error": "Please sign in." }`.
+- Original local `/screenshots/shared/phone.png`: HTTP 404.
+- A plain unauthenticated request to the preview returns HTTP 302 to `https://vercel.com/sso-api`. Vercel deployment protection remains enabled (`all_except_custom_domains`). Vercel CLI generated a project-scoped automation bypass token for the health checks; this does not bypass application authentication and its value was not printed or committed.
+- Dry-run checked 152 source files (~2 MB): no local project JSON, personal screenshot files, `.env.local`, build output, OpenAI secret or local Vercel OIDC token included. Corrected `/supabase/` to a root-anchored ignore rule so runtime `src/lib/supabase/*` is included. The older Bun lock is excluded; npm's lock is used.
+- Latest production-only dependency audit: zero reported vulnerabilities. The full build-tool audit still reports the previously recorded 10 advisories; no forced dependency rewrite was performed.
+
+### First-deployment behavior
+
+Despite `--target preview`, Vercel assigned the first attempt (`dpl_ECSHX51pErWn1PgtxaSHvPi1eZr8`) to Production. It was canceled while building; the API confirms **CANCELED**, `aliasAssigned: false`, and no assigned aliases. No application became live from that attempt. The next explicit-preview attempt succeeded as Preview. Vercel documents this first-deploy behavior in [its CLI change](https://github.com/vercel/vercel/pull/17206). Retain the canceled record unless intentionally reconfiguring the project; deleting all deployment history can reintroduce the first-deploy behavior.
+
+## Environment and privacy
+
+- Preview environment: `APP_STORAGE_MODE=supabase` (Vercel also forces cloud mode defensively).
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: existing Screenova public configuration.
+- `OPENAI_API_KEY`: configured as a server-only sensitive Preview variable. Existing `OPENAI_DESIGN_MODEL` is configured for Preview. Production environment values are not configured.
+- Do not upload `.env.local`, the local project bundle or `public/screenshots/`. `.vercelignore` exclusions were verified using `vercel deploy --dry --json`; repeat this check before future deployments. Do not copy a service-role key into the app.
+- No local projects are automatically migrated to cloud accounts.
+
+## Payload handling
+
+[Vercel function limits](https://vercel.com/docs/functions/limitations) require small request bodies. Cloud image bytes now upload directly to private Supabase Storage with the user's session; finalization carries only an owner-scoped path. Actual image validation, locale replacement and API quota checks remain on the server. Image reads use streamed responses. AI redesign reference/preview images use private paths instead of inline base64. Each uploaded image consumes one upload attempt at finalization.
+
+Cloud project metadata is capped at 4,000,000 UTF-8 bytes on client and server, with a visible save error rather than a generic hosting rejection. Legacy larger workspace reads are streamed so users can recover/reduce them. Images retain their 8 MiB limit. No scheduled orphan/staging asset cleanup exists yet.
+
+## Before public access
+
+1. Completed: confirm/link the target project, verify excluded files, configure Preview environment values, deploy and inspect the preview. Keep protection enabled until the remaining launch gates pass.
+2. Configure an email provider/custom SMTP and the signup/magic-link templates described in [SUPABASE-SETUP.md](SUPABASE-SETUP.md). A `vercel.app` application address does not itself supply an email sender.
+3. Set Supabase Site URL and exact callback allowlist to the chosen HTTPS application origin. Do not use arbitrary deployment wildcard redirects for production.
+4. Verify signup, confirmation, returning sign-in, sign-out, expired links and two-account isolation on the actual host.
+5. On Vercel, upload an image above 4.5 MB, replace a localized screenshot, refresh, export it, and run a redesign using several references/previews. Confirm the Storage transfer and streamed private response both succeed.
+6. Confirm anonymous project/image/AI access is denied, local screenshot paths are blocked, and user-specific responses are not publicly cached.
+7. Recheck cloud-facing landing copy, abuse protection, provider budgets, backup/restore and a user-support contact before calling it a public launch.
+
+Local tests and hosted anonymous-boundary checks pass. SMTP, hosted authenticated two-account QA (including real Storage uploads/exports), production environment configuration and public production release remain pending. Supabase Site URL/redirect settings still point to localhost; they were not changed as part of this protected preview deployment. No emails were sent.
+
+## Launch follow-up (2026-10-16)
+
+Public launch is **BLOCKED on authentication-provider setup**, not complete.
+The live Supabase settings endpoint confirms signup is enabled, email
+confirmation is required, and email is the only enabled provider. Anonymous
+REST reads of projects and membership still return 401. Public email delivery
+needs custom SMTP; alternatively, an approved OAuth provider needs its app
+credentials configured in Supabase. No provider choice or credentials were
+assumed, and no confirmation/security requirement was disabled.
+
+Local fixes awaiting the next deployment:
+
+- Server-selected landing mode now describes private account storage in cloud
+  installations. Workspace entry goes directly through the existing auth gate.
+- Local installations retain the account-free Studio explanation.
+- Removed Git-owned/local-storage claims and the local-only comparison table
+  from the hosted landing page; replaced an unverified timing statistic.
+- Clarified that raster backdrops are replaceable, not object-editable.
+- Updated root design guidance to distinguish cloud and local service modes
+  without changing the approved visual system.
+
+Verification: 196 unit tests across 24 files, TypeScript, production build,
+and 46 local production Chromium scenarios passed (2 optional live-provider
+tests skipped). Four new rendered-copy regression tests cover storage modes.
+Manual cloud-mode browser checks at localhost:3001 verified private-storage
+copy, workspace navigation to login, and recoverable invalid-callback feedback;
+no warning/error console entries were observed before the invalid-code check.
+These checks do **not** replace authenticated hosted signup, Storage upload,
+save/reload/export, or two-account isolation tests. No new deployment, email,
+account, database mutation, commit, or push was made in this follow-up.
+
+## GitHub sign-in implementation (2026-10-16)
+
+User approved the recommended GitHub-first launch. Implemented locally:
+enabled-provider discovery from Supabase's public settings, GitHub sign-in
+using cookie-based PKCE with only `user:email` scope, disabled-provider/error
+states, cancellation handling and fixed private/no-store callback redirects.
+Email UI now requires `AUTH_EMAIL_ENABLED=true` plus an enabled email provider;
+leave it off until SMTP works. No GitHub secret belongs in Vercel or the app.
+
+Verification: **213 tests in 28 files passed**, TypeScript and production build
+passed. Added 17 tests for minimal OAuth scope/callback origin, provider
+discovery failures, conditional login UI and success/cancel/error callbacks.
+Successful code exchange is mocked in those tests, not a real GitHub login.
+Browser inspection confirms the GitHub button is disabled while the live
+Supabase provider remains unconfigured, with no unusable email form offered.
+
+The GitHub registration form was prefilled with Screenova, the existing
+protected preview homepage, and the exact Supabase callback URI. The Supabase
+GitHub credential panel is open for the user to generate/enter credentials
+directly and save. Neither app registration nor provider enablement was
+submitted by the assistant. No new deployment or public release yet.
+After credential setup, verify the live settings, test the local callback,
+then configure the stable hosted origin and run authenticated hosted checks.

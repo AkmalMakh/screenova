@@ -1,10 +1,13 @@
 "use client";
-import { accountScope, apiFetch } from "@/lib/account-scope";
+import { accountScope } from "@/lib/account-scope";
+import { uploadDataUrl } from "@/lib/upload-client";
+export { uploadDataUrl } from "@/lib/upload-client";
 import * as React from "react";
 import { Image as ImageIcon, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { didFail, img, setImage } from "@/lib/image-cache";
 import { resolveScreenshot } from "@/lib/locale";
+import { localizedUpload } from "@/lib/localized-upload";
 import { useT } from "@/lib/ui-i18n";
 
 type Props = {
@@ -25,24 +28,6 @@ export async function fileToDataUrl(file: File): Promise<string> {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-}
-
-export async function uploadDataUrl(
-  dataUrl: string,
-  options: { targetPath?: string; seedFromPath?: string; seedPaths?: string[] } = {},
-): Promise<string | null> {
-  try {
-    const resp = await apiFetch("/api/upload", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ dataUrl, ...options }),
-    });
-    if (!resp.ok) return null;
-    const json = (await resp.json()) as { ok: boolean; path?: string };
-    return json.ok && json.path ? json.path : null;
-  } catch {
-    return null;
-  }
 }
 
 export function ScreenshotPicker({ label, value, locale, locales = [], localizedSlug, onChange }: Props) {
@@ -77,26 +62,8 @@ export function ScreenshotPicker({ label, value, locale, locales = [], localized
     // If the upload endpoint is unreachable (e.g. static export), fall back
     // to the inline data URI — still works in the current session.
     setUploading(true);
-    const localizedValue = !!locale && value.includes("{locale}");
-    const shouldLocalizeSharedValue =
-      !!locale && locales.length > 1 && !!localizedSlug && !!value && !value.startsWith("data:");
-    const localizedPattern = localizedValue
-      ? value
-      : shouldLocalizeSharedValue
-        ? `/screenshots/localized/{locale}/manual-${localizedSlug}.png`
-        : undefined;
-    const localizedPath =
-      localizedPattern && locale ? resolveScreenshot(localizedPattern, locale) : undefined;
-    const seedPaths = localizedPattern
-      ? locales.map((loc) => resolveScreenshot(localizedPattern, loc))
-      : undefined;
-    const seedFromPath =
-      shouldLocalizeSharedValue && locale ? resolveScreenshot(value, locale) : undefined;
-    const uploadedPath = await uploadDataUrl(dataUrl, {
-      targetPath: localizedPath,
-      seedFromPath,
-      seedPaths,
-    });
+    const { pattern: localizedPattern, options } = localizedUpload(value, locale, locales, localizedSlug);
+    const uploadedPath = await uploadDataUrl(dataUrl, options);
     setUploading(false);
     if (uploadedPath) {
       const savedPattern = uploadedPath.startsWith("/api/assets/") && localizedPattern && locale

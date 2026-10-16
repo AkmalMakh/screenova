@@ -15,8 +15,12 @@ documentation. The live application styling was subsequently applied on
   without needing to become designers.
 - **Space:** App marketing and screenshot creation.
 - **Project type:** Creative web application with a separate marketing site.
-- **Current service boundary:** Single-user local workspace. Do not imply that
-  accounts, payments, team collaboration, or direct store publishing exist.
+- **Service boundary:** Local installations use an account-free workspace on
+  the operator's computer. Hosted installations use Supabase authentication
+  and private per-account project and image storage. Match entry-point copy to
+  the installation mode. Public launch remains gated on verified sign-in and
+  hosted account-isolation tests. Do not imply that payments, team collaboration,
+  or direct store publishing exist.
 
 ## Memorable Thing
 

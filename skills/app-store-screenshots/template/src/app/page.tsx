@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { LandingPage } from "@/components/landing/landing-page";
+import { storageMode } from "@/lib/supabase/config";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Screenova — The AI design workspace for app stores",
@@ -14,5 +17,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <LandingPage />;
+  return <LandingPage cloud={storageMode() === "supabase"} />;
 }

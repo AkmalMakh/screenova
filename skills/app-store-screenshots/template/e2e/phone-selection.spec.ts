@@ -25,6 +25,49 @@ test.beforeEach(async ({ request }) => {
   expect((await request.post("/api/project", { data: fixture() })).ok()).toBe(true);
 });
 
+test("duplicated localized project keeps original images and Undo bytes unchanged", async ({ page, request }) => {
+  const colors = { en: "#42b883", de: "#2244dd" };
+  const pattern = `/screenshots/localized/{locale}/qa-original-${crypto.randomUUID()}.png`;
+  const originals: Record<string, Buffer> = {};
+  for (const [locale, color] of Object.entries(colors)) {
+    const bytes = await sharp({ create: { width: 240, height: 520, channels: 3, background: color } }).png().toBuffer();
+    originals[locale] = bytes;
+    expect((await request.post("/api/upload", { data: { targetPath: pattern.replace("{locale}", locale), dataUrl: `data:image/png;base64,${bytes.toString("base64")}` } })).ok()).toBe(true);
+  }
+  const data = fixture();
+  data.projects["phone-qa"].locales = ["en", "de"];
+  data.projects["phone-qa"].slidesByDevice.iphone[0].screenshot = pattern;
+  await request.post("/api/project", { data });
+  await page.goto("/editor");
+  await page.getByRole("button", { name: "Phone selection QA", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Manage projects…", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Duplicate Phone selection QA", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Hide design chat", exact: true }).click();
+  await page.getByRole("button", { name: "Primary Screenshot", exact: true }).click();
+  const replacement = await sharp({ create: { width: 240, height: 520, channels: 3, background: "#dd2244" } }).png().toBuffer();
+  await page.locator('[data-screenshot-control="device"] input[type="file"]').setInputFiles({ name: "replacement.png", mimeType: "image/png", buffer: replacement });
+  const saved = async () => (await (await request.get("/api/project")).json()).state;
+  await expect.poll(async () => {
+    const state = await saved();
+    return state.projects[state.activeId].slidesByDevice.iphone[0].screenshot;
+  }).not.toBe(pattern);
+  const state = await saved();
+  const copiedPath = state.projects[state.activeId].slidesByDevice.iphone[0].screenshot;
+  expect(state.activeId).not.toBe("phone-qa");
+  expect(state.projects["phone-qa"].slidesByDevice.iphone[0].screenshot).toBe(pattern);
+  for (const locale of ["en", "de"]) {
+    expect(await (await request.get(pattern.replace("{locale}", locale))).body()).toEqual(originals[locale]);
+  }
+  expect(await (await request.get(copiedPath.replace("{locale}", "en"))).body()).toEqual(replacement);
+  expect(await (await request.get(copiedPath.replace("{locale}", "de"))).body()).toEqual(originals.de);
+  await page.getByRole("button", { name: "Primary Screenshot", exact: true }).focus();
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(async () => { const s = await saved(); return s.projects[s.activeId].slidesByDevice.iphone[0].screenshot; }).toBe(pattern);
+  await page.reload();
+  expect(await (await request.get(pattern.replace("{locale}", "en"))).body()).toEqual(originals.en);
+});
+
 test("clicking a phone selects it, reveals its picker, and replaces the saved image", async ({ page, request }, info) => {
   await page.goto("/editor");
   await page.getByRole("button", { name: "Hide design chat", exact: true }).click();

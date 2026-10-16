@@ -1,6 +1,20 @@
 # Service verification — 2026-10-16
 
-Status: local workspace regression-tested; both Screenova Supabase migrations applied, public signup enabled and configuration/anonymous-access checks passed. **Authenticated hosted-beta testing is still pending external email delivery.** See [SUPABASE-SETUP.md](SUPABASE-SETUP.md) for the remaining release gate.
+## Vercel transport preparation
+
+192 unit tests pass across 23 files. Added coverage for a valid image larger than 4.5 MB, a 6 MiB binary client upload with a metadata-only finalization request, streamed downloads, cross-account/traversal rejection, invalid and oversized staging cleanup, account-switch cancellation, private AI image resolution and UTF-8 workspace limits with readable legacy snapshots. These cloud tests use mocked Storage/Auth adapters; they do not establish hosted email delivery or actual Vercel transfer behavior. The production Chromium suite passed 46 tests, with the 2 opt-in Apple/OpenAI tests skipped. Original local projects were not used as test fixtures.
+
+Vercel host detection forces cloud mode, even when `APP_STORAGE_MODE=local`. `.vercelignore` excludes local secrets, project JSON and personal screenshot files. The upload list was verified after linking the approved Screenova project, and its protected Preview is now Ready. The remote build passed; hosted login, redirects, unauthorized API denial, local-asset blocking and Vercel protection passed smoke checks. See [DEPLOYMENT.md](DEPLOYMENT.md) for the URL, evidence and remaining release gates. Hosted signed-in flows are still unverified.
+
+Final production rebuild, standalone TypeScript check and whitespace validation pass. The full deterministic browser suite was repeated against that final build: 46 passed, 2 opt-in live-provider tests skipped. The existing non-blocking Tailwind easing-class warning remains.
+
+## Latest local-only completion pass
+
+The user deferred email setup and chose local Screenova. Local mode needs no account. **176 unit tests passed; 47 browser tests passed with live Apple/OpenAI enabled, then 46 passed with 2 live tests skipped after copy-only cleanup and one new regression test.** Final build and standalone TypeScript check passed. The local workspace entry now explains that no account is needed; unverified fixture testimonials are no longer rendered. See [LOCAL-QA.md](LOCAL-QA.md) for evidence, test coverage and limitations. Existing projects and unrelated changes were preserved; no commits or pushes were made.
+
+## Cloud integration status (protected preview deployed)
+
+Status: local workspace regression-tested; both Screenova Supabase migrations applied, public signup enabled and configuration/anonymous-access checks passed. Protected Vercel preview deployed; no public production release. **Authenticated hosted-beta testing is still pending external email delivery and deployment redirect configuration.** See [SUPABASE-SETUP.md](SUPABASE-SETUP.md) for the remaining release gate.
 
 ## Results
 

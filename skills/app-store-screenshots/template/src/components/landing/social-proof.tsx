@@ -3,12 +3,12 @@ import React from 'react';
 import { RevealGroup, fadeUp } from './reveal';
 import { motion } from 'motion/react';
 
-export const SocialProof: React.FC = () => {
+export const SocialProof: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
   const stats = [
     { value: '7', label: 'Languages', desc: 'Auto-localized, one click' },
     { value: '6', label: 'Device targets', desc: 'iPhone to feature graphic' },
-    { value: '<2 min', label: 'To first draft', desc: 'AI drafts the whole deck' },
-    { value: 'Yours', label: 'Where it lives', desc: 'Git-tracked, no lock-in' },
+    { value: 'Editable', label: 'Your design', desc: 'Refine text, shapes and layouts' },
+    { value: 'Yours', label: 'Where it lives', desc: cloud ? 'Private account storage' : 'Saved on your computer' },
   ];
 
   return (

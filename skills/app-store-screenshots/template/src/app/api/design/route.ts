@@ -6,6 +6,7 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
 import { authorizeRequest, type Access } from "@/lib/supabase/access";
 import { storeAsset } from "@/lib/supabase/assets";
+import { isDesignImageSource, resolveDesignImage } from "@/lib/supabase/design-images";
 import {
   designProposalResponseSchema,
   normalizeDesignResponse,
@@ -22,10 +23,8 @@ export const maxDuration = 180;
 const MAX_PROMPT_LENGTH = 4_000;
 const MAX_CONVERSATION_MESSAGES = 12;
 const MAX_REFERENCES = 3;
-const MAX_IMAGE_DATA_URL_LENGTH = 11_000_000;
 const GENERATED_ASSET_DIR = path.join("public", "screenshots", "generated-ai");
 const GENERATED_ASSET_PUBLIC_PREFIX = "/screenshots/generated-ai";
-const IMAGE_DATA_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 
 const SYSTEM_PROMPT = `You are the design engine inside an App Store screenshot editor.
 Return an editable design proposal, never a rasterized final image and never code.
@@ -79,6 +78,18 @@ export async function POST(req: Request) {
   const validation = validateRequest(body);
   if (!validation.ok) {
     return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
+  }
+
+  try {
+    // Sequential resolution bounds transient memory when redesigning a full deck.
+    let imageBytes = 0;
+    for (const image of [...body.renderedPreviews, ...body.references]) {
+      image.dataUrl = await resolveDesignImage(access, image.dataUrl);
+      imageBytes += image.dataUrl.length;
+      if (imageBytes > 90_000_000) throw new Error("Images too large");
+    }
+  } catch {
+    return NextResponse.json({ ok: false, error: "Design images are unavailable, invalid, or too large. Please upload them again." }, { status: 400 });
   }
 
   const { project, targetSlides } = validation;
@@ -255,9 +266,7 @@ function validateRequest(
   if (
     images.some(
       (dataUrl) =>
-        typeof dataUrl !== "string" ||
-        dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH ||
-        !IMAGE_DATA_URL.test(dataUrl),
+        !isDesignImageSource(dataUrl),
     )
   ) {
     return { ok: false, error: "One or more images are invalid or larger than 8 MB." };

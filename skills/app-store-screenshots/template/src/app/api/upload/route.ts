@@ -3,10 +3,11 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
-import { authorizeRequest } from "@/lib/supabase/access";
-import { assetKey, readAsset, storeAsset } from "@/lib/supabase/assets";
+import { authorizeRequest, type Access } from "@/lib/supabase/access";
+import { ASSET_BUCKET, assetKey, readAsset, storeAsset } from "@/lib/supabase/assets";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const UPLOAD_DIR_REL = path.join("public", "screenshots", "uploaded");
 const PUBLIC_PREFIX = "/screenshots/uploaded";
@@ -62,27 +63,67 @@ async function encodeForPath(bytes: Buffer, publicPath: string): Promise<Buffer>
 export async function POST(req: Request) {
   const access = await authorizeRequest(req, "upload");
   if ("response" in access) return access.response;
-  let body: { dataUrl?: string; targetPath?: string; seedFromPath?: string; seedPaths?: string[] };
+  let body: UploadBody;
   try {
-    body = (await req.json()) as { dataUrl?: string; targetPath?: string };
+    body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ ok: false, error: "Invalid upload." }, { status: 400 });
+  }
+  let stagingKey: string | undefined;
+  if (body.sourcePath !== undefined) {
+    try {
+      if (!access.client || body.dataUrl !== undefined || typeof body.sourcePath !== "string") throw new Error();
+      stagingKey = assetKey(body.sourcePath, access.userId);
+      if (!new RegExp(`^${access.userId}/_uploads/[a-f0-9-]{36}\\.(png|jpg|webp)$`).test(stagingKey)) throw new Error();
+    } catch {
+      return NextResponse.json({ ok: false, error: "Invalid upload source." }, { status: 400 });
+    }
+  }
+  try {
+    return await finishUpload(body, access);
+  } finally {
+    if (stagingKey && access.client) {
+      await access.client.storage.from(ASSET_BUCKET).remove([stagingKey]).catch(() => undefined);
+    }
+  }
+}
+
+type UploadBody = {
+  dataUrl?: string; sourcePath?: string; targetPath?: string; seedFromPath?: string; seedPaths?: string[];
+  seedSources?: Array<{ sourcePath: string; targetPath: string }>;
+};
+
+async function finishUpload(body: UploadBody, access: Access) {
   if (access.client) {
     try {
       const normalize = (value: string) => value.startsWith("/api/assets/")
         ? `/screenshots/${assetKey(value, access.userId).slice(access.userId.length + 1)}` : value;
       if (body.targetPath) body.targetPath = normalize(body.targetPath);
       if (Array.isArray(body.seedPaths)) body.seedPaths = body.seedPaths.map(normalize);
+      if (Array.isArray(body.seedSources)) body.seedSources = body.seedSources.map(seed => ({ ...seed, targetPath: normalize(seed.targetPath) }));
     } catch { return NextResponse.json({ ok: false, error: "Invalid screenshot destination." }, { status: 400 }); }
   }
-  if (!body?.dataUrl || typeof body.dataUrl !== "string") {
+  if (!body.sourcePath && (!body.dataUrl || typeof body.dataUrl !== "string")) {
     return NextResponse.json({ ok: false, error: "Missing dataUrl" }, { status: 400 });
   }
-  if (body.dataUrl.length > 11_200_000) {
+  if (body.dataUrl && body.dataUrl.length > 11_200_000) {
     return NextResponse.json({ ok: false, error: "Image too large (>8MB)" }, { status: 413 });
   }
-  const parsed = parseDataUrl(body.dataUrl);
+  let parsed: { mime: string; bytes: Buffer } | null;
+  if (body.sourcePath) {
+    try {
+      const bytes = await readAsset(access, body.sourcePath);
+      const extension = body.sourcePath.split(".").at(-1);
+      parsed = { bytes, mime: extension === "jpg" ? "image/jpeg" : `image/${extension}` };
+    } catch {
+      return NextResponse.json({ ok: false, error: "Uploaded image unavailable. Please retry." }, { status: 400 });
+    }
+  } else {
+    parsed = parseDataUrl(body.dataUrl!);
+  }
   if (!parsed) {
     return NextResponse.json({ ok: false, error: "Unsupported data URL" }, { status: 400 });
   }
@@ -105,6 +146,31 @@ export async function POST(req: Request) {
   }
   if (body.targetPath && !localizedTarget(body.targetPath, ext)) {
     return NextResponse.json({ ok: false, error: "Invalid screenshot destination." }, { status: 400 });
+  }
+
+  if (body.seedSources !== undefined && (!body.targetPath || !Array.isArray(body.seedSources) || body.seedSources.length > 12 ||
+    body.seedSources.some(seed => !seed || typeof seed.sourcePath !== "string" ||
+      !localizedTarget(seed.targetPath, ext) || seed.targetPath === body.targetPath))) {
+    return NextResponse.json({ ok: false, error: "Invalid screenshot sources." }, { status: 400 });
+  }
+
+  // Copy every unaffected locale from its own old image, not from the active
+  // locale. Fail the operation if any copy fails; keep the old project unchanged.
+  if (body.seedSources?.length) {
+    try {
+      for (const seed of body.seedSources) {
+        const bytes = await encodeForPath(await readAsset(access, seed.sourcePath), seed.targetPath);
+        if (access.client) {
+          const target = `/api/assets/${access.userId}/${seed.targetPath.slice("/screenshots/".length)}`;
+          const mime = /\.jpe?g$/.test(target) ? "image/jpeg" : target.endsWith(".webp") ? "image/webp" : "image/png";
+          await storeAsset(access, bytes, mime, target);
+        } else {
+          const target = publicFilePath(seed.targetPath)!;
+          await fs.mkdir(path.dirname(target), { recursive: true });
+          await fs.writeFile(target, bytes, { flag: "wx" });
+        }
+      }
+    } catch { return NextResponse.json({ ok: false, error: "Other language images could not be preserved. Please retry." }, { status: 503 }); }
   }
 
   if (access.client) {

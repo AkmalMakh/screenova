@@ -26,7 +26,7 @@ import type { PricingPlan } from "./types";
  * the design-html preview; creation CTAs route into the real app at /studio
  * (describe → editor), with no simulated editor or checkout.
  */
-export function LandingPage() {
+export function LandingPage({ cloud = false }: { cloud?: boolean }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
 
@@ -63,22 +63,22 @@ export function LandingPage() {
         onOpenStudio={goStudio}
         onOpenTemplates={() => setTemplatesOpen(true)}
         onOpenPricing={scrollToPricing}
-        onOpenLogin={() => setLoginOpen(true)}
+        onOpenLogin={cloud ? goStudio : () => setLoginOpen(true)}
         onNavigateHome={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         theme={theme}
         onToggleTheme={toggleTheme}
       />
 
       <main><HeroSection onGenerate={openStudio} onStart={goStudio} />
-      <SocialProof />
+      <SocialProof cloud={cloud} />
       <HowItWorks />
       <BeforeAfterSection onTryItNow={goStudio} />
       <LocalizationSection />
-      <ComparisonTable />
+      {!cloud && <ComparisonTable />}
       <ExperimentSection />
       {/* Add testimonials only after real customer approval and verification. */}
-      <FAQ />
-      <PricingSection onSelectPlan={handleSelectPlan} />
+      <FAQ cloud={cloud} />
+      <PricingSection cloud={cloud} onSelectPlan={handleSelectPlan} />
       <CtaBanner onStart={goStudio} /></main>
       <Footer onOpenTemplates={() => setTemplatesOpen(true)} onOpenPricing={scrollToPricing} />
 

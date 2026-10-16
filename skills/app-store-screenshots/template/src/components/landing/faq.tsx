@@ -38,7 +38,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: 'How is this different from picking a template in Figma, Canva, or a screenshot tool?',
-    a: 'Template pickers give you a fixed layout you rebuild per device and per language. Screenova’s AI drafts a deck from your actual screenshots, reflows it across every size and locale automatically, and keeps a connected canvas so elements can cross screen boundaries — see the comparison above for specifics.',
+    a: 'Start with an editable template or ask AI to draft a deck from your actual screenshots. Refine text, layouts, and device framing in the editor, including connected compositions that cross screen boundaries.',
   },
   {
     q: 'Where does my project live?',
@@ -46,8 +46,21 @@ const FAQS: FaqItem[] = [
   },
 ];
 
-export const FAQ: React.FC = () => {
+export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const faqs = FAQS.map((item) => {
+    if (!cloud) return item;
+    if (item.q === 'Do I need an account to use Screenova?') return {
+      ...item, a: 'Yes. Sign in to create your private workspace, save projects, and return to your designs on another device.',
+    };
+    if (item.q === 'Do I need my own OpenAI key?') return {
+      ...item, a: 'No. Screenova handles the server-side AI connection. Daily generation limits apply. Manual editing and exports do not require AI.',
+    };
+    if (item.q === 'Where does my project live?') return {
+      ...item, a: 'Project designs and images are stored privately under your account. Design-chat history stays in your browser, and exported PNG/ZIP files download to your device.',
+    };
+    return item;
+  });
 
   return (
     <section className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
@@ -60,7 +73,7 @@ export const FAQ: React.FC = () => {
         </Reveal>
 
         <RevealGroup className="mt-12 divide-y divide-black/[0.06] border-y border-black/[0.06] dark:divide-white/[0.06] dark:border-white/[0.06]">
-          {FAQS.map((item, idx) => {
+          {faqs.map((item, idx) => {
             const isOpen = openIndex === idx;
             return (
               <motion.div key={idx} variants={fadeUp} className="py-1">

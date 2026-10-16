@@ -1,5 +1,6 @@
 "use client";
-import { apiFetch } from "@/lib/account-scope";
+import { accountScope, apiFetch } from "@/lib/account-scope";
+import { cloudPayloadTooLarge } from "@/lib/cloud-payload";
 import { cn } from "@/lib/utils";
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -548,6 +549,7 @@ function Editor() {
   async function generateDesign(prompt: string, references: DesignReference[]) {
     if ((!targetSlideIds.length && !references.length) || generatingDesign || pendingDesign) return;
     const requestState = cloneProject(state);
+    const requestOwner = accountScope();
     const requestTargets = [...targetSlideIds];
     const userMessage: DesignConversationMessage = {
       id: chatId(),
@@ -566,23 +568,34 @@ function Editor() {
 
     try {
       const renderedPreviews = await captureDesignPreviews(requestTargets);
+      const uploadedPaths = new Map<string, Promise<string>>();
+      const requestReferences = references.map(({ id, name, mimeType, dataUrl }) => ({ id, name, mimeType, dataUrl }));
+      if (requestOwner) {
+        for (const image of [...renderedPreviews, ...requestReferences]) {
+          if (controller.signal.aborted || accountScope() !== requestOwner) throw new Error("Design request cancelled. Reload if your account changed.");
+          const uploaded = await uploadDataUrl(image.dataUrl);
+          if (!uploaded) throw new Error("Could not upload design images. Please retry.");
+          image.dataUrl = uploaded;
+          if ("id" in image) uploadedPaths.set(image.id, Promise.resolve(uploaded));
+        }
+      }
+      if (controller.signal.aborted || accountScope() !== requestOwner) throw new Error("Design request cancelled. Reload if your account changed.");
+      const requestBody = JSON.stringify({
+        prompt,
+        scope: { type: designScope, slideIds: requestTargets },
+        project: requestState,
+        renderedPreviews,
+        references: requestReferences,
+        conversation: designMessages.slice(-12).map(({ role, text }) => ({ role, text })),
+      });
+      if (requestOwner && cloudPayloadTooLarge(requestBody)) {
+        throw new Error("This project is too large for one redesign request. Remove inline images or reduce the project size.");
+      }
       const response = await apiFetch("/api/design", {
         method: "POST",
         headers: { "content-type": "application/json" },
         signal: controller.signal,
-        body: JSON.stringify({
-          prompt,
-          scope: { type: designScope, slideIds: requestTargets },
-          project: requestState,
-          renderedPreviews,
-          references: references.map(({ id, name, mimeType, dataUrl }) => ({
-            id,
-            name,
-            mimeType,
-            dataUrl,
-          })),
-          conversation: designMessages.slice(-12).map(({ role, text }) => ({ role, text })),
-        }),
+        body: requestBody,
       });
       const json = (await response.json()) as {
         ok: boolean;
@@ -590,6 +603,7 @@ function Editor() {
         generatedVisualAssets?: unknown;
         error?: string;
       };
+      if (controller.signal.aborted || accountScope() !== requestOwner) throw new Error("Design request cancelled. Reload if your account changed.");
       if (!response.ok || !json.ok || !json.proposal) {
         throw new Error(
           json.error || t("toasts.designRequestFailed", { status: response.status }),
@@ -600,7 +614,6 @@ function Editor() {
         ? (json.generatedVisualAssets as GeneratedVisualAsset[])
         : [];
       const referencesById = new Map(references.map((reference) => [reference.id, reference]));
-      const uploadedPaths = new Map<string, Promise<string>>();
       const newSlideAssets = await Promise.all(
         (proposal.newSlides || []).map(async (newSlide) => {
           const reference = referencesById.get(newSlide.sourceReferenceId);
@@ -1628,16 +1641,9 @@ async function uploadDesignReference(
   reference: DesignReference,
   t: ReturnType<typeof useT>["t"],
 ): Promise<string> {
-  const response = await apiFetch("/api/upload", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ dataUrl: reference.dataUrl }),
-  });
-  const result = (await response.json()) as { ok?: boolean; path?: string; error?: string };
-  if (!response.ok || !result.ok || !result.path) {
-    throw new Error(result.error || t("toasts.saveReferenceFailed", { name: reference.name }));
-  }
-  return result.path;
+  const path = await uploadDataUrl(reference.dataUrl);
+  if (!path) throw new Error(t("toasts.saveReferenceFailed", { name: reference.name }));
+  return path;
 }
 
 function chatId() {

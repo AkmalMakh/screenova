@@ -4,6 +4,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authorizeRequest, privateHeaders } from "@/lib/supabase/access";
+import { cloudPayloadTooLarge, WORKSPACE_TOO_LARGE } from "@/lib/cloud-payload";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,17 @@ export async function GET(req: Request) {
   if (access.client) {
     const { data, error } = await access.client.rpc("read_workspace");
     if (error) return NextResponse.json({ ok: false, error: "Cloud projects could not be loaded." }, { status: 503, headers: privateHeaders });
-    return NextResponse.json({ ok: true, state: data?.state ?? null, revision: data?.revision ?? "missing", ownerId: access.userId }, { headers: privateHeaders });
+    // Older workspaces may exceed the current write limit; keep them readable
+    // so users can reduce their size without losing access to saved projects.
+    const bytes = new TextEncoder().encode(JSON.stringify({ ok: true, state: data?.state ?? null, revision: data?.revision ?? "missing", ownerId: access.userId }));
+    let offset = 0;
+    return new Response(new ReadableStream({
+      pull(controller) {
+        if (offset >= bytes.length) { controller.close(); return; }
+        controller.enqueue(bytes.subarray(offset, offset + 64 * 1024));
+        offset += 64 * 1024;
+      },
+    }), { headers: { ...privateHeaders, "content-type": "application/json" } });
   }
   try {
     await pendingWrite;
@@ -89,7 +100,7 @@ export async function POST(req: Request) {
   if (access.client) {
     const expected = req.headers.get("if-match");
     if (!expected) return NextResponse.json({ ok: false, error: "Reload the workspace before saving." }, { status: 428, headers: privateHeaders });
-    if (JSON.stringify(body).length > 16_000_000) return NextResponse.json({ ok: false, error: "Workspace exceeds the beta size limit. Upload images as files instead of inline data." }, { status: 413 });
+    if (cloudPayloadTooLarge(JSON.stringify(body))) return NextResponse.json({ ok: false, error: WORKSPACE_TOO_LARGE }, { status: 413, headers: privateHeaders });
     const { data, error } = await access.client.rpc("save_workspace", { bundle: body, expected_revision: expected });
     if (error) return NextResponse.json({ ok: false, error: error.code === "40001" ? "Projects changed in another tab. Reload before saving again; your edits remain in this browser." : "Cloud save failed. Your previous projects are preserved." }, { status: error.code === "40001" ? 409 : 503, headers: privateHeaders });
     return NextResponse.json({ ok: true, revision: data }, { headers: privateHeaders });

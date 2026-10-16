@@ -72,4 +72,21 @@ describe("cloud request authorization", () => {
     expect(await response.json()).toEqual({ ok: true, revision: "2" });
     expect(mocks.rpc).toHaveBeenLastCalledWith("save_workspace", { bundle, expected_revision: "1" });
   });
+  it("rejects oversized UTF-8 workspace writes without overwriting saved data", async () => {
+    const body = JSON.stringify({ ...bundle, note: "한".repeat(1_400_000) });
+    expect(body.length).toBeLessThan(4_000_000);
+    const response = await POST(new Request("https://studio.example/api/project", {
+      method: "POST", headers: { "x-screenova-owner": owner, "if-match": "1" }, body,
+    }));
+    expect(response.status).toBe(413);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it("streams legacy oversized workspaces so their data remains readable", async () => {
+    const state = { ...bundle, note: "a".repeat(5_000_000) };
+    mocks.rpc.mockResolvedValue({ data: { state, revision: "2" }, error: null });
+    const response = await GET(request("GET"));
+    expect(response.body).toBeInstanceOf(ReadableStream);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect((await response.json()).state.note.length).toBe(5_000_000);
+  });
 });

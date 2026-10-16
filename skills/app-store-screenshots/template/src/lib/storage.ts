@@ -1,5 +1,7 @@
 "use client";
 import { accountScope, apiFetch, scopedKey } from "./account-scope";
+import { cloudPayloadTooLarge, WORKSPACE_TOO_LARGE } from "./cloud-payload";
+import { acknowledgeCloudSnapshot, cloudHydration, readCloudSnapshot, writeCloudSnapshot } from "./cloud-cache";
 import { backgroundFillSchema, frameStyleSchema, headlineStyleSchema } from "./slide-appearance";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { deleteDesignMessages, migrateLegacyDesignChat } from "./chat-storage";
@@ -311,6 +313,14 @@ function saveProjectToLocalStorage(state: ProjectState): { ok: true } | { ok: fa
 }
 
 function saveAllToLocalStorage(bundle: ProjectBundle): { ok: true } | { ok: false; error: string } {
+  if (accountScope() && typeof window !== "undefined") {
+    try {
+      writeCloudSnapshot(window.localStorage, scopedKey("workspace-snapshot"), {
+        bundle, revision: fileRevision ?? null, writer: cacheWriter(),
+      });
+      return { ok: true };
+    } catch (error) { return { ok: false, error: String(error) }; }
+  }
   const indexResult = saveIndexToLocalStorage({
     version: PROJECTS_FILE_VERSION,
     activeId: bundle.activeId,
@@ -329,6 +339,7 @@ function saveAllToLocalStorage(bundle: ProjectBundle): { ok: true } | { ok: fals
 // exist locally so a defensive file-merge can't clobber fresher local edits.
 function rebuildLocalStorage(bundle: ProjectBundle, missingOnly: boolean) {
   if (typeof window === "undefined") return;
+  if (accountScope()) { saveAllToLocalStorage(bundle); return; }
   saveIndexToLocalStorage({
     version: PROJECTS_FILE_VERSION,
     activeId: bundle.activeId,
@@ -346,12 +357,19 @@ function rebuildLocalStorage(bundle: ProjectBundle, missingOnly: boolean) {
 // projects are the source of truth for a new browser, and seeding early
 // would leave a stray "New project" behind. The hydration effect seeds one
 // only when neither localStorage nor the file has anything.
-function bootstrapLocal(): { bundle: ProjectBundle; migratedLegacyId: string | null } {
+function bootstrapLocal(): { bundle: ProjectBundle; migratedLegacyId: string | null; revision?: string | null } {
   if (typeof window === "undefined") {
     return {
       bundle: { version: PROJECTS_FILE_VERSION, activeId: null, order: [], projects: {} },
       migratedLegacyId: null,
     };
+  }
+
+  if (accountScope()) {
+    const snapshot = readCloudSnapshot(window.localStorage, scopedKey("workspace-snapshot"));
+    if (snapshot) return { bundle: snapshot.bundle, revision: snapshot.revision, migratedLegacyId: null };
+    // Preserve old per-project caches below, but never trust their independent
+    // revision marker. Hydration keeps them as recovery data, not server truth.
   }
 
   const existingIndex = loadIndexFromLocalStorage();
@@ -412,6 +430,8 @@ function seedFreshProject(): ProjectBundle {
 // ---------- File I/O (git-tracked bundle mirror) ----------
 
 let fileRevision: string | undefined;
+let snapshotWriter: string | undefined;
+function cacheWriter() { return snapshotWriter ??= crypto.randomUUID(); }
 let pendingFileSave: Promise<unknown> = Promise.resolve();
 
 async function loadFromFile(): Promise<
@@ -450,16 +470,20 @@ function saveToFile(bundle: ProjectBundle): Promise<{ ok: true } | { ok: false; 
 async function writeToFile(bundle: ProjectBundle): Promise<{ ok: true } | { ok: false; error: string }> {
   if (typeof window === "undefined") return { ok: true };
   try {
+    const owner = accountScope();
+    const previousRevision = fileRevision ?? null;
+    const body = JSON.stringify(bundle);
+    if (accountScope() && cloudPayloadTooLarge(body)) return { ok: false, error: WORKSPACE_TOO_LARGE };
     const resp = await apiFetch("/api/project", {
       method: "POST",
       headers: { "content-type": "application/json", ...(fileRevision ? { "if-match": fileRevision } : {}) },
-      body: JSON.stringify(bundle),
+      body,
     });
     const json = (await resp.json()) as { ok: boolean; error?: string; revision?: string };
     if (!resp.ok || !json.ok) return { ok: false, error: json.error || `HTTP ${resp.status}` };
     fileRevision = json.revision;
-    if (accountScope() && fileRevision) {
-      try { window.localStorage.setItem(scopedKey("base-revision"), fileRevision); } catch { /* Cache optional. */ }
+    if (owner && accountScope() === owner && fileRevision) {
+      try { acknowledgeCloudSnapshot(window.localStorage, scopedKey("workspace-snapshot"), cacheWriter(), previousRevision, fileRevision); } catch { /* Cache optional. */ }
     }
     return { ok: true };
   } catch (e) {
@@ -524,8 +548,10 @@ export function useProject() {
   useEffect(() => {
     let cancelled = false;
     const local = bootstrapLocal();
-    let cachedRevision: string | null = null;
-    try { cachedRevision = window.localStorage.getItem(scopedKey("base-revision")); } catch { /* Cache optional. */ }
+    const cachedRevision = local.revision ?? null;
+    // Preserve provenance if the first network read fails. Offline edits must
+    // still be compared against their original cloud revision on reconnect.
+    if (accountScope()) fileRevision = cachedRevision ?? undefined;
     _setBundle(local.bundle);
     if (local.migratedLegacyId) migrateLegacyDesignChat(local.migratedLegacyId);
 
@@ -554,11 +580,12 @@ export function useProject() {
             : fromFile.bundle;
         // A different cloud revision may contain deletions from another device.
         // Do not resurrect deleted projects from a stale browser cache.
-        const changedRemotely = !!accountScope() && cachedRevision !== fileRevision;
+        const cloud = accountScope() ? cloudHydration(local.bundle, cachedRevision, fileBundle, fileRevision) : null;
+        const changedRemotely = cloud?.changedRemotely;
         if (changedRemotely && local.bundle.order.length) {
           try { window.localStorage.setItem(scopedKey("recovery-workspace"), JSON.stringify(local.bundle)); } catch { /* Preserve server state even if browser quota is full. */ }
         }
-        const merged = changedRemotely ? fileBundle : mergeBundles(local.bundle, fileBundle);
+        const merged = cloud?.bundle ?? mergeBundles(local.bundle, fileBundle);
         // Never zero projects: an empty projects object in the file is
         // treated like a missing file.
         const finalBundle = Object.keys(merged.projects).length ? merged : seedFreshProject();
@@ -570,9 +597,6 @@ export function useProject() {
       futureRef.current = [];
       lastPushAt.current = 0;
       setHydrated(true);
-      if (accountScope() && fileRevision) {
-        try { window.localStorage.setItem(scopedKey("base-revision"), fileRevision); } catch { /* Browser cache optional. */ }
-      }
     })();
 
     return () => {
@@ -707,12 +731,7 @@ export function useProject() {
           order: [...prev.order, id],
           projects: { ...prev.projects, [id]: created },
         };
-        saveProjectToLocalStorage(created);
-        saveIndexToLocalStorage({
-          version: PROJECTS_FILE_VERSION,
-          activeId: id,
-          order: next.order,
-        });
+        saveAllToLocalStorage(next);
         return next;
       });
       clearHistory();
@@ -725,12 +744,9 @@ export function useProject() {
   const switchProject = useCallback((id: string) => {
     _setBundle((prev) => {
       if (prev.activeId === id || !prev.projects[id]) return prev;
-      saveIndexToLocalStorage({
-        version: PROJECTS_FILE_VERSION,
-        activeId: id,
-        order: prev.order,
-      });
-      return { ...prev, activeId: id };
+      const next = { ...prev, activeId: id };
+      saveAllToLocalStorage(next);
+      return next;
     });
     clearHistory();
     touchedRef.current = true;
@@ -743,8 +759,9 @@ export function useProject() {
       const project = prev.projects[id];
       if (!project || project.name === trimmed) return prev;
       const next = { ...project, name: trimmed, updatedAt: Date.now() };
-      saveProjectToLocalStorage(next);
-      return { ...prev, projects: { ...prev.projects, [id]: next } };
+      const nextBundle = { ...prev, projects: { ...prev.projects, [id]: next } };
+      saveAllToLocalStorage(nextBundle);
+      return nextBundle;
     });
   }, []);
 
@@ -759,18 +776,14 @@ export function useProject() {
         idx === -1
           ? [...prev.order, copyId]
           : [...prev.order.slice(0, idx + 1), copyId, ...prev.order.slice(idx + 1)];
-      saveProjectToLocalStorage(copy);
-      saveIndexToLocalStorage({
-        version: PROJECTS_FILE_VERSION,
-        activeId: copyId,
-        order,
-      });
-      return {
+      const next = {
         ...prev,
         activeId: copyId,
         order,
         projects: { ...prev.projects, [copyId]: copy },
       };
+      saveAllToLocalStorage(next);
+      return next;
     });
     clearHistory();
     touchedRef.current = true;
@@ -785,15 +798,7 @@ export function useProject() {
         // Ignore — the bundle is authoritative.
       }
       deleteDesignMessages(id);
-      const activeId = resolveActiveId(next);
-      saveIndexToLocalStorage({
-        version: PROJECTS_FILE_VERSION,
-        activeId,
-        order: next.order,
-      });
-      if (activeId && next.projects[activeId]) {
-        saveProjectToLocalStorage(next.projects[activeId]);
-      }
+      saveAllToLocalStorage(next);
       return next;
     });
     clearHistory();

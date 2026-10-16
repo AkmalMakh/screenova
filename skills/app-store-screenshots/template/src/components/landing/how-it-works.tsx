@@ -27,7 +27,7 @@ const STEPS: Step[] = [
     n: '03',
     title: 'Everything stays editable',
     description:
-      'Generated text, shapes, and gradients remain live canvas elements. Nothing gets flattened into a raster image.',
+      'Generated text, shapes, and gradients remain live canvas elements. Image backdrops can be replaced or removed.',
   },
   {
     n: '04',
@@ -53,8 +53,8 @@ export const HowItWorks: React.FC = () => {
             How Screenova works
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-neutral-600 dark:text-neutral-400">
-            Five steps, start to export. Nothing here is a hosted black box — it&apos;s a
-            self-owned editor that starts from what you already have.
+            Five steps, start to export. Start with your real app captures,
+            refine the design, and download assets for your store listing.
           </p>
         </Reveal>
 

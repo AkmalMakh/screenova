@@ -5,10 +5,13 @@ A pre-built Next.js + ShadCN editor for generating App Store and Google Play scr
 ## Quick start
 
 ```bash
-nvm use       # Node 22; use any Node >=22.12 if you do not use nvm
+nvm use       # Node 22; use the version in .nvmrc if you do not use nvm
 npm ci        # package-lock.json is the verified dependency lock
-npm run dev   # http://localhost:3000/studio
+APP_STORAGE_MODE=local NEXT_BUILD_DIR=.next-dev npm run dev -- --hostname 127.0.0.1
+# Open http://localhost:3000/studio
 ```
+
+Local mode needs no signup, email delivery or Supabase session. Your current local projects remain on this computer. See [LOCAL-QA.md](LOCAL-QA.md) for the latest local verification.
 
 To enable chat-based redesigns, copy the environment template and add an OpenAI API key:
 
@@ -18,7 +21,9 @@ cp .env.example .env.local  # only if .env.local does not already exist
 
 `OPENAI_API_KEY` is read only by server-side AI routes. The design model plans editable layouts and the image model generates explicitly requested raster backdrops. Override them with `OPENAI_DESIGN_MODEL` and `OPENAI_IMAGE_MODEL` when needed. Manual editing and PNG export work without an API key.
 
-There are two storage modes: **local** preserves the original single-user JSON workspace; **supabase** adds email-based accounts, account-owned projects and private image storage. The Screenova Supabase project is connected and its schema/private-access configuration is verified. Public sign-up is enabled with automatic workspace access after email verification; SMTP and a live two-account sign-in test remain pending. Follow [SUPABASE-SETUP.md](SUPABASE-SETUP.md) before deploying the beta. No billing or shared-team collaboration is implemented.
+There are two storage modes: **local** preserves the original single-user JSON workspace; **supabase** adds accounts, account-owned projects and private image storage. Google and GitHub sign-in are enabled; email UI stays off until SMTP is configured and tested. Public signup grants workspace access to confirmed, non-anonymous accounts. The production origin is `https://screenova-sigma.vercel.app`; its exact callback is configured in Supabase. Local sign-in and second-account separation were user-verified; the hosted authenticated upload/export and two-account checks must be verified separately. See [SUPABASE-SETUP.md](SUPABASE-SETUP.md) and the current status in [DEPLOYMENT.md](DEPLOYMENT.md). No billing or shared-team collaboration is implemented.
+
+For Vercel, see [DEPLOYMENT.md](DEPLOYMENT.md). Cloud uploads go directly to private Supabase Storage, preserving the 8 MiB image limit without putting base64 images through Vercel's request body limit. AI redesigns send private asset paths; private image responses are streamed. Cloud workspace metadata is limited to 4 MB UTF-8, checked before sending and again before saving. Local mode is unchanged. Vercel always forces cloud mode even if a local-mode environment value is accidentally copied.
 
 For production on a persistent local machine:
 
