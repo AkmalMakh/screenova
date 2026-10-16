@@ -1,5 +1,10 @@
 # Design System — Apple HIG
 
+> Historical reference, superseded on 2026-10-16 by the approved
+> [root design system](../../DESIGN.md). Use that file for current UI decisions.
+> This document preserves the earlier direction; conflicting values below are
+> not current requirements.
+
 The standard `/studio` and the landing surfaces are measured against.
 Derived from Apple's Human Interface Guidelines and apple.com's own marketing
 system, calibrated to what this codebase already renders.
