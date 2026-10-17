@@ -108,7 +108,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="get-started-btn"
             onClick={() => onOpenStudio()}
-            className="btn-press group inline-flex cursor-pointer items-center gap-1.5 rounded-sm bg-primary px-4 py-2 text-[12px] font-semibold text-primary-foreground hover:bg-primary/90 "
+            className={`btn-press group inline-flex cursor-pointer items-center gap-1.5 rounded-sm px-4 py-2 text-[12px] font-semibold transition-colors ${
+              currentView === 'landing'
+                // The hero owns the primary action on the landing; the header
+                // CTA steps down to an outlined secondary so one blue button
+                // leads the first viewport.
+                ? 'border border-black/[0.12] text-black hover:border-black/30 dark:border-white/[0.16] dark:text-white dark:hover:border-white/40'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            }`}
           >
             <span>Open Studio</span>
             <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-0.5" />
