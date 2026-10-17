@@ -328,7 +328,6 @@
 /* Example-deck artwork only (never app chrome). Neither Newsreader nor Playfair
    is loaded, so name the face that actually renders. */
 .font-serif-headline { font-family: Georgia, "Times New Roman", serif; }
-.screenova-landing button, .screenova-landing nav a { min-height: 44px; min-width: 44px; }
 .screenova-landing input, .screenova-landing textarea { font-size: 16px; }
 .screenova-landing section { scroll-margin-top: 80px; }
 .screenova-landing nav a { display: inline-flex; align-items: center; }
@@ -355,6 +354,5 @@
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea {
   font-size: 16px;
 }
-button:not([data-screen-id] *):not(.rnd-rotate-handle),
-[role="combobox"] { min-height: 44px; }
-button:not([data-screen-id] *):not(.rnd-rotate-handle) { min-width: 44px; }
+/* Touch-target size comes from the pointer: coarse hit-area rule near the top
+   of this file, so compact desktop controls keep their designed size. */
