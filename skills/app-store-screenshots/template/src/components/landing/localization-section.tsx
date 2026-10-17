@@ -62,7 +62,7 @@ export const LocalizationSection: React.FC = () => {
                             : 'border-foreground/15 bg-transparent'
                         }`}
                       >
-                        {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                        {isSelected && <Check aria-hidden="true" className="h-3 w-3 stroke-[3]" />}
                       </div>
                       <div>
                         <div className="text-[12px] font-semibold text-foreground">{lang.label}</div>
@@ -81,14 +81,16 @@ export const LocalizationSection: React.FC = () => {
             </div>
 
             <div className="mt-6 flex items-center gap-2 text-[12px] text-muted-foreground">
-              <Globe2 className="h-4 w-4 text-primary" />
+              <Globe2 aria-hidden="true" className="h-4 w-4 text-primary" />
               <span>Full export bundle includes localized folders ready for App Store Connect.</span>
             </div>
           </Reveal>
 
           {/* Right */}
           <Reveal className="flex justify-center lg:col-span-6">
-            <div className="flex w-full max-w-sm justify-center">
+            {/* Illustrative mockup: its fake app headings and icons stay out of the
+                accessibility tree and the page heading outline. */}
+            <div aria-hidden="true" className="flex w-full max-w-sm justify-center">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={selectedLang}

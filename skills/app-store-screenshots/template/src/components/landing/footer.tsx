@@ -29,9 +29,9 @@ export const Footer: React.FC<FooterProps> = ({ onOpenTemplates, onOpenPricing }
 
           {/* Product */}
           <div className="space-y-3 md:col-span-3">
-            <h4 className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <h3 className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
               Product
-            </h4>
+            </h3>
             <ul className="space-y-2 text-[12px] text-muted-foreground">
               <li>
                 <a href="#product" className="transition-colors hover:text-foreground">
@@ -53,9 +53,9 @@ export const Footer: React.FC<FooterProps> = ({ onOpenTemplates, onOpenPricing }
 
           {/* Support */}
           <div className="space-y-3 md:col-span-3">
-            <h4 className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <h3 className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
               Support
-            </h4>
+            </h3>
             <ul className="space-y-2 text-[12px] text-muted-foreground">
               <li>
                 <a href={SUPPORT_MAILTO} className="transition-colors hover:text-foreground" title={`Email ${SUPPORT_EMAIL}`}>

@@ -93,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
               className="btn-press flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
             >
-              {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              {theme === 'dark' ? <Sun aria-hidden="true" className="h-3.5 w-3.5" /> : <Moon aria-hidden="true" className="h-3.5 w-3.5" />}
             </button>
           )}
 
@@ -118,7 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <span>Open Studio</span>
-            <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-0.5" />
+            <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-0.5" />
           </button>
         </div>
       </div>

@@ -86,7 +86,7 @@ export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
                   aria-controls={`faq-answer-${idx}`}
                 >
                   <span className="text-[14px] font-semibold text-foreground sm:text-[15px]">{item.q}</span>
-                  <ChevronDown
+                  <ChevronDown aria-hidden="true"
                     className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
                       isOpen ? 'rotate-180' : ''
                     }`}

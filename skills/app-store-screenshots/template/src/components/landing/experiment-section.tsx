@@ -98,6 +98,10 @@ export const ExperimentSection: React.FC = () => {
                   <img
                     key={src}
                     src={src}
+                    width={520}
+                    height={1126}
+                    loading="lazy"
+                    decoding="async"
                     alt={`${d.label} screen ${i + 1}`}
                     className={`w-1/3 rounded-t-lg object-cover object-top shadow-lg ${
                       i === 1 ? 'h-56 -translate-y-2' : 'h-48'
@@ -120,13 +124,13 @@ export const ExperimentSection: React.FC = () => {
         </RevealGroup>
 
         <Reveal className="mt-8 flex justify-center">
-          <ArrowDown className="h-4 w-4 text-muted-foreground" />
+          <ArrowDown aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
         </Reveal>
 
         <Reveal className="mt-4">
           <div className="mx-auto flex max-w-lg flex-col items-center gap-3 rounded-2xl border border-border bg-card px-6 py-5 text-center">
             <div className="flex items-center gap-2 text-[12px] font-semibold text-foreground">
-              <UploadCloud className="h-4 w-4 text-primary" />
+              <UploadCloud aria-hidden="true" className="h-4 w-4 text-primary" />
               <span>App Store Connect · Product Page Optimization</span>
               <span className="flex items-center gap-1 rounded-sm bg-success/10 px-2 py-0.5 text-[12px] font-semibold text-success">
                 <span className="h-1.5 w-1.5 rounded-sm bg-success" />
@@ -152,7 +156,7 @@ export const ExperimentSection: React.FC = () => {
           <div className="mx-auto max-w-lg rounded-2xl border border-border bg-card px-6 py-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-[12px] font-semibold text-foreground">
-                <TrendingUp className="h-4 w-4 text-primary" />
+                <TrendingUp aria-hidden="true" className="h-4 w-4 text-primary" />
                 <span>Treatment conversion vs. current page</span>
               </div>
               <span className="rounded-sm bg-muted px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -190,7 +194,7 @@ export const ExperimentSection: React.FC = () => {
             </div>
 
             <div className="mt-5 flex items-start gap-2 border-t border-border pt-4">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <Info aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-[12px] leading-relaxed text-muted-foreground">
                 Illustrative example, not a Screenova measurement — Screenova has no analytics of
                 its own. Real percentages like these come from Apple, in your App Store Connect
@@ -206,7 +210,7 @@ export const ExperimentSection: React.FC = () => {
         <Reveal className="mt-14">
           <div className="mx-auto max-w-2xl rounded-2xl border border-dashed border-foreground/15 px-6 py-6 text-center">
             <div className="mx-auto flex w-fit items-center gap-2 rounded-sm bg-primary/10 px-3 py-1 text-[12px] font-semibold uppercase tracking-wider text-primary">
-              <Repeat className="h-3 w-3" />
+              <Repeat aria-hidden="true" className="h-3 w-3" />
               <span>Coming soon</span>
             </div>
             <h3 className="mt-4 text-title3 font-semibold text-foreground">

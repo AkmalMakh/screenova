@@ -20,7 +20,7 @@ export function PricingSection({ onSelectPlan, cloud = false }: { onSelectPlan: 
         </p>
         <ul className="mx-auto mt-8 max-w-sm space-y-3 text-left text-sm">
           {["Editable templates and saved projects", "iPhone, iPad and Android PNG bundles", "Multilingual copy and connected-canvas export"].map((feature) => (
-            <li key={feature} className="flex items-center gap-3"><Check className="h-4 w-4 shrink-0" />{feature}</li>
+            <li key={feature} className="flex items-center gap-3"><Check aria-hidden="true" className="h-4 w-4 shrink-0" />{feature}</li>
           ))}
         </ul>
         <button type="button" onClick={() => onSelectPlan(PRICING_PLANS[0])} className="btn-press mt-8 rounded-sm bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Open Studio</button>

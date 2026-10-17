@@ -43,7 +43,7 @@ export const ComparisonTable: React.FC = () => {
 
                   <td className="border-x border-border bg-muted/50 px-6 py-4">
                     {typeof row.storeCanvas === 'boolean' ? (
-                      <Check className="h-4 w-4 stroke-[3] text-primary" />
+                      <><Check aria-hidden="true" className="h-4 w-4 stroke-[3] text-primary" /><span className="sr-only">Yes</span></>
                     ) : (
                       <span className="text-[12px] font-semibold text-primary">{row.storeCanvas}</span>
                     )}
@@ -51,7 +51,7 @@ export const ComparisonTable: React.FC = () => {
 
                   <td className="px-6 py-4 text-[13px] text-muted-foreground">
                     {typeof row.traditionalTools === 'boolean' ? (
-                      <X className="h-4 w-4 text-muted-foreground/50" />
+                      <><X aria-hidden="true" className="h-4 w-4 text-muted-foreground/50" /><span className="sr-only">No</span></>
                     ) : (
                       <span className="text-[12px] font-medium text-muted-foreground">{row.traditionalTools}</span>
                     )}

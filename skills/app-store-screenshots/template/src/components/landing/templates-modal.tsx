@@ -61,19 +61,19 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({ onClose, onSelec
                 <span className={`rounded-sm border px-2 py-0.5 text-caption font-semibold uppercase tracking-wider border-border bg-muted text-muted-foreground`}>
                   {tpl.tag}
                 </span>
-                <Sparkles className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
+                <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
               </div>
 
-              <h4 className="mt-3 text-subhead font-semibold text-foreground transition-colors group-hover:text-primary">
+              <h3 className="mt-3 text-subhead font-semibold text-foreground transition-colors group-hover:text-primary">
                 {tpl.title}
-              </h4>
+              </h3>
               <p className="mt-1 text-footnote text-muted-foreground">
                 {tpl.description}
               </p>
 
               <div className="mt-4 flex items-center justify-between pt-3 border-t border-border">
                 <span className="flex items-center gap-1 text-caption font-semibold text-muted-foreground transition-colors group-hover:text-primary">
-                  Use in Studio <ArrowRight className="h-3 w-3" />
+                  Use in Studio <ArrowRight aria-hidden="true" className="h-3 w-3" />
                 </span>
                 <span className="text-caption text-muted-foreground">Editable draft</span>
               </div>

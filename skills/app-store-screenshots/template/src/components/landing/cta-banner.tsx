@@ -18,8 +18,8 @@ export const CtaBanner: React.FC<CtaBannerProps> = ({ onStart }) => {
             <Kicker index="10" label="Launch ready in minutes" tone="gold" />
 
             <SectionHeading className="mt-5 md:text-[48px]">
-              Your app deserves an{' '}
-              <span className="font-sans font-semibold text-primary">editorial</span> showcase.
+              Start with the screenshots you{' '}
+              <span className="font-sans font-semibold text-primary">already have</span>.
             </SectionHeading>
             <p className="mt-5 text-subhead text-muted-foreground">
               Skip weeks of manual mockup alignment in Figma. Upload your raw screens and let
@@ -33,7 +33,7 @@ export const CtaBanner: React.FC<CtaBannerProps> = ({ onStart }) => {
                 className="btn-press group inline-flex cursor-pointer items-center gap-2 rounded-sm bg-primary px-7 py-3.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90 "
               >
                 <span>Open Studio</span>
-                <ArrowRight className="h-4 w-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-1" />
+                <ArrowRight aria-hidden="true" className="h-4 w-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-1" />
               </button>
             </div>
           </div>
