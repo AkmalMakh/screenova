@@ -148,7 +148,7 @@ export function DesignComposer({
   }
 
   return (
-    <div className="rounded-xl border border-border/80 bg-card p-2 shadow-pop transition-[border-color] focus-within:border-primary/40">
+    <div className="rounded-lg border border-border/80 bg-card p-2 shadow-pop transition-[border-color] focus-within:border-primary/40">
       {references.length > 0 && (
         <div className="mb-1 flex gap-1.5 overflow-x-auto px-1 pt-1">
           {references.map((reference) => (

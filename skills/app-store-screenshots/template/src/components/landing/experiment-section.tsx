@@ -82,7 +82,7 @@ export const ExperimentSection: React.FC = () => {
               key={d.id}
               variants={fadeUp}
               whileHover={{ y: -4 }}
-              className="overflow-hidden rounded-[20px] border border-border bg-card"
+              className="overflow-hidden rounded-2xl border border-border bg-card"
             >
               <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div>

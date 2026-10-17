@@ -54,14 +54,14 @@ export const BeforeAfterSection: React.FC<BeforeAfterSectionProps> = ({ onTryItN
             <motion.div
               key={pair.label}
               variants={fadeUp}
-              className="flex flex-col items-center overflow-hidden rounded-[24px] border border-border bg-card px-5 pb-6 pt-5"
+              className="flex flex-col items-center overflow-hidden rounded-2xl border border-border bg-card px-5 pb-6 pt-5"
             >
               <span className="mb-4 text-[12px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 {pair.label}
               </span>
 
               <div className="flex items-center gap-2.5">
-                <div className="overflow-hidden rounded-xl border border-border opacity-70 grayscale-[15%]">
+                <div className="overflow-hidden rounded-lg border border-border opacity-70 grayscale-[15%]">
                   <img
                     src={pair.before}
                     alt={`Raw ${pair.label} screenshot before Screenova`}
@@ -82,7 +82,7 @@ export const BeforeAfterSection: React.FC<BeforeAfterSectionProps> = ({ onTryItN
           ))}
         </RevealGroup>
 
-        <Reveal className="mt-10 flex flex-col items-center justify-between gap-4 rounded-[24px] border border-border bg-card px-6 py-6 sm:flex-row sm:px-8">
+        <Reveal className="mt-10 flex flex-col items-center justify-between gap-4 rounded-2xl border border-border bg-card px-6 py-6 sm:flex-row sm:px-8">
           <div className="text-[12px] text-muted-foreground">
             <strong className="font-semibold text-foreground">Ready to elevate your App Store presence?</strong>{' '}
             Takes under two minutes.

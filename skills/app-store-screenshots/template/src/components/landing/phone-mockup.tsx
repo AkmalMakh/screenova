@@ -173,7 +173,7 @@ const HeroOnboardingContent: React.FC = () => (
       <div className="mt-2.5 space-y-2">
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-neutral-500 font-mono">09:00</span>
-          <div className="flex flex-1 items-center justify-between rounded-xl bg-blue-600/25 border border-blue-500/40 px-2.5 py-1.5 text-blue-200">
+          <div className="flex flex-1 items-center justify-between rounded-[14px] bg-blue-600/25 border border-blue-500/40 px-2.5 py-1.5 text-blue-200">
             <div>
               <div className="text-[10px] font-bold text-white">Team Sync</div>
               <div className="text-[8px] text-blue-300">Video Call</div>
@@ -184,7 +184,7 @@ const HeroOnboardingContent: React.FC = () => (
 
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-neutral-500 font-mono">11:30</span>
-          <div className="flex flex-1 items-center justify-between rounded-xl bg-neutral-800/90 border border-neutral-700/50 px-2.5 py-1.5 text-neutral-300">
+          <div className="flex flex-1 items-center justify-between rounded-[14px] bg-neutral-800/90 border border-neutral-700/50 px-2.5 py-1.5 text-neutral-300">
             <span className="text-[10px] font-bold text-white">Go to Gym</span>
             <Dumbbell className="h-3.5 w-3.5 text-neutral-400" />
           </div>
@@ -208,15 +208,15 @@ const HeroOnboardingContent: React.FC = () => (
 
     {/* Auth Buttons */}
     <div className="w-full space-y-1.5 px-2">
-      <button className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-white py-2 text-[11px] font-bold text-black shadow-sm">
+      <button className="flex w-full items-center justify-center gap-1.5 rounded-[14px] bg-white py-2 text-[11px] font-bold text-black shadow-sm">
         <Apple className="h-3.5 w-3.5 fill-current" />
         <span>Continue with Apple</span>
       </button>
-      <button className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#222] border border-neutral-700 py-1.5 text-[10px] font-semibold text-white">
+      <button className="flex w-full items-center justify-center gap-1.5 rounded-[14px] bg-[#222] border border-neutral-700 py-1.5 text-[10px] font-semibold text-white">
         <span className="font-bold text-[#4285F4]">G</span>
         <span>Continue with Google</span>
       </button>
-      <button className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-neutral-800 bg-[#141416] py-1.5 text-[10px] font-semibold text-neutral-300">
+      <button className="flex w-full items-center justify-center gap-1.5 rounded-[14px] border border-neutral-800 bg-[#141416] py-1.5 text-[10px] font-semibold text-neutral-300">
         <span>✉ Continue with Email</span>
       </button>
       <p className="text-[7.5px] text-neutral-500 pt-0.5">
@@ -241,7 +241,7 @@ const WorkoutsStatsContent: React.FC = () => (
       </div>
 
       {/* Tabs */}
-      <div className="mt-2 flex rounded-xl bg-[#1C1C1E] p-0.5 text-[9px] font-semibold">
+      <div className="mt-2 flex rounded-[14px] bg-[#1C1C1E] p-0.5 text-[9px] font-semibold">
         <button className="flex-1 rounded-lg bg-[#2C2C2E] py-1 text-center text-white">
           Progress
         </button>
@@ -307,7 +307,7 @@ const WorkoutsStatsContent: React.FC = () => (
 
       <div className="mt-2.5">
         <h5 className="text-[10px] font-bold text-neutral-300">Personal Records</h5>
-        <div className="mt-1 h-6 rounded-xl bg-neutral-900 border border-neutral-800" />
+        <div className="mt-1 h-6 rounded-[14px] bg-neutral-900 border border-neutral-800" />
       </div>
     </div>
 
@@ -351,7 +351,7 @@ const VoiceCalendarContent: React.FC = () => (
       </div>
 
       {/* Mini Calendar Grid */}
-      <div className="mt-2 rounded-xl bg-black border border-neutral-900 p-1.5 text-[8px]">
+      <div className="mt-2 rounded-[14px] bg-black border border-neutral-900 p-1.5 text-[8px]">
         <div className="grid grid-cols-7 text-center text-[7px] text-neutral-500 font-bold mb-1">
           <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span className="text-blue-400">Sat</span><span className="text-red-400">Sun</span>
         </div>
@@ -428,7 +428,7 @@ const BudgetDashboardContent: React.FC = () => (
       <div className="mt-2 rounded-2xl bg-[#141416] border border-neutral-800 p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <div className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-500/20 text-emerald-400">
+            <div className="flex h-5 w-5 items-center justify-center rounded-[10px] bg-emerald-500/20 text-emerald-400">
               <TrendingUp className="h-3 w-3" />
             </div>
             <div>
@@ -594,14 +594,14 @@ const DailyPlanGridContent: React.FC = () => (
           <span>August 2026</span>
           <ChevronRight className="h-3 w-3 rotate-90" />
         </div>
-        <div className="flex rounded-xl bg-neutral-800 p-0.5 text-[8px] font-bold">
+        <div className="flex rounded-[14px] bg-neutral-800 p-0.5 text-[8px] font-bold">
           <span className="rounded-lg bg-blue-600 px-2.5 py-0.5 text-white">Personal</span>
           <span className="px-2.5 py-0.5 text-neutral-400">Work</span>
         </div>
       </div>
 
       {/* Colorful Event Schedule Grid */}
-      <div className="mt-2 rounded-xl bg-black border border-neutral-800 p-1.5 text-[7px]">
+      <div className="mt-2 rounded-[14px] bg-black border border-neutral-800 p-1.5 text-[7px]">
         <div className="grid grid-cols-7 text-center text-neutral-400 font-bold border-b border-neutral-800 pb-1 mb-1">
           <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span className="text-blue-400">Sat</span><span className="text-red-400">Sun</span>
         </div>
@@ -695,7 +695,7 @@ const ShiftSelectorModalContent: React.FC = () => (
         </div>
       </div>
 
-      <button className="mt-4 flex w-full items-center justify-center rounded-xl bg-blue-600 py-2 text-[10px] font-bold text-white shadow-md shadow-blue-600/30">
+      <button className="mt-4 flex w-full items-center justify-center rounded-[14px] bg-blue-600 py-2 text-[10px] font-bold text-white shadow-md shadow-blue-600/30">
         Done
       </button>
     </div>
@@ -729,7 +729,7 @@ const CycleTrackerContent: React.FC = () => (
         </div>
       </div>
 
-      <div className="mt-2 rounded-xl bg-black border border-neutral-800 p-2 text-[7px]">
+      <div className="mt-2 rounded-[14px] bg-black border border-neutral-800 p-2 text-[7px]">
         <div className="grid grid-cols-7 text-center text-neutral-500 font-bold mb-1">
           <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span className="text-blue-400">Sat</span><span className="text-red-400">Sun</span>
         </div>
@@ -772,14 +772,14 @@ const MultilingualMonthContent: React.FC = () => (
           <span>June 2026</span>
           <ChevronRight className="h-3 w-3 rotate-90" />
         </div>
-        <div className="flex rounded-xl bg-neutral-800 p-0.5 text-[8px] font-bold">
+        <div className="flex rounded-[14px] bg-neutral-800 p-0.5 text-[8px] font-bold">
           <span className="px-2 py-0.5 text-neutral-400">Personal</span>
           <span className="px-2 py-0.5 text-neutral-400">Work</span>
           <span className="rounded-lg bg-blue-600 px-2 py-0.5 text-white">Both</span>
         </div>
       </div>
 
-      <div className="mt-2 rounded-xl bg-black border border-neutral-800 p-1.5 text-[7px]">
+      <div className="mt-2 rounded-[14px] bg-black border border-neutral-800 p-1.5 text-[7px]">
         <div className="grid grid-cols-7 text-center text-neutral-500 font-bold border-b border-neutral-800 pb-1 mb-1">
           <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span className="text-blue-400">Sat</span><span className="text-red-400">Sun</span>
         </div>
@@ -929,7 +929,7 @@ const DiaryNotesContent: React.FC = () => (
         <Settings className="h-3.5 w-3.5 text-neutral-400" />
       </div>
 
-      <div className="mt-2 flex rounded-xl bg-neutral-900 border border-neutral-800 p-0.5 text-[8.5px] font-bold">
+      <div className="mt-2 flex rounded-[14px] bg-neutral-900 border border-neutral-800 p-0.5 text-[8.5px] font-bold">
         <span className="flex-1 rounded-lg bg-blue-600 py-1 text-center text-white flex items-center justify-center gap-1">
           <BookOpen className="h-3 w-3" />
           <span>Diary</span>
@@ -940,7 +940,7 @@ const DiaryNotesContent: React.FC = () => (
       </div>
 
       {/* Diary Calendar Grid */}
-      <div className="mt-2 rounded-xl bg-black border border-neutral-800 p-1.5 text-[7.5px]">
+      <div className="mt-2 rounded-[14px] bg-black border border-neutral-800 p-1.5 text-[7.5px]">
         <div className="grid grid-cols-7 text-center text-neutral-500 font-bold border-b border-neutral-800 pb-1 mb-1">
           <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span className="text-blue-400">Sat</span><span className="text-red-400">Sun</span>
         </div>

@@ -187,7 +187,7 @@ export function NewProjectDialog({ open, onOpenChange, importing, onSubmit }: Pr
           {files.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
               {files.map((file, index) => (
-                <div key={`${file.name}-${index}`} className="group relative overflow-hidden rounded-md border">
+                <div key={`${file.name}-${index}`} className="group relative overflow-hidden rounded-sm border">
                   <img
                     src={urls[index]}
                     alt={file.name}

@@ -1266,7 +1266,7 @@ function Editor() {
         {chatOpen ? (
           <section
             aria-label={t("designSidebar.title")}
-            className="absolute inset-x-3 top-3 z-30 flex max-h-[45vh] flex-col overflow-hidden rounded-xl border border-border/80 bg-card/95 shadow-pop backdrop-blur-md sm:inset-x-auto sm:left-4 sm:top-4 sm:w-80 sm:max-h-[min(64vh,560px)]"
+            className="absolute inset-x-3 top-3 z-30 flex max-h-[45vh] flex-col overflow-hidden rounded-lg border border-border/80 bg-card/95 shadow-pop backdrop-blur-md sm:inset-x-auto sm:left-4 sm:top-4 sm:w-80 sm:max-h-[min(64vh,560px)]"
           >
             <div className="flex shrink-0 items-center gap-2 border-b border-border/70 px-3 py-2.5">
               <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary text-primary-foreground">
@@ -1309,7 +1309,7 @@ function Editor() {
         )}
 
         {/* Tool rail — right edge, vertically centered (Stitch's toolbar). */}
-        <div className="absolute right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-border/80 bg-card/95 p-1 shadow-pop backdrop-blur-md">
+        <div className="absolute right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-1 rounded-lg border border-border/80 bg-card/95 p-1 shadow-pop backdrop-blur-md">
           <Button
             type="button"
             variant={canvasTool === "select" ? "secondary" : "ghost"}
@@ -1475,7 +1475,7 @@ function Editor() {
 
         {/* AI proposal review — floats top-center, above everything. */}
         {pendingDesign && (
-          <div className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-border/80 bg-background/95 p-1.5 shadow-pop backdrop-blur">
+          <div className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-border/80 bg-background/95 p-1.5 shadow-pop backdrop-blur">
             <div className="mr-1 hidden items-center gap-1.5 px-2 text-caption font-medium sm:flex">
               <Eye className="h-3.5 w-3.5" /> {t("design.aiPreview")}
             </div>

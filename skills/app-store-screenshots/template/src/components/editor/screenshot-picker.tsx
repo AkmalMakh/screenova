@@ -98,7 +98,7 @@ export function ScreenshotPicker({ label, value, locale, locales = [], localized
   return (
     <div className="space-y-1">
       <div
-        className={`flex flex-wrap items-center gap-3 rounded-md border p-2 transition-colors ${
+        className={`flex flex-wrap items-center gap-3 rounded-sm border p-2 transition-colors ${
           dragging ? "border-primary bg-accent ring-2 ring-primary/30" : "border-input"
         }`}
         onDragOver={(e) => {
@@ -115,7 +115,7 @@ export function ScreenshotPicker({ label, value, locale, locales = [], localized
           if (file) await handleFile(file);
         }}
       >
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-sm border bg-muted">
           {previewSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img

@@ -239,7 +239,7 @@ export function Inspector({
         </div>
 
         {slide.visualAsset && (
-          <div className="space-y-2 rounded-md border bg-muted/25 p-2.5">
+          <div className="space-y-2 rounded-sm border bg-muted/25 p-2.5">
             <div className="flex items-center justify-between gap-2">
               <Label className="flex items-center gap-1.5 text-xs">
                 <ImageIcon className="h-3.5 w-3.5" /> {t("inspector.gptImage")}
@@ -303,7 +303,7 @@ export function Inspector({
           />
 
         {isFeatureGraphic && (
-          <p className="rounded-md border bg-muted/40 p-3 text-caption leading-relaxed text-muted-foreground">
+          <p className="rounded-sm border bg-muted/40 p-3 text-caption leading-relaxed text-muted-foreground">
             {t("inspector.appIconNote")}
           </p>
         )}
@@ -544,7 +544,7 @@ function ElementTransformControls({
   }
 
   return (
-    <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+    <div className="space-y-3 rounded-sm border bg-muted/30 p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <Label className="text-xs font-semibold">{t("inspector.elements")}</Label>

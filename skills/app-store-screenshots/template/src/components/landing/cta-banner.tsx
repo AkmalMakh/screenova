@@ -12,7 +12,7 @@ export const CtaBanner: React.FC<CtaBannerProps> = ({ onStart }) => {
   return (
     <section className="border-t border-border bg-background py-24 text-foreground">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
-        <Reveal className="relative overflow-hidden rounded-[28px] border border-border bg-card px-6 py-16 text-center sm:px-12 sm:py-20">
+        <Reveal className="relative overflow-hidden rounded-2xl border border-border bg-card px-6 py-16 text-center sm:px-12 sm:py-20">
           <div className="relative z-10 mx-auto max-w-xl">
             <Kicker index="10" label="Launch ready in minutes" tone="gold" />
 

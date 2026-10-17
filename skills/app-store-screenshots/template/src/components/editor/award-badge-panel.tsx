@@ -14,7 +14,7 @@ export function AwardBadgePresets({ locale, onSelect }: { locale: string; onSele
       className="flex min-h-20 w-full flex-col items-stretch gap-1 overflow-hidden rounded-lg border border-border bg-background p-2 text-center text-[13px] font-medium hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={`${t("badge.name")} — ${preset.name[lang]}`}
       onClick={() => onSelect(preset)}>
-      <span className="block w-full rounded-md px-1 py-2" style={{ background: preset.background }}>
+      <span className="block w-full rounded-sm px-1 py-2" style={{ background: preset.background }}>
         <BadgePreview badge={presetBadge(preset, locale)} color={preset.color} locale={locale} />
       </span>
       <span>{preset.name[lang]}</span>
@@ -31,7 +31,7 @@ export function AwardBadgePanel({ element, locale, onPatch, onDuplicate }: {
   const badge = cleanAwardBadge(element.badge);
   const patch = (value: Partial<AwardBadge>) => onPatch({ badge: { ...badge, ...value } });
   return <div className="space-y-3">
-    <div className="rounded-md p-2" style={{ background: parseInt(badge.textColor.slice(1, 3), 16) > 150 ? "#29232F" : "#FCE3A6" }}>
+    <div className="rounded-sm p-2" style={{ background: parseInt(badge.textColor.slice(1, 3), 16) > 150 ? "#29232F" : "#FCE3A6" }}>
       <BadgePreview badge={badge} color={element.fill.colors[0]} locale={locale} />
     </div>
     <p className="text-xs leading-relaxed text-muted-foreground">{t("badge.hint")}</p>

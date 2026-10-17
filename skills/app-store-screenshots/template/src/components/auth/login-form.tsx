@@ -35,7 +35,7 @@ export function LoginForm({ providers }: { providers: SignInOptions }) {
     }
   }
   return <main className="flex min-h-dvh items-center justify-center bg-background p-6">
-    <section className="w-full max-w-md space-y-6 rounded-xl border border-border bg-card p-8 shadow-card">
+    <section className="w-full max-w-md space-y-6 rounded-lg border border-border bg-card p-8 shadow-card">
       <Link href="/" className="text-sm font-semibold text-primary">Screenova</Link>
       <div className="space-y-2"><h1 className="text-[28px] font-semibold tracking-tight">Your private workspace</h1><p className="text-[15px] text-muted-foreground">Sign in or create an account to save your designs. Your projects and screenshots stay private to you.</p></div>
       {providers.google && <div className="space-y-3">

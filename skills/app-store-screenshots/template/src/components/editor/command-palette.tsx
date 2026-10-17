@@ -117,7 +117,7 @@ export function CommandPalette({ open, onOpenChange, groups }: Props) {
             aria-label={t("palette.placeholder")}
             className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
-          <kbd className="flex h-6 shrink-0 items-center gap-1 rounded-md border bg-muted/60 px-1.5 text-[10px] font-medium text-muted-foreground">
+          <kbd className="flex h-6 shrink-0 items-center gap-1 rounded-sm border bg-muted/60 px-1.5 text-[10px] font-medium text-muted-foreground">
             <Command className="h-3 w-3" />
             K
           </kbd>

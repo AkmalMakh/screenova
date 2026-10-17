@@ -46,7 +46,7 @@ export const LocalizationSection: React.FC = () => {
                   <button
                     key={lang.code}
                     onClick={() => setSelectedLang(lang.code)}
-                    className={`btn-press flex cursor-pointer items-center justify-between rounded-xl border p-3.5 text-left transition-colors duration-200 ${
+                    className={`btn-press flex cursor-pointer items-center justify-between rounded-lg border p-3.5 text-left transition-colors duration-200 ${
                       isSelected
                         ? 'border-foreground/25 bg-muted'
                         : 'border-border bg-transparent hover:border-foreground/20'
@@ -69,7 +69,7 @@ export const LocalizationSection: React.FC = () => {
                     </div>
 
                     {lang.isBase && (
-                      <span className="rounded-md bg-muted px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                      <span className="rounded-xs bg-muted px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
                         Base
                       </span>
                     )}

@@ -62,12 +62,13 @@ const config: Config = {
       // Explicit radius hierarchy. The old scale derived md/sm from --radius,
       // which made `rounded-lg` and Tailwind's stock `rounded-xl` both resolve
       // to 12px — two names, one size, and no way to read intent from the code.
+      // DESIGN.md scale only: chips 6, inputs/buttons 8, panels/cards 12,
+      // large surfaces/sheets 18. `md` and `xl` are deliberately not defined
+      // here; device-frame artwork uses explicit pixel radii instead.
       borderRadius: {
         xs: "6px",
         sm: "8px",
-        md: "10px",
         lg: "12px",
-        xl: "14px",
         "2xl": "18px",
       },
       boxShadow: {

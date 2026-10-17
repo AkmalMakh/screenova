@@ -536,7 +536,7 @@ function LocaleMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" collisionPadding={12}
         aria-label={t("home.languages")}
-        className="max-h-[min(24rem,var(--radix-dropdown-menu-content-available-height))] w-52 overflow-y-auto rounded-md"
+        className="max-h-[min(24rem,var(--radix-dropdown-menu-content-available-height))] w-52 overflow-y-auto rounded-sm"
       >
         {CONTENT_LANGUAGES.map((language) => (
           <DropdownMenuCheckboxItem

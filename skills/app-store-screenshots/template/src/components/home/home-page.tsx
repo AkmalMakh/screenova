@@ -696,7 +696,7 @@ function Home() {
                   >
                     <div
                       className={cn(
-                        "max-w-[85%] whitespace-pre-line rounded-xl px-3.5 py-2 text-subhead leading-relaxed",
+                        "max-w-[85%] whitespace-pre-line rounded-lg px-3.5 py-2 text-subhead leading-relaxed",
                         message.role === "user"
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted text-foreground",
@@ -732,7 +732,7 @@ function Home() {
                 <h2 className="mb-3 text-title3 font-semibold tracking-tight">
                   {t("home.linkSectionTitle")}
                 </h2>
-                <div className="rounded-xl border border-border/80 bg-card p-4 shadow-card">
+                <div className="rounded-lg border border-border/80 bg-card p-4 shadow-card">
                   {!lookupApp ? (
                     <form onSubmit={submitLookup} className="space-y-3">
                       <div className="flex flex-wrap gap-2">
@@ -823,7 +823,7 @@ function Home() {
                     key={tpl.id}
                     type="button"
                     onClick={() => startTemplate(tpl)}
-                    className="lift-hover group w-[168px] shrink-0 snap-start overflow-hidden rounded-xl border border-border/80 bg-card text-left shadow-card"
+                    className="lift-hover group w-[168px] shrink-0 snap-start overflow-hidden rounded-lg border border-border/80 bg-card text-left shadow-card"
                   >
                     <img
                       src={tpl.thumb}
@@ -993,7 +993,7 @@ function LookupResult({
           <img
             src={app.artworkUrl100}
             alt=""
-            className="h-14 w-14 shrink-0 rounded-xl border bg-muted object-cover"
+            className="h-14 w-14 shrink-0 rounded-lg border bg-muted object-cover"
           />
         )}
         <div className="min-w-0 flex-1">
@@ -1045,7 +1045,7 @@ function LookupResult({
                 src={url}
                 alt=""
                 loading="lazy"
-                className="aspect-[9/19] w-full rounded-md border bg-muted object-cover"
+                className="aspect-[9/19] w-full rounded-sm border bg-muted object-cover"
               />
             ))}
           </div>
@@ -1114,7 +1114,7 @@ function DeckSlideCard({ slide, locale, theme, appName, device }: {
   }, []);
   return (
     <div ref={ref} data-suggestion-slide={slide.id}
-      className="relative overflow-hidden rounded-xl ring-1 ring-border/70"
+      className="relative overflow-hidden rounded-lg ring-1 ring-border/70"
       style={{ aspectRatio: `${cW} / ${cH}` }}>
       <div style={{ width: cW, height: cH, transform: `scale(${width / cW})`, transformOrigin: "top left" }}>
         <SlideCanvas slide={slide} device={device} orientation="portrait" theme={theme}
@@ -1144,7 +1144,7 @@ function DevicePicker({
           type="button"
           size="sm"
           variant={value === device ? "default" : "outline"}
-          className="h-8 rounded-md px-3 text-footnote"
+          className="h-8 rounded-sm px-3 text-footnote"
           aria-pressed={value === device}
           disabled={disabled}
           onClick={() => onChange(device)}
@@ -1175,7 +1175,7 @@ function LocalePicker({
             type="button"
             size="sm"
             variant={on ? "default" : "outline"}
-            className="h-8 rounded-md px-3 text-footnote"
+            className="h-8 rounded-sm px-3 text-footnote"
             aria-pressed={on}
             disabled={disabled}
             onClick={() => onToggle(language.code)}
