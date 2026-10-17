@@ -5,14 +5,15 @@ import { PRICING_PLANS } from "./mock-data";
 import type { PricingPlan } from "./types";
 import { Reveal } from "./reveal";
 import { Kicker } from "./kicker";
+import { SectionHeading } from "./section-heading";
 
 export function PricingSection({ onSelectPlan, cloud = false }: { onSelectPlan: (plan: PricingPlan) => void; cloud?: boolean }) {
   return (
     <section id="pricing" className="border-t border-border bg-background py-24 text-foreground">
       <Reveal className="mx-auto max-w-xl px-6 text-center">
         <Kicker index="09" label="Your workspace" tone="violet" />
-        <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{cloud ? "Your private design workspace" : "Design and export without a subscription"}</h2>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+        <SectionHeading className="mt-4">{cloud ? "Your private design workspace" : "Design and export without a subscription"}</SectionHeading>
+        <p className="mt-4 text-subhead text-muted-foreground">
           {cloud
             ? "Sign in to save designs and images privately under your account. AI generation has daily usage limits; manual editing and exports do not require AI."
             : "Use local Studio without an account. Projects and images stay on your computer. AI features use a server-side OpenAI key; manual editing and exports do not require AI."}

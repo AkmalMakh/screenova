@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Reveal, RevealGroup, fadeUp } from './reveal';
 import { Kicker } from './kicker';
+import { SectionHeading } from './section-heading';
 import { motion } from 'motion/react';
 import { ease } from './theme';
 
@@ -67,9 +68,9 @@ export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <Reveal className="text-center">
           <Kicker index="08" label="Frequently asked" tone="violet" />
-          <h2 className="mx-auto mt-4 max-w-md text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <SectionHeading className="mx-auto mt-4 max-w-md">
             Questions people actually ask
-          </h2>
+          </SectionHeading>
         </Reveal>
 
         <RevealGroup className="mt-12 divide-y divide-border border-y border-border">
@@ -96,7 +97,7 @@ export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
                   transition={{ duration: 0.25, ease: ease.out }}
                   className="overflow-hidden"
                 >
-                  <p className="pb-5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
+                  <p className="pb-5 max-w-2xl text-footnote text-muted-foreground">
                     {item.a}
                   </p>
                 </motion.div>

@@ -3,6 +3,7 @@ import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Reveal, RevealGroup, fadeUp } from './reveal';
 import { Kicker } from './kicker';
+import { SectionHeading } from './section-heading';
 import { motion } from 'motion/react';
 
 interface BeforeAfterSectionProps {
@@ -38,12 +39,12 @@ export const BeforeAfterSection: React.FC<BeforeAfterSectionProps> = ({ onTryItN
       <div className="mx-auto max-w-6xl px-4 sm:px-6 text-center">
         <Reveal>
           <Kicker index="03" label="Before & after" tone="gold" />
-          <h2 className="mx-auto mt-4 max-w-xl text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <SectionHeading className="mx-auto mt-4 max-w-xl">
             From flat screenshots to an{' '}
             <span className="font-sans font-semibold text-primary">editorial</span>{' '}
             App Store story
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
+          </SectionHeading>
+          <p className="mx-auto mt-4 max-w-xl text-subhead text-muted-foreground">
             These are real screens from the MoteCalendar app, run through Screenova — no staged
             examples. Raw captures on the left, generated App Store slides on the right.
           </p>

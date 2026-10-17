@@ -58,7 +58,7 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({ onClose, onSelec
               className="group cursor-pointer rounded-lg border border-border bg-background p-4 text-left transition-colors hover:border-primary"
             >
               <div className="flex items-center justify-between">
-                <span className={`rounded-sm border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border-border bg-muted text-muted-foreground`}>
+                <span className={`rounded-sm border px-2 py-0.5 text-caption font-semibold uppercase tracking-wider border-border bg-muted text-muted-foreground`}>
                   {tpl.tag}
                 </span>
                 <Sparkles className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />

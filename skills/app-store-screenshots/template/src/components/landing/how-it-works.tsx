@@ -2,6 +2,7 @@
 import React from 'react';
 import { Reveal, RevealGroup, fadeUp } from './reveal';
 import { Kicker } from './kicker';
+import { SectionHeading } from './section-heading';
 import { motion } from 'motion/react';
 
 interface Step {
@@ -49,10 +50,10 @@ export const HowItWorks: React.FC = () => {
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <Reveal className="text-center">
           <Kicker index="02" label="From screenshots to store page" tone="violet" />
-          <h2 className="mx-auto mt-4 max-w-lg text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <SectionHeading className="mx-auto mt-4 max-w-lg">
             How Screenova works
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
+          </SectionHeading>
+          <p className="mx-auto mt-4 max-w-xl text-subhead text-muted-foreground">
             Five steps, start to export. Start with your real app captures,
             refine the design, and download assets for your store listing.
           </p>
@@ -69,8 +70,8 @@ export const HowItWorks: React.FC = () => {
                 {step.n}
               </span>
               <div>
-                <h3 className="text-[15px] font-semibold text-foreground sm:text-base">{step.title}</h3>
-                <p className="mt-1.5 max-w-xl text-[13px] leading-relaxed text-muted-foreground">
+                <h3 className="text-title3 font-semibold text-foreground">{step.title}</h3>
+                <p className="mt-1.5 max-w-xl text-footnote text-muted-foreground">
                   {step.description}
                 </p>
               </div>

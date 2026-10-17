@@ -3,6 +3,7 @@ import React from 'react';
 import { UploadCloud, ArrowDown, Repeat, TrendingUp, Info } from 'lucide-react';
 import { Reveal, RevealGroup, fadeUp } from './reveal';
 import { Kicker } from './kicker';
+import { SectionHeading } from './section-heading';
 import { motion } from 'motion/react';
 
 interface Direction {
@@ -65,10 +66,10 @@ export const ExperimentSection: React.FC = () => {
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <Reveal className="text-center">
           <Kicker index="06" label="Generate, export, test" tone="violet" />
-          <h2 className="mx-auto mt-4 max-w-xl text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <SectionHeading className="mx-auto mt-4 max-w-xl">
             Draft a few directions. Let App Store Connect find the winner.
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
+          </SectionHeading>
+          <p className="mx-auto mt-4 max-w-xl text-subhead text-muted-foreground">
             Same raw screenshots, three different design directions — each a full deck
             reflowed across every locale you pick. Export them as Product Page Optimization
             treatments, upload to App Store Connect, and let Apple&apos;s own experiment
@@ -109,7 +110,7 @@ export const ExperimentSection: React.FC = () => {
                 {LOCALES.map((loc) => (
                   <span
                     key={loc}
-                    className="rounded-sm bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground"
+                    className="rounded-sm bg-muted px-2 py-0.5 text-caption font-medium text-muted-foreground"
                   >
                     {loc}
                   </span>
@@ -209,10 +210,10 @@ export const ExperimentSection: React.FC = () => {
               <Repeat className="h-3 w-3" />
               <span>Coming soon</span>
             </div>
-            <h3 className="mt-4 text-[15px] font-semibold text-foreground">
+            <h3 className="mt-4 text-title3 font-semibold text-foreground">
               A continuous optimization loop, not a one-time export
             </h3>
-            <p className="mx-auto mt-2 max-w-lg text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mx-auto mt-2 max-w-lg text-footnote text-muted-foreground">
               Today, you run each experiment through App Store Connect yourself. Next: Screenova
               reads back which treatments Apple reports as winners, learns what&apos;s actually
               converting for your app, and keeps drafting fresh directions to test — so the page

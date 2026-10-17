@@ -295,7 +295,6 @@
 
 .screenova-landing {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-serif: var(--font-sans);
   --bg: #f5f5f7;
   --bg-raised: #fff;
   --bg-inset: #eaeaec;
@@ -326,7 +325,9 @@
   --violet-soft: #152c45;
 }
 .screenova-landing ::selection { background: #006fe633; }
-.font-serif-headline { font-family: "Newsreader", "Playfair Display", Georgia, serif; }
+/* Example-deck artwork only (never app chrome). Neither Newsreader nor Playfair
+   is loaded, so name the face that actually renders. */
+.font-serif-headline { font-family: Georgia, "Times New Roman", serif; }
 .screenova-landing button, .screenova-landing nav a { min-height: 44px; min-width: 44px; }
 .screenova-landing input, .screenova-landing textarea { font-size: 16px; }
 .screenova-landing section { scroll-margin-top: 80px; }

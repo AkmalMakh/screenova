@@ -7,6 +7,7 @@ import { SAMPLE_CAMPAIGNS } from './mock-data';
 import { AppStoreSlideCard } from './app-store-slide-card';
 import { Reveal } from './reveal';
 import { Kicker } from './kicker';
+import { SectionHeading } from './section-heading';
 
 export const LocalizationSection: React.FC = () => {
   const [selectedLang, setSelectedLang] = useState<LanguageCode>('en');
@@ -30,10 +31,10 @@ export const LocalizationSection: React.FC = () => {
           <Reveal className="lg:col-span-6">
             <Kicker index="04" label="Worldwide readiness" tone="violet" align="left" />
 
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            <SectionHeading className="mt-4">
               Adaptive multi-locale reflow
-            </h2>
-            <p className="mt-4 text-[14px] leading-relaxed text-muted-foreground">
+            </SectionHeading>
+            <p className="mt-4 text-subhead text-muted-foreground">
               German copy expands by 30%. Japanese and Korean need their own line-break rules.
               Screenova reflows hierarchy and phrasing automatically, so every locale looks
               hand-crafted, not translated.
@@ -69,7 +70,7 @@ export const LocalizationSection: React.FC = () => {
                     </div>
 
                     {lang.isBase && (
-                      <span className="rounded-xs bg-muted px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                      <span className="rounded-xs bg-muted px-2 py-0.5 text-caption font-semibold text-muted-foreground">
                         Base
                       </span>
                     )}

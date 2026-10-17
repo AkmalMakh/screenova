@@ -3,6 +3,7 @@ import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Reveal } from './reveal';
 import { Kicker } from './kicker';
+import { SectionHeading } from './section-heading';
 
 interface CtaBannerProps {
   onStart: () => void;
@@ -16,11 +17,11 @@ export const CtaBanner: React.FC<CtaBannerProps> = ({ onStart }) => {
           <div className="relative z-10 mx-auto max-w-xl">
             <Kicker index="10" label="Launch ready in minutes" tone="gold" />
 
-            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl">
+            <SectionHeading className="mt-5 md:text-[48px]">
               Your app deserves an{' '}
               <span className="font-sans font-semibold text-primary">editorial</span> showcase.
-            </h2>
-            <p className="mt-5 text-[14px] leading-relaxed text-muted-foreground">
+            </SectionHeading>
+            <p className="mt-5 text-subhead text-muted-foreground">
               Skip weeks of manual mockup alignment in Figma. Upload your raw screens and let
               Screenova build your complete campaign.
             </p>

@@ -4,6 +4,7 @@ import { Check, X } from 'lucide-react';
 import { COMPARISON_ROWS } from './mock-data';
 import { Reveal } from './reveal';
 import { Kicker } from './kicker';
+import { SectionHeading } from './section-heading';
 
 export const ComparisonTable: React.FC = () => {
   return (
@@ -11,10 +12,10 @@ export const ComparisonTable: React.FC = () => {
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <Reveal className="text-center">
           <Kicker index="05" label="Screenova vs. AppScreens" tone="violet" />
-          <h2 className="mx-auto mt-4 max-w-md text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <SectionHeading className="mx-auto mt-4 max-w-md">
             A template picker vs. an AI that starts from your app
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
+          </SectionHeading>
+          <p className="mx-auto mt-4 max-w-xl text-subhead text-muted-foreground">
             Most generators hand you a fixed template library. Screenova hands you an editable,
             git-owned deck drafted from your actual screenshots.
           </p>
