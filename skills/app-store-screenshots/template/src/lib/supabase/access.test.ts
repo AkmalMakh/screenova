@@ -65,8 +65,9 @@ describe("cloud request authorization", () => {
   it("requires a revision and reports stale cloud writes without retrying over newer data", async () => {
     expect((await POST(request())).status).toBe(428);
     expect(mocks.rpc).not.toHaveBeenCalled();
-    mocks.rpc.mockResolvedValue({ data: null, error: { code: "40001" } });
+    mocks.rpc.mockResolvedValue({ data: null, error: { code: "PT409" } });
     expect((await POST(request("POST", { "if-match": "1" }))).status).toBe(409);
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
     mocks.rpc.mockResolvedValue({ data: "2", error: null });
     const response = await POST(request("POST", { "if-match": "1" }));
     expect(await response.json()).toEqual({ ok: true, revision: "2" });

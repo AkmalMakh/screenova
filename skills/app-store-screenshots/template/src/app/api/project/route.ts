@@ -102,7 +102,12 @@ export async function POST(req: Request) {
     if (!expected) return NextResponse.json({ ok: false, error: "Reload the workspace before saving." }, { status: 428, headers: privateHeaders });
     if (cloudPayloadTooLarge(JSON.stringify(body))) return NextResponse.json({ ok: false, error: WORKSPACE_TOO_LARGE }, { status: 413, headers: privateHeaders });
     const { data, error } = await access.client.rpc("save_workspace", { bundle: body, expected_revision: expected });
-    if (error) return NextResponse.json({ ok: false, error: error.code === "40001" ? "Projects changed in another tab. Reload before saving again; your edits remain in this browser." : "Cloud save failed. Your previous projects are preserved." }, { status: error.code === "40001" ? 409 : 503, headers: privateHeaders });
+    if (error) {
+      // PT409 is deliberately non-retryable by PostgREST. Keep the old code
+      // recognizable during rollout, but never retry a stale workspace save.
+      const conflict = error.code === "PT409" || error.code === "40001";
+      return NextResponse.json({ ok: false, error: conflict ? "Projects changed in another tab. Reload before saving again; your edits remain in this browser." : "Cloud save failed. Your previous projects are preserved." }, { status: conflict ? 409 : 503, headers: privateHeaders });
+    }
     return NextResponse.json({ ok: true, revision: data }, { headers: privateHeaders });
   }
   const write = pendingWrite.then(async () => {

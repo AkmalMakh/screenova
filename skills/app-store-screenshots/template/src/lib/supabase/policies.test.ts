@@ -33,11 +33,22 @@ beforeEach(async () => {
     insert into auth.users(id) values('${alice}'),('${bob}'),('${outsider}');
   `);
   await db.exec(await readFile("supabase/migrations/202610160001_private_workspaces.sql", "utf8"));
+  await db.exec(await readFile("supabase/migrations/202610170001_nonretrying_workspace_conflicts.sql", "utf8"));
   await db.query("insert into public.beta_members(user_id) values ($1), ($2)", [alice, bob]);
 }, 20_000);
 afterEach(async () => { await db.close(); });
 
 describe("Supabase migration policies", () => {
+  it("keeps the conflict migration idempotent and preserves invoker security and grants", async () => {
+    await db.exec(await readFile("supabase/migrations/202610170001_nonretrying_workspace_conflicts.sql", "utf8"));
+    const { rows } = await db.query<{ definer: boolean; authenticated: boolean; anon: boolean }>(`
+      select prosecdef as definer,
+        has_function_privilege('authenticated', oid, 'execute') as authenticated,
+        has_function_privilege('anon', oid, 'execute') as anon
+      from pg_proc where oid = 'public.save_workspace(jsonb,text)'::regprocedure
+    `);
+    expect(rows).toEqual([{ definer: false, authenticated: true, anon: false }]);
+  });
   it("isolates projects and workspace snapshots even when accounts use identical project IDs", async () => {
     await asUser(alice); expect((await save("Alice")).rows[0].revision).toBe("1");
     await asUser(bob); expect((await db.query("select * from public.projects")).rows).toHaveLength(0);
@@ -51,9 +62,12 @@ describe("Supabase migration policies", () => {
   });
   it("rejects stale saves atomically and persists deletion without resurrecting projects", async () => {
     await asUser(alice); await save("Original");
-    await expect(save("Stale", "missing")).rejects.toThrow(/changed/);
+    // An application revision conflict must NOT use serialization_failure:
+    // PostgREST 14 retries SQLSTATE 40001 indefinitely inside its pool.
+    await expect(save("Stale", "missing")).rejects.toMatchObject({ code: "PT409" });
+    expect((await db.query<{ revision: number }>("select revision from public.workspaces")).rows[0].revision).toBe(1);
     await save("Updated", "1");
-    await expect(save("Late tab", "1")).rejects.toThrow(/changed/);
+    await expect(save("Late tab", "1")).rejects.toMatchObject({ code: "PT409" });
     await db.query("select public.save_workspace($1, '2')", [JSON.stringify({ version: 1, activeId: null, order: [], projects: {} })]);
     expect((await db.query("select * from public.projects")).rows).toHaveLength(0);
   });
