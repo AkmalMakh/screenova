@@ -51,32 +51,12 @@ export const Footer: React.FC<FooterProps> = ({ onOpenTemplates, onOpenPricing }
             </ul>
           </div>
 
-          {/* Resources */}
+          {/* Support */}
           <div className="space-y-3 md:col-span-3">
             <h4 className="text-[12px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
-              Resources
+              Support
             </h4>
             <ul className="space-y-2 text-[12px] text-neutral-600 dark:text-neutral-400">
-              <li>
-                <span className="cursor-pointer transition-colors hover:text-black dark:hover:text-white">
-                  App Store Connect specs
-                </span>
-              </li>
-              <li>
-                <span className="cursor-pointer transition-colors hover:text-black dark:hover:text-white">
-                  Google Play asset guidelines
-                </span>
-              </li>
-              <li>
-                <span className="cursor-pointer transition-colors hover:text-black dark:hover:text-white">
-                  Localization best practices
-                </span>
-              </li>
-              <li>
-                <span className="cursor-pointer transition-colors hover:text-black dark:hover:text-white">
-                  Editorial typography system
-                </span>
-              </li>
               <li>
                 <a href={SUPPORT_MAILTO} className="transition-colors hover:text-black dark:hover:text-white" title={`Email ${SUPPORT_EMAIL}`}>
                   Contact support
