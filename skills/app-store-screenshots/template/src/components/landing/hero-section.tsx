@@ -28,7 +28,7 @@ export function HeroSection({ onGenerate, onStart }: HeroSectionProps) {
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-caption text-muted-foreground"><span className="flex items-center gap-2"><Check className="h-4 w-4" />Editable layouts</span><span className="flex items-center gap-2"><Check className="h-4 w-4" />Exact export sizes</span></div>
         </div>
         <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3"><span className="text-footnote font-medium">MoteCalendar · Real output</span><button type="button" onClick={onStart} className="flex items-center gap-2 rounded-sm px-2 text-footnote text-primary">Open studio <ArrowRight className="h-4 w-4" /></button></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3"><span className="text-footnote font-medium">MoteCalendar · Real output</span><button type="button" onClick={onStart} className="flex items-center gap-2 rounded-sm px-2 text-footnote text-primary">Open Studio <ArrowRight className="h-4 w-4" /></button></div>
           <div className="grid grid-cols-3 items-start gap-3 bg-muted p-4 sm:gap-4 sm:p-6">
             {["01-hero","02-split-landscape","03-device-bottom"].map((slide, index) => <img key={slide} src={"/deck/" + slide + ".webp"} alt={"MoteCalendar screenshot " + (index + 1)} className="h-auto w-full rounded-xs shadow-sm" />)}
           </div>

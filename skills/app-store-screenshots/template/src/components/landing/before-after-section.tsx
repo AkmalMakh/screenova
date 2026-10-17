@@ -92,7 +92,7 @@ export const BeforeAfterSection: React.FC<BeforeAfterSectionProps> = ({ onTryItN
             onClick={onTryItNow}
             className="btn-press inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-sm bg-primary px-5 py-2.5 text-[12px] font-semibold text-primary-foreground hover:bg-primary/90 "
           >
-            <span>Transform my store page</span>
+            <span>Open Studio</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </Reveal>

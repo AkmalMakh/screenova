@@ -23,7 +23,7 @@ export function PricingSection({ onSelectPlan, cloud = false }: { onSelectPlan: 
             <li key={feature} className="flex items-center gap-3"><Check className="h-4 w-4 shrink-0" />{feature}</li>
           ))}
         </ul>
-        <button type="button" onClick={() => onSelectPlan(PRICING_PLANS[0])} className="btn-press mt-8 rounded-sm bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Open the editor</button>
+        <button type="button" onClick={() => onSelectPlan(PRICING_PLANS[0])} className="btn-press mt-8 rounded-sm bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Open Studio</button>
         <p className="mt-4 text-xs text-muted-foreground">Team workspaces and billing are not available.</p>
       </Reveal>
     </section>

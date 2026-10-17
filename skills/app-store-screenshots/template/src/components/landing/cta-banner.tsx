@@ -32,7 +32,7 @@ export const CtaBanner: React.FC<CtaBannerProps> = ({ onStart }) => {
                 id="cta-start-designing-btn"
                 className="btn-press group inline-flex cursor-pointer items-center gap-2 rounded-sm bg-primary px-7 py-3.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90 "
               >
-                <span>Launch interactive studio</span>
+                <span>Open Studio</span>
                 <ArrowRight className="h-4 w-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-1" />
               </button>
             </div>
