@@ -1,8 +1,13 @@
 # Screenova Vercel deployment preparation
 
-## Current release status — 2026-10-16
+## Current release status — 2026-10-17
 
-Production deployment is approved and prepared for `https://screenova-sigma.vercel.app`; live deployment verification is pending. No custom domain is configured. This section supersedes the historical deployment diary below.
+Production is deployed at **https://screenova-sigma.vercel.app**, but authenticated workspace verification is **blocked**, so this is not yet a verified public launch. No custom domain is configured. This section supersedes the historical deployment diary below.
+
+- Current Ready deployment: `dpl_4KGuagbNi6EHNWM3LoA4Yovb1M4z`, source commit `23fa147`; previous release `dpl_BQe2QApQumLfVCRLMMf2Z3Vn6VXy`, source commit `57e194e`. Both completed remote production builds and received the stable alias.
+- Public `/` and `/login` returned 200, with Google/GitHub buttons visible. Unsigned `/studio` and `/editor` redirected to login. Project, upload, AI and private-image APIs returned 401 with private/no-store; original screenshot paths returned 404. Cancellation redirected to the recoverable login message. Preview still returns the Vercel login barrier.
+- Live Google flow reached account selection with the correct production return URL, but subsequently showed `reason=session`; authenticated `/api/project` reported workspace unavailable. Do not claim successful hosted login or blame the provider without diagnosis. Added credential-free identity/membership failure diagnostics; targeted access tests and TypeScript passed. This diagnostic release is deployed.
+- Chrome then reported `ERR_NETWORK_IO_SUSPENDED` / computer went to sleep, and reload/navigation commands timed out. The diagnostic replay and authenticated save/upload/export/two-account checks remain blocked on restoring the browser session. No private data was exposed and no auth/RLS protection was relaxed.
 
 - Google and GitHub sign-in enabled; local login and second-account separation user-verified. Email UI remains disabled; no SMTP dependency or email sending for this release.
 - Supabase Site URL and exact production `/auth/callback` saved; localhost callback retained.
