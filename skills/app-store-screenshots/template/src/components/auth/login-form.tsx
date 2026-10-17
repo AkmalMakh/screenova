@@ -9,6 +9,7 @@ import { Github } from "lucide-react";
 import { githubAccessRequest, signInError } from "@/lib/supabase/github-access";
 import { googleAccessRequest } from "@/lib/supabase/google-access";
 import type { SignInOptions } from "@/lib/supabase/sign-in-options";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 export function LoginForm({ providers }: { providers: SignInOptions }) {
   const [email, setEmail] = useState("");
@@ -65,6 +66,7 @@ export function LoginForm({ providers }: { providers: SignInOptions }) {
       {message && <p role="status" className="text-sm">{message}</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <p className="text-[13px] text-muted-foreground">No invitation needed. Daily beta usage limits apply.</p>
+      <p className="text-[13px] text-muted-foreground">Need help? Contact <a href={SUPPORT_MAILTO} className="text-primary underline">{SUPPORT_EMAIL}</a>.</p>
     </section>
   </main>;
 }

@@ -1,5 +1,6 @@
 "use client";
 import React from 'react';
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/support';
 
 interface FooterProps {
   onOpenTemplates: () => void;
@@ -75,6 +76,11 @@ export const Footer: React.FC<FooterProps> = ({ onOpenTemplates, onOpenPricing }
                 <span className="cursor-pointer transition-colors hover:text-black dark:hover:text-white">
                   Editorial typography system
                 </span>
+              </li>
+              <li>
+                <a href={SUPPORT_MAILTO} className="transition-colors hover:text-black dark:hover:text-white" title={`Email ${SUPPORT_EMAIL}`}>
+                  Contact support
+                </a>
               </li>
             </ul>
           </div>
