@@ -2,7 +2,19 @@
 
 ## Current release status — 2026-10-17
 
-Production is deployed at **https://screenova-sigma.vercel.app**, but authenticated workspace verification is **blocked**, so this is not yet a verified public launch. No custom domain is configured. This section supersedes the historical deployment diary below.
+Production is deployed at **https://screenova-sigma.vercel.app**. The authenticated workspace outage is fixed: a fresh Google login, Studio access, and a new deck save/reload passed on 2026-10-17. This is focused recovery verification, not a fresh complete public-launch certification. No custom domain is configured. This section supersedes the historical deployment diary below.
+
+### Workspace outage recovery — 2026-10-17
+
+- Ready deployment `dpl_5qjGXwP9vQKdFi1X7PWhWnqiyNyj`, source `117301a`, is assigned to the stable production URL.
+- Production diagnostics showed membership lookup failures with `PGRST003`. Supabase showed 97% CPU and roughly 359,000 repeated `40001` workspace-conflict errors in one hour despite very little API traffic. `pg_stat_activity` confirmed PostgREST 14.18 workers repeatedly executing `save_workspace`.
+- Root cause: the application used PostgreSQL serialization error `40001` for a permanent stale-revision conflict. PostgREST 14 retries that error internally. See [Supabase's incident guidance](https://supabase.com/docs/guides/troubleshooting/high-cpu-and-infinite-transaction-retries-when-using-custom-error-codes-in-rpc-functions-77326b).
+- Applied `202610170001_nonretrying_workspace_conflicts.sql` to hosted Supabase through SQL Editor. It changes only the exception to `PT409`; the existing function body, ownership, invoker security, grants and RLS remain intact. Hosted verification confirmed the new code and unchanged permissions. The old looping workers subsequently disappeared; no manual backend termination, project restart, data deletion or paid upgrade was performed.
+- The matching API response now treats `PT409` as HTTP 409 without retrying or overwriting newer data. Two targeted regression assertions failed before the fix; afterward all 243 tests in 34 files, TypeScript, local production build and Vercel production build passed. Actual SQL tests cover stale-write rollback, migration idempotence and preserved tenant permissions. Secret scanning of the release diff passed; unrelated personal project JSON was not committed or uploaded.
+- Browser verification: existing session recovered; a fresh Google account-selection flow returned to `/studio`; a new blank test deck with app name `Release verification` saved and survived a reload. This test deck is intentionally retained; existing projects were not edited. Project GET/POST requests returned 200 in production logs. Public pages returned 200; unsigned Studio/editor requests still redirected to login and unsigned project API requests returned 401/private-no-store.
+- Not reverified in this focused fix: authenticated uploads/export, GitHub login, hosted two-account isolation, or a deliberate stale-write HTTP probe against production. Local SQL/API regression tests cover the conflict behavior; do not describe those as a hosted concurrency test. The full build-tool dependency audit still reports the previously documented 10 advisories.
+
+### Earlier deployment verification (historical)
 
 - Current Ready deployment: `dpl_4KGuagbNi6EHNWM3LoA4Yovb1M4z`, source commit `23fa147`; previous release `dpl_BQe2QApQumLfVCRLMMf2Z3Vn6VXy`, source commit `57e194e`. Both completed remote production builds and received the stable alias.
 - Public `/` and `/login` returned 200, with Google/GitHub buttons visible. Unsigned `/studio` and `/editor` redirected to login. Project, upload, AI and private-image APIs returned 401 with private/no-store; original screenshot paths returned 404. Cancellation redirected to the recoverable login message. Preview still returns the Vercel login barrier.
