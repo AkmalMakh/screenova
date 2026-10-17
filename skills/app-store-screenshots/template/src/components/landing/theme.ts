@@ -30,7 +30,9 @@ export const color = {
   goldSoft: 'var(--violet-soft)',
 } as const;
 
+// Mirrors --ease-out / --ease-in-out in globals.css so framer-motion and CSS
+// transitions share one easing vocabulary (DESIGN.md: minimal, functional).
 export const ease = {
-  out: [0.23, 1, 0.32, 1] as [number, number, number, number],
-  inOut: [0.77, 0, 0.175, 1] as [number, number, number, number],
+  out: [0.2, 0.8, 0.2, 1] as [number, number, number, number],
+  inOut: [0.4, 0, 0.2, 1] as [number, number, number, number],
 };

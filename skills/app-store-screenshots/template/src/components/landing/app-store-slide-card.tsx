@@ -29,7 +29,7 @@ export const AppStoreSlideCard: React.FC<AppStoreSlideCardProps> = ({
   return (
     <div
       onClick={onSelect}
-      className={`relative cursor-pointer transition-all duration-200 group ${className}`}
+      className={`relative cursor-pointer transition-transform duration-200 group ${className}`}
     >
       {/* Optional selection outline */}
       {isSelected && (

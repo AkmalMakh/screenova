@@ -54,7 +54,7 @@ export const PhoneMockup: React.FC<PhoneMockupProps> = ({
 
   return (
     <div
-      className={`relative select-none overflow-hidden rounded-[44px] p-[10px] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85),0_0_0_1px_rgba(230,195,140,0.4),0_0_20px_rgba(100,120,255,0.15)] transition-all duration-300 ${
+      className={`relative select-none overflow-hidden rounded-[44px] p-[10px] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85),0_0_0_1px_rgba(230,195,140,0.4),0_0_20px_rgba(100,120,255,0.15)] ${
         isLight
           ? 'bg-gradient-to-b from-[#E6D4B8] via-[#C5A880] to-[#E3D1B4]'
           : 'bg-gradient-to-b from-[#D8BA8E] via-[#8C6D45] to-[#D5B78B]'
@@ -294,7 +294,7 @@ const WorkoutsStatsContent: React.FC = () => (
           ].map((bar, i) => (
             <div key={i} className="flex flex-col items-center gap-1 w-3">
               <div
-                className={`w-1.5 rounded-t-sm transition-all ${
+                className={`w-1.5 rounded-t-sm transition-colors ${
                   bar.active ? 'bg-blue-500 shadow-sm shadow-blue-500/50' : 'bg-neutral-800'
                 }`}
                 style={{ height: `${bar.h}%` }}

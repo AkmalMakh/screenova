@@ -83,6 +83,7 @@ export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
                   onClick={() => setOpenIndex(isOpen ? null : idx)}
                   className="btn-press flex w-full cursor-pointer items-center justify-between gap-4 py-4 text-left"
                   aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${idx}`}
                 >
                   <span className="text-[14px] font-semibold text-foreground sm:text-[15px]">{item.q}</span>
                   <ChevronDown
@@ -91,11 +92,14 @@ export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
                     }`}
                   />
                 </button>
+                {/* Answers stay in the DOM (crawlers, find-in-page) and fade in when
+                    opened; height snaps instead of animating so no layout runs per frame. */}
                 <motion.div
+                  id={`faq-answer-${idx}`}
+                  hidden={!isOpen}
                   initial={false}
-                  animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
-                  transition={{ duration: 0.25, ease: ease.out }}
-                  className="overflow-hidden"
+                  animate={{ opacity: isOpen ? 1 : 0 }}
+                  transition={{ duration: 0.18, ease: ease.out }}
                 >
                   <p className="pb-5 max-w-2xl text-footnote text-muted-foreground">
                     {item.a}

@@ -114,7 +114,7 @@ export function PreviewStage({
     const container = containerRef.current;
     if (world) {
       world.style.transition = animate
-        ? "transform 320ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1))"
+        ? "transform 320ms var(--ease-out, cubic-bezier(0.2, 0.8, 0.2, 1))"
         : "";
       world.style.transform = `translate(${x}px, ${y}px) scale(${scaleRef.current})`;
     }
