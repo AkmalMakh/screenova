@@ -63,16 +63,16 @@ export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
   });
 
   return (
-    <section className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
+    <section className="border-t border-border bg-background py-24 text-foreground">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <Reveal className="text-center">
           <Kicker index="08" label="Frequently asked" tone="violet" />
-          <h2 className="mx-auto mt-4 max-w-md text-3xl font-semibold tracking-tight text-black sm:text-4xl dark:text-white">
+          <h2 className="mx-auto mt-4 max-w-md text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             Questions people actually ask
           </h2>
         </Reveal>
 
-        <RevealGroup className="mt-12 divide-y divide-black/[0.06] border-y border-black/[0.06] dark:divide-white/[0.06] dark:border-white/[0.06]">
+        <RevealGroup className="mt-12 divide-y divide-border border-y border-border">
           {faqs.map((item, idx) => {
             const isOpen = openIndex === idx;
             return (
@@ -83,9 +83,9 @@ export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
                   className="btn-press flex w-full cursor-pointer items-center justify-between gap-4 py-4 text-left"
                   aria-expanded={isOpen}
                 >
-                  <span className="text-[14px] font-semibold text-black sm:text-[15px] dark:text-white">{item.q}</span>
+                  <span className="text-[14px] font-semibold text-foreground sm:text-[15px]">{item.q}</span>
                   <ChevronDown
-                    className={`h-4 w-4 shrink-0 text-neutral-500 transition-transform duration-200 dark:text-neutral-400 ${
+                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
                       isOpen ? 'rotate-180' : ''
                     }`}
                   />
@@ -96,7 +96,7 @@ export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
                   transition={{ duration: 0.25, ease: ease.out }}
                   className="overflow-hidden"
                 >
-                  <p className="pb-5 max-w-2xl text-[13px] leading-relaxed text-neutral-600 dark:text-neutral-400">
+                  <p className="pb-5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
                     {item.a}
                   </p>
                 </motion.div>

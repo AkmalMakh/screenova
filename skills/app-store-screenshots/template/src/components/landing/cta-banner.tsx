@@ -10,17 +10,17 @@ interface CtaBannerProps {
 
 export const CtaBanner: React.FC<CtaBannerProps> = ({ onStart }) => {
   return (
-    <section className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
+    <section className="border-t border-border bg-background py-24 text-foreground">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
-        <Reveal className="relative overflow-hidden rounded-[28px] border border-black/[0.08] bg-white px-6 py-16 text-center sm:px-12 sm:py-20 dark:border-white/[0.08] dark:bg-white/[0.03]">
+        <Reveal className="relative overflow-hidden rounded-[28px] border border-border bg-card px-6 py-16 text-center sm:px-12 sm:py-20">
           <div className="relative z-10 mx-auto max-w-xl">
             <Kicker index="10" label="Launch ready in minutes" tone="gold" />
 
-            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-black sm:text-4xl md:text-5xl dark:text-white">
+            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl">
               Your app deserves an{' '}
-              <span className="font-sans font-semibold text-[#006FE6] dark:text-[#409CFF]">editorial</span> showcase.
+              <span className="font-sans font-semibold text-primary">editorial</span> showcase.
             </h2>
-            <p className="mt-5 text-[14px] leading-relaxed text-neutral-600 dark:text-neutral-400">
+            <p className="mt-5 text-[14px] leading-relaxed text-muted-foreground">
               Skip weeks of manual mockup alignment in Figma. Upload your raw screens and let
               Screenova build your complete campaign.
             </p>

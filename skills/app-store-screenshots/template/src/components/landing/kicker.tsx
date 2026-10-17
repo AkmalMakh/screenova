@@ -43,7 +43,7 @@ export const Kicker: React.FC<KickerProps> = ({
         </span>
       )}
       <span className="h-px w-8" style={{ backgroundColor: accent, opacity: 0.45 }} />
-      <span className="text-[12px] font-semibold uppercase tracking-[0.22em] text-neutral-500 dark:text-neutral-400">
+      <span className="text-[12px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {label}
       </span>
     </div>

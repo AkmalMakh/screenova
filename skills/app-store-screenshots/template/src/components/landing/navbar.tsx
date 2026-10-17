@@ -38,7 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       id="main-header"
       className={`sticky top-0 z-40 w-full transition-colors duration-300 [transition-timing-function:var(--ease-out)] ${
         scrolled
-          ? 'border-b border-black/[0.08] bg-[#F5F5F7]/85 backdrop-blur-xl dark:border-white/[0.08] dark:bg-[#111113]/80'
+          ? 'border-b border-border bg-background/85 backdrop-blur-xl'
           : 'border-b border-transparent bg-transparent'
       }`}
     >
@@ -49,8 +49,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-75"
           id="brand-logo"
         >
-          <span className="font-sans text-[19px] italic text-black dark:text-white">S.</span>
-          <span className="text-[13px] font-semibold tracking-tight text-black dark:text-white">
+          <span className="font-sans text-[19px] italic text-foreground">S.</span>
+          <span className="text-[13px] font-semibold tracking-tight text-foreground">
             Screenova
           </span>
         </button>
@@ -59,13 +59,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         <nav className="hidden items-center gap-9 md:flex" id="nav-links">
           <a
             href="#product"
-            className="text-[12px] font-medium text-neutral-500 transition-colors hover:text-black dark:text-neutral-400 dark:hover:text-white"
+            className="text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Showcase
           </a>
           <button
             onClick={onOpenTemplates}
-            className="cursor-pointer text-[12px] font-medium text-neutral-500 transition-colors hover:text-black dark:text-neutral-400 dark:hover:text-white"
+            className="cursor-pointer text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Templates
           </button>
@@ -77,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onOpenPricing();
               }
             }}
-            className="text-[12px] font-medium text-neutral-500 transition-colors hover:text-black dark:text-neutral-400 dark:hover:text-white"
+            className="text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Pricing
           </a>
@@ -91,7 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={onToggleTheme}
               aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              className="btn-press flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-black/[0.08] text-neutral-600 transition-colors hover:border-black/20 hover:text-black dark:border-white/[0.1] dark:text-neutral-400 dark:hover:border-white/25 dark:hover:text-white"
+              className="btn-press flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
             >
               {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
             </button>
@@ -100,7 +100,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="login-btn"
             onClick={onOpenLogin}
-            className="hidden text-[12px] font-medium text-neutral-500 transition-colors hover:text-black dark:text-neutral-400 dark:hover:text-white sm:block"
+            className="hidden text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:block"
           >
             Your workspace
           </button>
@@ -113,7 +113,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 // The hero owns the primary action on the landing; the header
                 // CTA steps down to an outlined secondary so one blue button
                 // leads the first viewport.
-                ? 'border border-black/[0.12] text-black hover:border-black/30 dark:border-white/[0.16] dark:text-white dark:hover:border-white/40'
+                ? 'border border-foreground/15 text-foreground hover:border-foreground/35'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90'
             }`}
           >

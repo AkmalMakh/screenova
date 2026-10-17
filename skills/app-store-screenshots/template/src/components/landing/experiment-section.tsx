@@ -61,14 +61,14 @@ const MAX_DELTA = Math.max(...SAMPLE_RESULTS.map((r) => r.delta ?? 0));
 
 export const ExperimentSection: React.FC = () => {
   return (
-    <section className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
+    <section className="border-t border-border bg-background py-24 text-foreground">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <Reveal className="text-center">
           <Kicker index="06" label="Generate, export, test" tone="violet" />
-          <h2 className="mx-auto mt-4 max-w-xl text-3xl font-semibold tracking-tight text-black sm:text-4xl dark:text-white">
+          <h2 className="mx-auto mt-4 max-w-xl text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             Draft a few directions. Let App Store Connect find the winner.
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-neutral-600 dark:text-neutral-400">
+          <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
             Same raw screenshots, three different design directions — each a full deck
             reflowed across every locale you pick. Export them as Product Page Optimization
             treatments, upload to App Store Connect, and let Apple&apos;s own experiment
@@ -82,18 +82,18 @@ export const ExperimentSection: React.FC = () => {
               key={d.id}
               variants={fadeUp}
               whileHover={{ y: -4 }}
-              className="overflow-hidden rounded-[20px] border border-black/[0.08] bg-white dark:border-white/[0.08] dark:bg-white/[0.02]"
+              className="overflow-hidden rounded-[20px] border border-border bg-card"
             >
-              <div className="flex items-center justify-between border-b border-black/[0.06] px-4 py-3 dark:border-white/[0.06]">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div>
-                  <span className="block text-[12px] font-semibold text-black dark:text-white">{d.label}</span>
-                  <span className="block text-[12px] text-neutral-500 dark:text-neutral-500">{d.style}</span>
+                  <span className="block text-[12px] font-semibold text-foreground">{d.label}</span>
+                  <span className="block text-[12px] text-muted-foreground">{d.style}</span>
                 </div>
-                <span className="rounded-sm bg-[#006FE6]/10 px-2 py-0.5 text-[12px] font-semibold text-[#006FE6] dark:bg-[#409CFF]/15 dark:text-[#409CFF]">
+                <span className="rounded-sm bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
                   Treatment {d.id}
                 </span>
               </div>
-              <div className="flex items-end justify-center gap-2 bg-[#EAEAEC] px-3 pb-0 pt-4 dark:bg-transparent">
+              <div className="flex items-end justify-center gap-2 bg-muted px-3 pb-0 pt-4">
                 {d.images.map((src, i) => (
                   <img
                     key={src}
@@ -105,11 +105,11 @@ export const ExperimentSection: React.FC = () => {
                   />
                 ))}
               </div>
-              <div className="flex flex-wrap gap-1 border-t border-black/[0.06] px-4 py-3 dark:border-white/[0.06]">
+              <div className="flex flex-wrap gap-1 border-t border-border px-4 py-3">
                 {LOCALES.map((loc) => (
                   <span
                     key={loc}
-                    className="rounded-sm bg-black/[0.04] px-2 py-0.5 text-[9px] font-medium text-neutral-600 dark:bg-white/[0.06] dark:text-neutral-400"
+                    className="rounded-sm bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground"
                   >
                     {loc}
                   </span>
@@ -120,27 +120,27 @@ export const ExperimentSection: React.FC = () => {
         </RevealGroup>
 
         <Reveal className="mt-8 flex justify-center">
-          <ArrowDown className="h-4 w-4 text-neutral-400 dark:text-neutral-600" />
+          <ArrowDown className="h-4 w-4 text-muted-foreground" />
         </Reveal>
 
         <Reveal className="mt-4">
-          <div className="mx-auto flex max-w-lg flex-col items-center gap-3 rounded-2xl border border-black/[0.08] bg-white px-6 py-5 text-center dark:border-white/[0.08] dark:bg-white/[0.02]">
-            <div className="flex items-center gap-2 text-[12px] font-semibold text-black dark:text-white">
-              <UploadCloud className="h-4 w-4 text-[#006FE6] dark:text-[#409CFF]" />
+          <div className="mx-auto flex max-w-lg flex-col items-center gap-3 rounded-2xl border border-border bg-card px-6 py-5 text-center">
+            <div className="flex items-center gap-2 text-[12px] font-semibold text-foreground">
+              <UploadCloud className="h-4 w-4 text-primary" />
               <span>App Store Connect · Product Page Optimization</span>
-              <span className="flex items-center gap-1 rounded-sm bg-emerald-500/10 px-2 py-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-sm bg-emerald-500" />
+              <span className="flex items-center gap-1 rounded-sm bg-success/10 px-2 py-0.5 text-[12px] font-semibold text-success">
+                <span className="h-1.5 w-1.5 rounded-sm bg-success" />
                 Running
               </span>
             </div>
-            <p className="text-[12px] leading-relaxed text-neutral-600 dark:text-neutral-400">
+            <p className="text-[12px] leading-relaxed text-muted-foreground">
               Apple splits App Store traffic across your treatments and reports which one wins —
               run it once, or keep iterating with a fresh direction from Screenova each time.
             </p>
           </div>
         </Reveal>
 
-        <p className="mx-auto mt-6 max-w-lg text-center text-[12px] text-neutral-400 dark:text-neutral-600">
+        <p className="mx-auto mt-6 max-w-lg text-center text-[12px] text-muted-foreground">
           Screenova generates the treatments and locales. Uploading and running the experiment
           happens in your own App Store Connect account.
         </p>
@@ -149,13 +149,13 @@ export const ExperimentSection: React.FC = () => {
             engine of its own. Labeled "Example report" and disclaimed below so it reads
             as "here's the shape of what Apple hands back," not as a performance claim. */}
         <Reveal className="mt-8">
-          <div className="mx-auto max-w-lg rounded-2xl border border-black/[0.08] bg-white px-6 py-5 dark:border-white/[0.08] dark:bg-white/[0.02]">
+          <div className="mx-auto max-w-lg rounded-2xl border border-border bg-card px-6 py-5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[12px] font-semibold text-black dark:text-white">
-                <TrendingUp className="h-4 w-4 text-[#006FE6] dark:text-[#409CFF]" />
+              <div className="flex items-center gap-2 text-[12px] font-semibold text-foreground">
+                <TrendingUp className="h-4 w-4 text-primary" />
                 <span>Treatment conversion vs. current page</span>
               </div>
-              <span className="rounded-sm bg-black/[0.05] px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-neutral-500 dark:bg-white/[0.06] dark:text-neutral-400">
+              <span className="rounded-sm bg-muted px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Example report
               </span>
             </div>
@@ -163,14 +163,14 @@ export const ExperimentSection: React.FC = () => {
             <div className="mt-5 space-y-3.5">
               {SAMPLE_RESULTS.map((r) => (
                 <div key={r.id} className="flex items-center gap-3">
-                  <span className="w-24 shrink-0 text-[12px] font-medium text-neutral-600 dark:text-neutral-400">
+                  <span className="w-24 shrink-0 text-[12px] font-medium text-muted-foreground">
                     {r.label}
                   </span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-sm bg-black/[0.05] dark:bg-white/[0.06]">
+                  <div className="h-2 flex-1 overflow-hidden rounded-sm bg-muted">
                     {r.delta !== null && (
                       <div
                         className={`h-full rounded-sm ${
-                          r.leading ? 'bg-[#006FE6] dark:bg-[#409CFF]' : 'bg-[#006FE6]/40 dark:bg-[#409CFF]/40'
+                          r.leading ? 'bg-primary' : 'bg-primary/40'
                         }`}
                         style={{ width: `${Math.max(6, (r.delta / MAX_DELTA) * 100)}%` }}
                       />
@@ -179,8 +179,8 @@ export const ExperimentSection: React.FC = () => {
                   <span
                     className={`w-16 shrink-0 text-right text-[12px] font-semibold ${
                       r.isControl
-                        ? 'text-neutral-400 dark:text-neutral-600'
-                        : 'text-emerald-600 dark:text-emerald-400'
+                        ? 'text-muted-foreground'
+                        : 'text-success'
                     }`}
                   >
                     {r.isControl ? 'Baseline' : `+${r.delta}%`}
@@ -189,9 +189,9 @@ export const ExperimentSection: React.FC = () => {
               ))}
             </div>
 
-            <div className="mt-5 flex items-start gap-2 border-t border-black/[0.06] pt-4 dark:border-white/[0.06]">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400 dark:text-neutral-600" />
-              <p className="text-[12px] leading-relaxed text-neutral-400 dark:text-neutral-600">
+            <div className="mt-5 flex items-start gap-2 border-t border-border pt-4">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <p className="text-[12px] leading-relaxed text-muted-foreground">
                 Illustrative example, not a Screenova measurement — Screenova has no analytics of
                 its own. Real percentages like these come from Apple, in your App Store Connect
                 dashboard, once your experiment collects enough traffic.
@@ -204,15 +204,15 @@ export const ExperimentSection: React.FC = () => {
             explicitly as upcoming rather than folded into the copy above,
             which describes what Screenova does today. */}
         <Reveal className="mt-14">
-          <div className="mx-auto max-w-2xl rounded-2xl border border-dashed border-black/[0.12] px-6 py-6 text-center dark:border-white/[0.15]">
-            <div className="mx-auto flex w-fit items-center gap-2 rounded-sm bg-[#006FE6]/10 px-3 py-1 text-[12px] font-semibold uppercase tracking-wider text-[#006FE6] dark:bg-[#409CFF]/15 dark:text-[#409CFF]">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-dashed border-foreground/15 px-6 py-6 text-center">
+            <div className="mx-auto flex w-fit items-center gap-2 rounded-sm bg-primary/10 px-3 py-1 text-[12px] font-semibold uppercase tracking-wider text-primary">
               <Repeat className="h-3 w-3" />
               <span>Coming soon</span>
             </div>
-            <h3 className="mt-4 text-[15px] font-semibold text-black dark:text-white">
+            <h3 className="mt-4 text-[15px] font-semibold text-foreground">
               A continuous optimization loop, not a one-time export
             </h3>
-            <p className="mx-auto mt-2 max-w-lg text-[13px] leading-relaxed text-neutral-600 dark:text-neutral-400">
+            <p className="mx-auto mt-2 max-w-lg text-[13px] leading-relaxed text-muted-foreground">
               Today, you run each experiment through App Store Connect yourself. Next: Screenova
               reads back which treatments Apple reports as winners, learns what&apos;s actually
               converting for your app, and keeps drafting fresh directions to test — so the page

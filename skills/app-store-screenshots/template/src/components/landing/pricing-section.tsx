@@ -8,11 +8,11 @@ import { Kicker } from "./kicker";
 
 export function PricingSection({ onSelectPlan, cloud = false }: { onSelectPlan: (plan: PricingPlan) => void; cloud?: boolean }) {
   return (
-    <section id="pricing" className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
+    <section id="pricing" className="border-t border-border bg-background py-24 text-foreground">
       <Reveal className="mx-auto max-w-xl px-6 text-center">
         <Kicker index="09" label="Your workspace" tone="violet" />
         <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{cloud ? "Your private design workspace" : "Design and export without a subscription"}</h2>
-        <p className="mt-4 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
           {cloud
             ? "Sign in to save designs and images privately under your account. AI generation has daily usage limits; manual editing and exports do not require AI."
             : "Use local Studio without an account. Projects and images stay on your computer. AI features use a server-side OpenAI key; manual editing and exports do not require AI."}
@@ -23,7 +23,7 @@ export function PricingSection({ onSelectPlan, cloud = false }: { onSelectPlan: 
           ))}
         </ul>
         <button type="button" onClick={() => onSelectPlan(PRICING_PLANS[0])} className="btn-press mt-8 rounded-sm bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Open the editor</button>
-        <p className="mt-4 text-xs text-neutral-500">Team workspaces and billing are not available.</p>
+        <p className="mt-4 text-xs text-muted-foreground">Team workspaces and billing are not available.</p>
       </Reveal>
     </section>
   );

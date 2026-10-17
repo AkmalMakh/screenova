@@ -23,17 +23,17 @@ export const LocalizationSection: React.FC = () => {
   ];
 
   return (
-    <section className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
+    <section className="border-t border-border bg-background py-24 text-foreground">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-center">
           {/* Left */}
           <Reveal className="lg:col-span-6">
             <Kicker index="04" label="Worldwide readiness" tone="violet" align="left" />
 
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-black sm:text-4xl dark:text-white">
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
               Adaptive multi-locale reflow
             </h2>
-            <p className="mt-4 text-[14px] leading-relaxed text-neutral-600 dark:text-neutral-400">
+            <p className="mt-4 text-[14px] leading-relaxed text-muted-foreground">
               German copy expands by 30%. Japanese and Korean need their own line-break rules.
               Screenova reflows hierarchy and phrasing automatically, so every locale looks
               hand-crafted, not translated.
@@ -48,28 +48,28 @@ export const LocalizationSection: React.FC = () => {
                     onClick={() => setSelectedLang(lang.code)}
                     className={`btn-press flex cursor-pointer items-center justify-between rounded-xl border p-3.5 text-left transition-colors duration-200 ${
                       isSelected
-                        ? 'border-black/25 bg-black/[0.05] dark:border-white/25 dark:bg-white/[0.05]'
-                        : 'border-black/[0.06] bg-transparent hover:border-black/[0.14] dark:border-white/[0.06] dark:hover:border-white/[0.14]'
+                        ? 'border-foreground/25 bg-muted'
+                        : 'border-border bg-transparent hover:border-foreground/20'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className={`flex h-5 w-5 items-center justify-center rounded-sm border transition-colors duration-200 ${
                           isSelected
-                            ? 'border-transparent bg-black text-white dark:bg-white dark:text-black'
-                            : 'border-black/15 bg-transparent dark:border-white/15'
+                            ? 'border-transparent bg-foreground text-background'
+                            : 'border-foreground/15 bg-transparent'
                         }`}
                       >
                         {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
                       </div>
                       <div>
-                        <div className="text-[12px] font-semibold text-black dark:text-white">{lang.label}</div>
-                        <div className="text-[12px] text-neutral-500 dark:text-neutral-500">{lang.native}</div>
+                        <div className="text-[12px] font-semibold text-foreground">{lang.label}</div>
+                        <div className="text-[12px] text-muted-foreground">{lang.native}</div>
                       </div>
                     </div>
 
                     {lang.isBase && (
-                      <span className="rounded-md bg-black/[0.05] px-2 py-0.5 text-[9px] font-semibold text-neutral-600 dark:bg-white/[0.05] dark:text-neutral-300">
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
                         Base
                       </span>
                     )}
@@ -78,8 +78,8 @@ export const LocalizationSection: React.FC = () => {
               })}
             </div>
 
-            <div className="mt-6 flex items-center gap-2 text-[12px] text-neutral-500 dark:text-neutral-500">
-              <Globe2 className="h-4 w-4 text-[#006FE6] dark:text-[#409CFF]" />
+            <div className="mt-6 flex items-center gap-2 text-[12px] text-muted-foreground">
+              <Globe2 className="h-4 w-4 text-primary" />
               <span>Full export bundle includes localized folders ready for App Store Connect.</span>
             </div>
           </Reveal>

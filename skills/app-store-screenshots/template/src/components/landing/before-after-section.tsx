@@ -34,16 +34,16 @@ const pairs = [
 
 export const BeforeAfterSection: React.FC<BeforeAfterSectionProps> = ({ onTryItNow }) => {
   return (
-    <section id="product" className="border-t border-black/[0.06] bg-[#F5F5F7] py-24 text-black dark:border-white/[0.06] dark:bg-[#111113] dark:text-white">
+    <section id="product" className="border-t border-border bg-background py-24 text-foreground">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 text-center">
         <Reveal>
           <Kicker index="03" label="Before & after" tone="gold" />
-          <h2 className="mx-auto mt-4 max-w-xl text-3xl font-semibold tracking-tight text-black sm:text-4xl dark:text-white">
+          <h2 className="mx-auto mt-4 max-w-xl text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             From flat screenshots to an{' '}
-            <span className="font-sans font-semibold text-[#006FE6] dark:text-[#409CFF]">editorial</span>{' '}
+            <span className="font-sans font-semibold text-primary">editorial</span>{' '}
             App Store story
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-neutral-600 dark:text-neutral-400">
+          <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
             These are real screens from the MoteCalendar app, run through Screenova — no staged
             examples. Raw captures on the left, generated App Store slides on the right.
           </p>
@@ -54,21 +54,21 @@ export const BeforeAfterSection: React.FC<BeforeAfterSectionProps> = ({ onTryItN
             <motion.div
               key={pair.label}
               variants={fadeUp}
-              className="flex flex-col items-center overflow-hidden rounded-[24px] border border-black/[0.08] bg-black/[0.015] px-5 pb-6 pt-5 dark:border-white/[0.08] dark:bg-white/[0.015]"
+              className="flex flex-col items-center overflow-hidden rounded-[24px] border border-border bg-card px-5 pb-6 pt-5"
             >
-              <span className="mb-4 text-[12px] font-semibold uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-500">
+              <span className="mb-4 text-[12px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 {pair.label}
               </span>
 
               <div className="flex items-center gap-2.5">
-                <div className="overflow-hidden rounded-xl border border-black/[0.06] opacity-70 grayscale-[15%] dark:border-white/[0.06]">
+                <div className="overflow-hidden rounded-xl border border-border opacity-70 grayscale-[15%]">
                   <img
                     src={pair.before}
                     alt={`Raw ${pair.label} screenshot before Screenova`}
                     className="h-[150px] w-auto object-cover sm:h-[170px]"
                   />
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-neutral-400 dark:text-neutral-500" />
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               </div>
 
               <div className="mt-4 overflow-hidden rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.25)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)]">
@@ -82,9 +82,9 @@ export const BeforeAfterSection: React.FC<BeforeAfterSectionProps> = ({ onTryItN
           ))}
         </RevealGroup>
 
-        <Reveal className="mt-10 flex flex-col items-center justify-between gap-4 rounded-[24px] border border-black/[0.08] bg-black/[0.02] px-6 py-6 sm:flex-row sm:px-8 dark:border-white/[0.08] dark:bg-white/[0.02]">
-          <div className="text-[12px] text-neutral-600 dark:text-neutral-400">
-            <strong className="font-semibold text-black dark:text-white">Ready to elevate your App Store presence?</strong>{' '}
+        <Reveal className="mt-10 flex flex-col items-center justify-between gap-4 rounded-[24px] border border-border bg-card px-6 py-6 sm:flex-row sm:px-8">
+          <div className="text-[12px] text-muted-foreground">
+            <strong className="font-semibold text-foreground">Ready to elevate your App Store presence?</strong>{' '}
             Takes under two minutes.
           </div>
           <button
