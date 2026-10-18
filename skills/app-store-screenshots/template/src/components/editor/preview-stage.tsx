@@ -52,6 +52,10 @@ type Props = {
 };
 
 const NO_INSETS: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
+// Framing margins inside the free canvas (screen px).
+const FIT_PAD_X = 32;
+const FIT_PAD_TOP = 68;
+const FIT_PAD_BOTTOM = 28;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 4;
 /** Ignore pointer travel below this (screen px) so a drag never eats a click. */
@@ -133,20 +137,46 @@ export function PreviewStage({
   const activeIndex = Math.max(0, slides.findIndex((slide) => slide.id === activeSlideId));
   const activeSlide = slides[activeIndex] || slides[0] || null;
 
+  // The part of the container no chrome covers: where screens are framed.
+  // Top padding clears the HUD row (AI pill, zoom cluster); bottom padding
+  // breathes above the composer.
+  const insetsRef = React.useRef(insets);
+  insetsRef.current = insets;
+  const fitScaleRef = React.useRef(fitScale);
+  fitScaleRef.current = fitScale;
+  const centerPanRef = React.useRef<(animate?: boolean) => void>(() => {});
+  const freeRect = React.useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return null;
+    const rect = container.getBoundingClientRect();
+    const i = insetsRef.current;
+    const left = i.left + FIT_PAD_X;
+    const right = rect.width - i.right - FIT_PAD_X;
+    const top = i.top + FIT_PAD_TOP;
+    const bottom = rect.height - i.bottom - FIT_PAD_BOTTOM;
+    return { left, top, width: Math.max(1, right - left), height: Math.max(1, bottom - top) };
+  }, []);
+
+  const computeFit = React.useCallback(() => {
+    const free = freeRect();
+    if (!free) return null;
+    return Math.max(0.05, Math.min(free.width / cW, free.height / cH));
+  }, [freeRect, cW, cH]);
+
   const centerPan = React.useCallback(
     (animate = false) => {
-      const container = containerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
+      const free = freeRect();
+      if (!free) return;
       const offset = (!connectedCanvas && activeSlide?.canvasOffset) || { x: 0, y: 0 };
       applyPan(
-        rect.width / 2 - (activeIndex * cW + offset.x + cW / 2) * scaleRef.current,
-        rect.height / 2 - (offset.y + cH / 2) * scaleRef.current,
+        free.left + free.width / 2 - (activeIndex * cW + offset.x + cW / 2) * scaleRef.current,
+        free.top + free.height / 2 - (offset.y + cH / 2) * scaleRef.current,
         animate,
       );
     },
-    [applyPan, activeIndex, activeSlide, connectedCanvas, cW, cH],
+    [applyPan, freeRect, activeIndex, activeSlide, connectedCanvas, cW, cH],
   );
+  centerPanRef.current = centerPan;
   const panMode = tool === "pan" || spaceHeld;
 
   const offsets = React.useMemo(() => {
@@ -174,29 +204,76 @@ export function PreviewStage({
     });
   }, [slides, connectedCanvas, cW, cH, scale]);
 
+  // Window resizes refit silently; a panel opening or closing glides.
+  const animateFitRef = React.useRef(false);
   React.useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const update = () => {
-      const rect = el.getBoundingClientRect();
-      setContainerW(rect.width);
-      const sx = (rect.width - 96) / cW;
-      const sy = (rect.height - 96) / cH;
-      setFitScale(Math.max(0.05, Math.min(sx, sy)));
+      setContainerW(el.getBoundingClientRect().width);
+      const next = computeFit();
+      if (next) setFitScale(next);
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [cW, cH]);
+  }, [computeFit]);
 
+  const insetsKey = `${insets.top},${insets.right},${insets.bottom},${insets.left}`;
+  // The chrome is measured just after mount; those first inset changes frame
+  // the deck silently. Only later changes (a panel toggled) glide.
+  const mountedAtRef = React.useRef(0);
   React.useEffect(() => {
-    setZoom(1);
-    // Center the strip in the viewport when the artboard changes.
-    const raf = requestAnimationFrame(() => centerPan(false));
-    return () => cancelAnimationFrame(raf);
+    mountedAtRef.current = performance.now();
+  }, []);
+  React.useEffect(() => {
+    const next = computeFit();
+    if (!next) return;
+    const animate = performance.now() - mountedAtRef.current > 600;
+    if (Math.abs(next - fitScaleRef.current) < 1e-6) {
+      // Same scale, different free area (a side panel opened or closed):
+      // reframe in place if the user is at fit.
+      if (Math.abs(zoomRef.current - 1) < 1e-3) centerPanRef.current(animate);
+      return;
+    }
+    if (animate) {
+      // Arm the transition before the render that changes the scale, so the
+      // old frame glides to the new one instead of jumping first.
+      animateFitRef.current = true;
+      if (wrapRef.current) {
+        wrapRef.current.style.transition = "transform var(--dur-medium) var(--ease-in-out)";
+      }
+    }
+    setFitScale(next);
+  }, [insetsKey, computeFit]);
+
+  // Fit changes keep the user's intent: at "fit" (zoom 1) the screen is
+  // reframed; zoomed in or out, the on-screen scale and position are kept.
+  // A new artboard (device/orientation) always starts framed.
+  const artboardKey = `${device}:${orientation}`;
+  const prevFitRef = React.useRef(fitScale);
+  const prevArtboardRef = React.useRef(artboardKey);
+  React.useLayoutEffect(() => {
+    const prevFit = prevFitRef.current;
+    prevFitRef.current = fitScale;
+    const artboardChanged = prevArtboardRef.current !== artboardKey;
+    prevArtboardRef.current = artboardKey;
+    const animate = animateFitRef.current && !artboardChanged;
+    animateFitRef.current = false;
+    if (artboardChanged || Math.abs(zoomRef.current - 1) < 1e-3) {
+      zoomRef.current = 1;
+      scaleRef.current = fitScale;
+      setZoom(1);
+      centerPan(animate);
+    } else {
+      const keep = (prevFit * zoomRef.current) / fitScale;
+      zoomRef.current = keep;
+      setZoom(keep);
+      if (wrapRef.current) wrapRef.current.style.transition = "";
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [device, orientation, fitScale]);
+  }, [fitScale, artboardKey]);
 
   // Wheel: plain wheel / trackpad pans the infinite surface; pinch or
   // cmd+wheel zooms toward the cursor. React's synthetic wheel handlers are
@@ -305,11 +382,10 @@ export function PreviewStage({
       return;
     }
 
-    const container = containerRef.current;
-    if (!container || !activeSlide) return;
-    const rect = container.getBoundingClientRect();
+    const free = freeRect();
+    if (!free || !activeSlide) return;
     const off = (!connectedCanvas && activeSlide.canvasOffset) || { x: 0, y: 0 };
-    const targetX = rect.width / 2 - (activeIndex * cW + off.x + cW / 2) * scaleRef.current;
+    const targetX = free.left + free.width / 2 - (activeIndex * cW + off.x + cW / 2) * scaleRef.current;
     applyPan(targetX, panRef.current.y, true);
     // Only explicit screen navigation recenters. Editing and zooming preserve the viewport.
     // eslint-disable-next-line react-hooks/exhaustive-deps
