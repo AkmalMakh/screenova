@@ -64,7 +64,7 @@ import { DesignChatLog, DesignComposer } from "./design-sidebar";
 import { NewProjectDialog } from "./new-project-dialog";
 import { CommandPalette, type PaletteGroup } from "./command-palette";
 import { PreviewStage, type CanvasTool } from "./preview-stage";
-import { fileToDataUrl, uploadDataUrl } from "./screenshot-picker";
+import { fileToDataUrl, uploadImage } from "./screenshot-picker";
 import { Sidebar } from "./sidebar";
 import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides";
 import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
@@ -573,8 +573,8 @@ function Editor() {
       if (requestOwner) {
         for (const image of [...renderedPreviews, ...requestReferences]) {
           if (controller.signal.aborted || accountScope() !== requestOwner) throw new Error("Design request cancelled. Reload if your account changed.");
-          const uploaded = await uploadDataUrl(image.dataUrl);
-          if (!uploaded) throw new Error("Could not upload design images. Please retry.");
+          const { path: uploaded, error: uploadError } = await uploadImage(image.dataUrl);
+          if (!uploaded) throw new Error(uploadError ?? "Could not upload design images. Please retry.");
           image.dataUrl = uploaded;
           if ("id" in image) uploadedPaths.set(image.id, Promise.resolve(uploaded));
         }
@@ -754,8 +754,8 @@ function Editor() {
       const paths = await Promise.all(
         files.map(async (file) => {
           const dataUrl = await fileToDataUrl(file);
-          const path = await uploadDataUrl(dataUrl);
-          if (!path) throw new Error(t("toasts.uploadFailed", { name: file.name }));
+          const { path, error: uploadError } = await uploadImage(dataUrl);
+          if (!path) throw new Error(uploadError ?? t("toasts.uploadFailed", { name: file.name }));
           setImage(path, dataUrl); // prime the cache so the canvas paints immediately
           return path;
         }),
@@ -1641,8 +1641,8 @@ async function uploadDesignReference(
   reference: DesignReference,
   t: ReturnType<typeof useT>["t"],
 ): Promise<string> {
-  const path = await uploadDataUrl(reference.dataUrl);
-  if (!path) throw new Error(t("toasts.saveReferenceFailed", { name: reference.name }));
+  const { path, error: uploadError } = await uploadImage(reference.dataUrl);
+  if (!path) throw new Error(uploadError ?? t("toasts.saveReferenceFailed", { name: reference.name }));
   return path;
 }
 

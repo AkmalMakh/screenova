@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setAccountScope } from "./account-scope";
-import { uploadDataUrl } from "./upload-client";
+import { uploadDataUrl, uploadImage } from "./upload-client";
 
 const storage = vi.hoisted(() => ({ upload: vi.fn(), remove: vi.fn() }));
 vi.mock("./supabase/browser", () => ({ browserSupabase: () => ({ storage: { from: () => storage } }) }));
@@ -45,6 +45,14 @@ describe("Vercel-safe image upload transport", () => {
     storage.upload.mockResolvedValue({ error: new Error("Unauthorized") });
     expect(await uploadDataUrl("data:image/png;base64,YQ==")).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  // Value: protects=users see why an upload was refused (cap, access, outage) instead of "retry"; fails_when=the server's error text is dropped or a non-JSON body throws; why_new=only null results were asserted; seam=none; no_claim=each caller's toast wording
+  it("returns the server's message when our API refuses the upload", async () => {
+    fetchMock.mockResolvedValue(Response.json({ ok: false, error: "Daily beta limit reached. Please try again tomorrow." }, { status: 429 }));
+    expect(await uploadImage("data:image/png;base64,YQ==")).toEqual({ path: null, error: "Daily beta limit reached. Please try again tomorrow." });
+    fetchMock.mockResolvedValue(new Response("<html>gateway</html>", { status: 502 }));
+    expect(await uploadImage("data:image/png;base64,YQ==")).toEqual({ path: null, error: undefined });
+    expect(storage.remove).toHaveBeenCalledTimes(2);
   });
   it("aborts finalization when the document account changes during upload", async () => {
     storage.upload.mockImplementationOnce(async () => { setAccountScope("another-owner"); return { error: null }; });
