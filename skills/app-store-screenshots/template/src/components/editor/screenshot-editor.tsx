@@ -71,7 +71,7 @@ import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
 import { DeckCanvas, getCanvas } from "./slide-canvas";
 import { parseBulkCopy, planBulkCopy, serializeBulkCopy } from "@/lib/bulk-copy";
 import { Toolbar } from "./toolbar";
-import { chromeGeometry, useEditorLayout, useElementSize } from "./use-editor-layout";
+import { chromeGeometry, useEditorLayout, useElementSize, usePresence } from "./use-editor-layout";
 
 
 const PALETTE_DEVICES: Device[] = [
@@ -141,6 +141,10 @@ function Editor() {
   const screenSettingsOpen = layout.inspector;
   const [areaRef, areaSize] = useElementSize<HTMLDivElement>();
   const [composerRef, composerSize] = useElementSize<HTMLDivElement>();
+  // Panels slide in from their own edge and leave faster than they arrive.
+  const chatPresence = usePresence(chatOpen);
+  const screensPresence = usePresence(screensOpen);
+  const inspectorPresence = usePresence(screenSettingsOpen);
   const geometry = chromeGeometry(
     areaSize.width,
     layout,
@@ -1232,10 +1236,11 @@ function Editor() {
         </main>
 
         {/* Design chat — floating, collapsible (Stitch's agent panel). */}
-        {chatOpen ? (
+        {chatPresence.mounted && (
           <section
             aria-label={t("designSidebar.title")}
-            className={cn(PANEL_SURFACE, "absolute inset-x-3 top-3 z-30 flex max-h-[45vh] flex-col sm:inset-x-auto sm:left-4 sm:top-4 sm:max-h-none sm:w-80")}
+            data-state={chatPresence.state}
+            className={cn(PANEL_SURFACE, PANEL_MOTION_LEFT, "absolute inset-x-3 top-3 z-30 flex max-h-[45vh] flex-col sm:inset-x-auto sm:left-4 sm:top-4 sm:max-h-none sm:w-80")}
             style={geometry.phone ? undefined : { bottom: geometry.panelBottom }}
           >
             <div className="flex shrink-0 items-center gap-2 border-b border-border/70 px-3 py-2.5">
@@ -1264,11 +1269,12 @@ function Editor() {
             </div>
             <DesignChatLog messages={designMessages} generating={generatingDesign} />
           </section>
-        ) : (
+        )}
+        {!chatOpen && (
           <button
             type="button"
             onClick={() => showLeft("chat")}
-            className={cn(PANEL_SURFACE, "absolute left-4 top-4 z-30 inline-flex h-9 items-center gap-2 px-3 text-footnote font-medium transition-colors duration-micro hover:bg-accent", (screensOpen || screenSettingsOpen) && "hidden sm:inline-flex")}
+            className={cn(PANEL_SURFACE, "absolute left-4 top-4 z-30 inline-flex h-9 items-center gap-2 px-3 text-footnote font-medium transition-[background-color,left] duration-short ease-out hover:bg-accent motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95", (screensOpen || screenSettingsOpen) && "hidden sm:inline-flex")}
             style={geometry.phone ? undefined : { left: geometry.leftEdge + 16 }}
           >
             <Sparkles className="h-4 w-4 text-primary" />
@@ -1346,13 +1352,14 @@ function Editor() {
         </div>
 
         {/* Floating right panels, anchored beside the rail. */}
-        {(screensOpen || screenSettingsOpen) && (
+        {(screensPresence.mounted || inspectorPresence.mounted) && (
           <div className="contents">
-            {screensOpen && (
+            {screensPresence.mounted && (
               <section
                 id="screens-panel"
                 aria-label={t("toolbar.screens")}
-                className={cn(PANEL_SURFACE, "absolute bottom-32 right-[76px] top-3 z-20 flex w-[184px] max-w-[78vw] flex-col sm:left-4 sm:right-auto sm:top-4")}
+                data-state={screensPresence.state}
+                className={cn(PANEL_SURFACE, PANEL_MOTION_LEFT, "absolute bottom-32 right-[76px] top-3 z-20 flex w-[184px] max-w-[78vw] flex-col sm:left-4 sm:right-auto sm:top-4")}
                 style={geometry.phone ? undefined : { bottom: geometry.panelBottom }}
               >
                 <Sidebar
@@ -1384,11 +1391,12 @@ function Editor() {
                 />
               </section>
             )}
-            {screenSettingsOpen && (
+            {inspectorPresence.mounted && (
               <section
                 id="screen-settings-panel"
                 aria-label={t("toolbar.settings")}
-                className={cn(PANEL_SURFACE, "absolute bottom-32 right-[76px] top-3 z-20 flex w-[250px] max-w-[78vw] flex-col sm:top-4")}
+                data-state={inspectorPresence.state}
+                className={cn(PANEL_SURFACE, PANEL_MOTION_RIGHT, "absolute bottom-32 right-[76px] top-3 z-20 flex w-[250px] max-w-[78vw] flex-col sm:top-4")}
                 style={
                   geometry.phone
                     ? undefined
@@ -1444,7 +1452,7 @@ function Editor() {
         {/* AI proposal review — floats top-center, above everything. */}
         {pendingDesign && (
           <div
-            className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-border/80 bg-card p-1.5 shadow-pop"
+            className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-border/80 bg-card p-1.5 shadow-pop motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-2"
             style={
               geometry.phone
                 ? undefined
@@ -1576,6 +1584,12 @@ function Editor() {
 // opaque card, hairline border, the subtle card shadow. No backdrop blur —
 // it repainted under every pan frame.
 const PANEL_SURFACE = "overflow-hidden rounded-lg border border-border/80 bg-card shadow-card";
+// Panel motion (DESIGN.md: explain panel changes): 200ms ease-out in from the
+// panel's own edge, 120ms ease-in out; a leaving panel never takes clicks.
+const PANEL_MOTION =
+  "ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-short data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-micro data-[state=closed]:ease-in data-[state=closed]:fill-mode-forwards";
+const PANEL_MOTION_LEFT = `${PANEL_MOTION} data-[state=open]:slide-in-from-left-3 data-[state=closed]:slide-out-to-left-3`;
+const PANEL_MOTION_RIGHT = `${PANEL_MOTION} data-[state=open]:slide-in-from-right-3 data-[state=closed]:slide-out-to-right-3`;
 
 function slugify(s: string) {
   return (

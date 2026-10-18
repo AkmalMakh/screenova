@@ -202,3 +202,18 @@ export function useEditorLayout() {
 
   return { layout, showLeft, toggleLeft, setInspector };
 }
+
+// Keeps a panel mounted for its exit animation, then unmounts it. Pair the
+// returned `state` with data-[state=open|closed] animation classes.
+export function usePresence(open: boolean, exitMs = 120) {
+  const [mounted, setMounted] = React.useState(open);
+  React.useEffect(() => {
+    if (open) {
+      setMounted(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setMounted(false), exitMs);
+    return () => window.clearTimeout(timer);
+  }, [open, exitMs]);
+  return { mounted: open || mounted, state: open ? ("open" as const) : ("closed" as const) };
+}
