@@ -241,20 +241,46 @@
   cursor: grab;
 }
 
-/* react-rnd editable element hint: subtle outline + visible resize handles on hover */
+/* Canvas selection chrome. Everything is sized in SCREEN pixels by
+   multiplying with --canvas-inv (1 / zoom, published by the stage), so a
+   selection reads the same at 20% and at 300%, like Figma or Sketch.
+   Colors come from --primary so dark mode follows. */
 .rnd-editable {
   cursor: move;
-  outline: 2px dashed transparent;
-  outline-offset: 4px;
-  transition: outline-color 120ms ease;
+  outline: calc(1.5px * var(--canvas-inv, 1)) solid transparent;
+  outline-offset: 0;
+  transition: outline-color var(--dur-micro) var(--ease-out);
 }
 .rnd-editable:hover {
-  outline-color: rgba(0, 113, 227, 0.55);
+  outline-color: hsl(var(--primary) / 0.5);
 }
 .rnd-editable:focus-within,
 .rnd-editable.rnd-selected {
-  outline-color: rgba(0, 113, 227, 0.9);
-  outline-style: solid;
+  outline-color: hsl(var(--primary));
+}
+
+/* Corner handles: a white square with a blue hairline, shown on selection. */
+.rnd-handle-corner::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(8px * var(--canvas-inv, 1));
+  height: calc(8px * var(--canvas-inv, 1));
+  transform: translate(-50%, -50%) scale(0.6);
+  border: calc(1px * var(--canvas-inv, 1)) solid hsl(var(--primary));
+  border-radius: calc(2px * var(--canvas-inv, 1));
+  background: hsl(var(--card));
+  box-shadow: 0 calc(1px * var(--canvas-inv, 1)) calc(2px * var(--canvas-inv, 1)) hsl(240 10% 8% / 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-micro) var(--ease-out),
+    transform var(--dur-short) var(--ease-out);
+}
+.rnd-editable.rnd-selected .rnd-handle-corner::before {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .rnd-rotate-handle {
@@ -268,15 +294,15 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid rgba(0, 113, 227, 0.65);
-  background: rgba(255, 255, 255, 0.92);
-  color: rgba(30, 41, 59, 0.92);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.2);
+  border: calc(1px * var(--canvas-inv, 1)) solid hsl(var(--primary) / 0.65);
+  background: hsl(var(--card) / 0.95);
+  color: hsl(var(--foreground) / 0.9);
+  box-shadow: 0 calc(6px * var(--canvas-inv, 1)) calc(18px * var(--canvas-inv, 1)) hsl(240 10% 8% / 0.2);
   cursor: grab;
   opacity: 0;
   transition:
-    opacity 120ms ease,
-    transform 120ms ease;
+    opacity var(--dur-micro) var(--ease-out),
+    transform var(--dur-micro) var(--ease-out);
 }
 
 .rnd-editable:hover .rnd-rotate-handle,
@@ -287,17 +313,17 @@
 
 .rnd-rotate-handle:hover,
 .rnd-rotate-handle:focus-visible {
-  transform: scale(1.05);
+  transform: scale(1.08);
 }
 
 .rnd-rotate-handle:active {
   cursor: grabbing;
 }
 
-/* Show a visible cursor outline on contenteditable text inside Rnd while focused. */
+/* Text being edited in place gets a visible caret field. */
 .rnd-editable [contenteditable]:focus {
-  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.45);
-  border-radius: 2px;
+  box-shadow: 0 0 0 calc(2px * var(--canvas-inv, 1)) hsl(var(--primary) / 0.45);
+  border-radius: calc(2px * var(--canvas-inv, 1));
 }
 
 /* ---------------------------------------------------------------------------

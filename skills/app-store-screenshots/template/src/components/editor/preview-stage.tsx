@@ -534,8 +534,8 @@ export function PreviewStage({
                 if (!rect) return [];
                 const box = document.createElement("div");
                 box.style.cssText =
-                  "position:absolute;pointer-events:none;border:2px solid rgba(0,113,230,0.75);" +
-                  "background:rgba(0,113,230,0.05);border-radius:2px;";
+                  "position:absolute;pointer-events:none;border:2px solid hsl(var(--primary) / 0.75);" +
+                  "background:hsl(var(--primary) / 0.05);border-radius:2px;";
                 box.style.left = `${rect.left - containerRect.left}px`;
                 box.style.top = `${rect.top - containerRect.top}px`;
                 box.style.width = `${rect.width}px`;
@@ -662,6 +662,9 @@ export function PreviewStage({
             top: 0,
             transform: `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${scale})`,
             transformOrigin: "0 0",
+            // Selection chrome inside the world multiplies by this to stay a
+            // constant on-screen size (globals.css .rnd-*, ScreenGuide).
+            ["--canvas-inv" as string]: 1 / scale,
           }}
         >
           <DeckCanvas
