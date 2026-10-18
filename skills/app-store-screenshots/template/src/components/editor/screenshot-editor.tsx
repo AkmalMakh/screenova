@@ -1409,6 +1409,7 @@ function Editor() {
                   connectedCanvas={state.connectedCanvas}
                   disabled={busy}
                   selectedForDesign={selectedSlideIds}
+                  showDesignSelection={designScope === "selected"}
                   onToggleDesignSelection={(id) =>
                     setSelectedSlideIds((current) => {
                       const next = new Set(current);

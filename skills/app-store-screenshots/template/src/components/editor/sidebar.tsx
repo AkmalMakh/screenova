@@ -34,6 +34,7 @@ type Props = {
   connectedCanvas: boolean;
   disabled?: boolean;
   selectedForDesign?: Set<string>;
+  showDesignSelection?: boolean;
   onToggleDesignSelection?: (id: string) => void;
   onReorder: (next: Slide[]) => void;
   onSelect: (id: string) => void;
@@ -54,6 +55,7 @@ export function Sidebar({
   connectedCanvas,
   disabled,
   selectedForDesign,
+  showDesignSelection,
   onToggleDesignSelection,
   onReorder,
   onSelect,
@@ -79,16 +81,16 @@ export function Sidebar({
   return (
     <div className={`flex h-full flex-col ${disabled ? "pointer-events-none opacity-60" : ""}`}>
       <div className="border-b border-border/70 px-3 py-3">
-        <h2 className="text-title3 font-semibold tracking-tight">{t("sidebar.screens")}</h2>
+        <h2 className="text-footnote font-semibold tracking-tight">{t("sidebar.screens")}</h2>
         <p className="text-caption text-muted-foreground">
           {t("sidebar.screensCount", { count: slides.length })}
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto p-1.5">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={slides.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {slides.map((slide, i) => (
                 <SlideThumb
                   key={slide.id}
@@ -107,6 +109,7 @@ export function Sidebar({
                   onDelete={() => onDelete(slide.id)}
                   onDuplicate={() => onDuplicate(slide.id)}
                   selectedForDesign={selectedForDesign?.has(slide.id)}
+                  showDesignSelection={showDesignSelection}
                   onToggleDesignSelection={
                     onToggleDesignSelection ? () => onToggleDesignSelection(slide.id) : undefined
                   }
