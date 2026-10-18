@@ -133,7 +133,10 @@ test("badge copy is localized and the canvas supports dragging and proportional 
   const initial = (await project(request)).slidesByDevice.iphone[0].decorations[0].transform;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 35, box.y + box.height / 2 + 30, { steps: 8 });
+  // The canvas frames the screen inside the free area (manual-first layout),
+  // so at 1280×720 a screen px is ~7 canvas px: drag a short way so the badge
+  // stays clear of the slide edge for the resize below.
+  await page.mouse.move(box.x + box.width / 2 + 15, box.y + box.height / 2 + 12, { steps: 8 });
   await page.mouse.up();
   await expect.poll(async () => (await project(request)).slidesByDevice.iphone[0].decorations[0].transform.x).toBeGreaterThan(initial.x + 10);
   const moved = (await svg.boundingBox())!;
