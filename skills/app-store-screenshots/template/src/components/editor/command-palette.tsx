@@ -117,7 +117,7 @@ export function CommandPalette({ open, onOpenChange, groups }: Props) {
             aria-label={t("palette.placeholder")}
             className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
-          <kbd className="flex h-6 shrink-0 items-center gap-1 rounded-sm border bg-muted/60 px-1.5 text-[10px] font-medium text-muted-foreground">
+          <kbd className="flex h-6 shrink-0 items-center gap-1 rounded-xs border bg-muted/60 px-1.5 text-caption font-medium text-muted-foreground">
             <Command className="h-3 w-3" />
             K
           </kbd>
@@ -131,7 +131,7 @@ export function CommandPalette({ open, onOpenChange, groups }: Props) {
           ) : (
             filtered.map((group) => (
               <div key={group.label}>
-                <p className="px-3 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="px-3 pb-1 pt-3 text-caption font-semibold text-muted-foreground">
                   {group.label}
                 </p>
                 {group.items.map((action) => {
@@ -153,7 +153,7 @@ export function CommandPalette({ open, onOpenChange, groups }: Props) {
                       <span className="truncate">{action.label}</span>
                       <span
                         className={cn(
-                          "flex shrink-0 items-center gap-1.5 text-[11px]",
+                          "flex shrink-0 items-center gap-1.5 text-caption tabular-nums",
                           isActive ? "text-primary-foreground/80" : "text-muted-foreground",
                         )}
                       >
