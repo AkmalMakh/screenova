@@ -153,7 +153,7 @@ export function Inspector({
     <div className="flex h-full flex-col">
       <div className="border-b border-border/70 px-3 py-3">
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-footnote font-semibold tracking-tight">
+          <h2 className="text-subhead font-semibold tracking-tight">
             {t("inspector.screenSettings")}
           </h2>
           <span className="rounded-full border border-border/70 bg-muted/60 px-1.5 py-0.5 text-caption font-medium uppercase tracking-wide text-muted-foreground">

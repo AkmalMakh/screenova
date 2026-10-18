@@ -1289,7 +1289,7 @@ function Editor() {
                 <Sparkles className="h-3.5 w-3.5" />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-footnote font-semibold tracking-tight">
+                <h2 className="truncate text-subhead font-semibold tracking-tight">
                   {t("designSidebar.title")}
                 </h2>
                 <p className="truncate text-caption text-muted-foreground">
