@@ -363,8 +363,11 @@
 
 :root.screenova-dark .dot-grid { background-color: #141416; }
 
-/* Interface sizing never targets rendered screenshot artwork. */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea {
+/* Interface sizing never targets rendered screenshot artwork. DESIGN.md:
+   inputs and textareas are at least 16px. The :not() keeps this rule ahead
+   of single-class size utilities (text-sm/text-xs) on textareas too. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea:not([data-artwork]) {
   font-size: 16px;
 }
 /* Touch-target size comes from the pointer: coarse hit-area rule near the top
