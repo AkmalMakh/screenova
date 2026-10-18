@@ -284,7 +284,7 @@ export function Toolbar(props: Props) {
           disabled={props.busy}
         >
           <FileText className="h-4 w-4" />
-          <span className="hidden xl:inline">{t("toolbar.copy")}</span>
+          <span className="hidden min-[1360px]:inline">{t("toolbar.copy")}</span>
         </Button>
         <ThemeToggle className="h-8 w-8" />
         <DropdownMenu>
