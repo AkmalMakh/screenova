@@ -1,3 +1,4 @@
+import { OUTAGE_REASSURANCE, OUTAGE_TITLE } from "./messages";
 export function githubAccessRequest(origin: string) {
   return {
     provider: "github" as const,
@@ -15,6 +16,7 @@ export function signInError(reason: string | null): string {
   if (reason === "expired") return "That sign-in attempt expired or was already used. Please try signing in again.";
   if (reason === "cancelled") return "Sign-in was cancelled. You can try again when you’re ready.";
   if (reason === "oauth") return "Sign-in could not be completed. Please try again.";
-  if (reason === "session") return "Your session ended or the workspace is unavailable. Please sign in again.";
+  if (reason === "session") return "Your session ended. Please sign in again.";
+  if (reason === "unavailable") return `${OUTAGE_TITLE}. ${OUTAGE_REASSURANCE} Try again shortly.`;
   return "";
 }

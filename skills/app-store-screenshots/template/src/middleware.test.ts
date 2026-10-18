@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-const mocks = vi.hoisted(() => ({ create: vi.fn(), user: vi.fn() }));
+import { AuthRetryableFetchError, AuthSessionMissingError, AuthUnknownError } from "@supabase/supabase-js";
+const mocks = vi.hoisted(() => ({ create: vi.fn(), user: vi.fn(), report: vi.fn() }));
 vi.mock("@supabase/ssr", () => ({ createServerClient: mocks.create }));
+vi.mock("@/lib/ops", () => ({ report: mocks.report, requestIdOf: (req?: Request) => req?.headers.get("x-vercel-id") ?? null }));
 import { middleware } from "./middleware";
 
 beforeEach(() => {
@@ -15,6 +17,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 const request = (path: string) => new NextRequest(`https://screenova.example${path}`);
+const UNAVAILABLE_URL = "https://screenova.example/login?reason=unavailable";
 
 describe("protected-route middleware", () => {
   it("allows explicit local operation without initializing hosted auth", async () => {
@@ -59,7 +62,43 @@ describe("protected-route middleware", () => {
     expect((await middleware(request("/api/project"))).status).toBe(503);
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     mocks.create.mockClear();
-    expect((await middleware(request("/studio"))).status).toBe(503);
+    expect((await middleware(request("/studio"))).headers.get("location")).toBe(UNAVAILABLE_URL);
     expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.report).toHaveBeenCalledTimes(2);
+    expect(mocks.report).toHaveBeenLastCalledWith("middleware", expect.any(Error), { requestId: null }, "error");
+  });
+  it("treats an unreachable auth server as an outage: outage notice, not a sign-out", async () => {
+    mocks.user.mockResolvedValue({ data: { user: null }, error: new AuthRetryableFetchError("fetch failed", 0) });
+    const response = await middleware(request("/studio"));
+    expect(response.headers.get("location")).toBe(UNAVAILABLE_URL);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(mocks.report).toHaveBeenCalledWith("middleware", expect.any(AuthRetryableFetchError), { requestId: null }, "error");
+    mocks.user.mockResolvedValue({ data: { user: null }, error: Object.assign(new Error("bad gateway"), { status: 502 }) });
+    const api = await middleware(request("/api/project"));
+    expect(api.status).toBe(503);
+    // API clients call response.json() before checking status: the outage must stay JSON.
+    expect(await api.json()).toEqual({ ok: false, error: "Cloud workspace is unavailable. No local data was accessed." });
+  });
+  it("treats auth rate limiting as an outage reported as a warning, not a sign-out", async () => {
+    mocks.user.mockResolvedValue({ data: { user: null }, error: Object.assign(new Error("Request rate limit reached"), { status: 429 }) });
+    const response = await middleware(request("/editor"));
+    expect(response.headers.get("location")).toBe(UNAVAILABLE_URL);
+    expect(mocks.report).toHaveBeenCalledWith("middleware", expect.any(Error), { requestId: null }, "warning");
+  });
+  it("treats a non-JSON auth answer (WAF page, wrong URL) as an outage", async () => {
+    mocks.user.mockResolvedValue({ data: { user: null }, error: new AuthUnknownError("Unexpected token <", new SyntaxError("bad json")) });
+    const response = await middleware(request("/studio"));
+    expect(response.headers.get("location")).toBe(UNAVAILABLE_URL);
+    expect(mocks.report).toHaveBeenCalled();
+  });
+  it("still treats a missing session as signed out", async () => {
+    mocks.user.mockResolvedValue({ data: { user: null }, error: new AuthSessionMissingError() });
+    expect((await middleware(request("/studio"))).headers.get("location")).toBe("https://screenova.example/login");
+    expect(mocks.report).not.toHaveBeenCalled();
+  });
+  it("does not report signed-out visitors", async () => {
+    mocks.user.mockResolvedValue({ data: { user: null }, error: null });
+    await middleware(request("/studio"));
+    expect(mocks.report).not.toHaveBeenCalled();
   });
 });
