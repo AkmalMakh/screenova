@@ -13,6 +13,10 @@
     --popover-foreground: 240 8% 8%;
     --primary: 211 100% 45%;
     --primary-foreground: 0 0% 100%;
+    /* Interaction deepens the blue (DESIGN.md pressed #0058B8); never washes
+       it out — white text must stay at or above 4.5:1 in every state. */
+    --primary-hover: 211 100% 40%;
+    --primary-active: 211 100% 36%;
     --secondary: 240 10% 94%;
     --secondary-foreground: 240 8% 12%;
     --muted: 240 10% 94%;
@@ -49,6 +53,9 @@
     --popover-foreground: 240 12% 96%;
     --primary: 211 100% 63%;
     --primary-foreground: 240 12% 5%;
+    /* Dark text on a light blue: hover brightens, press settles back. */
+    --primary-hover: 211 100% 70%;
+    --primary-active: 211 100% 59%;
     --secondary: 240 8% 16%;
     --secondary-foreground: 240 12% 96%;
     --muted: 240 8% 14%;

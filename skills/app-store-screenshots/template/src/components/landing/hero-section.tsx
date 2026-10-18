@@ -22,7 +22,7 @@ export function HeroSection({ onGenerate, onStart }: HeroSectionProps) {
             <input id="hero-direction" value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Describe a design direction…" className="min-h-11 w-full rounded-sm bg-transparent px-1 text-base placeholder:text-muted-foreground" />
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <span className="px-1 text-caption text-muted-foreground">Add screenshots in Studio</span>
-              <button id="hero-generate-btn" type="submit" className="flex min-h-11 items-center gap-2 rounded-sm bg-primary px-5 text-footnote font-semibold text-primary-foreground hover:bg-primary/90">Design with AI <ArrowRight aria-hidden="true" className="h-4 w-4" /></button>
+              <button id="hero-generate-btn" type="submit" className="btn-press flex min-h-11 items-center gap-2 rounded-sm bg-primary px-5 text-footnote font-semibold text-primary-foreground hover:bg-primary-hover active:bg-primary-active">Design with AI <ArrowRight aria-hidden="true" className="h-4 w-4" /></button>
             </div>
           </form>
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-caption text-muted-foreground"><span className="flex items-center gap-2"><Check aria-hidden="true" className="h-4 w-4" />Editable layouts</span><span className="flex items-center gap-2"><Check aria-hidden="true" className="h-4 w-4" />Exact export sizes</span></div>

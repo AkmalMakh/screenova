@@ -114,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 // CTA steps down to an outlined secondary so one blue button
                 // leads the first viewport.
                 ? 'border border-foreground/15 text-foreground hover:border-foreground/35'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-active'
             }`}
           >
             <span>Open Studio</span>
