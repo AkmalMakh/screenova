@@ -138,6 +138,10 @@ export const de: Record<TranslationKey, string> = {
   "inspector.appIconNote":
     "Zeigt App-Icon + Name + Slogan. Lege ein Icon unter /public/app-icon.png ab (oder leer lassen — dann wird der Anfangsbuchstabe verwendet). Der Name wird in der Toolbar gesetzt.",
   "inspector.elements": "Elemente",
+  "inspector.selection": "Auswahl",
+  "inspector.deselect": "Auswahl aufheben",
+  "inspector.addElements": "Zum Bildschirm hinzufügen",
+  "inspector.addElementsHint": "Klicke auf der Leinwand auf ein Element, um es hier zu bearbeiten.",
   "inspector.elementsHintSelected": "Drehung und Stapelung des ausgewählten Elements feinjustieren.",
   "inspector.elementsHint": "Klicke ein Element auf der Leinwand an, um Drehung und Stapelung feinzujustieren.",
   "inspector.shape": "Form",

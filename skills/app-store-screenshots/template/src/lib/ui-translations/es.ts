@@ -138,6 +138,10 @@ export const es: Record<TranslationKey, string> = {
   "inspector.appIconNote":
     "Muestra icono + nombre + eslogan de la app. Suelta un icono en /public/app-icon.png (o déjalo vacío: se usará la inicial de la app). El nombre se define en la barra superior.",
   "inspector.elements": "Elementos",
+  "inspector.selection": "Selección",
+  "inspector.deselect": "Deseleccionar",
+  "inspector.addElements": "Añadir a la pantalla",
+  "inspector.addElementsHint": "Haz clic en cualquier elemento del lienzo para editarlo aquí.",
   "inspector.elementsHintSelected": "Ajusta la rotación y el apilado del elemento seleccionado.",
   "inspector.elementsHint": "Haz clic en un elemento del lienzo para ajustar su rotación y apilado.",
   "inspector.shape": "Forma",

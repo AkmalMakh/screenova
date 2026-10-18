@@ -151,6 +151,10 @@ export const en = {
   "inspector.appIconNote":
     "Shows app icon + name + tagline. Drop an icon at /public/app-icon.png (or leave blank — the app initial will be used). Name is set in the toolbar.",
   "inspector.elements": "Elements",
+  "inspector.selection": "Selection",
+  "inspector.deselect": "Deselect",
+  "inspector.addElements": "Add to screen",
+  "inspector.addElementsHint": "Click anything on the canvas to edit it here.",
   "inspector.elementsHintSelected": "Fine-tune the selected element's rotation and stacking.",
   "inspector.elementsHint": "Click an element on the canvas to fine-tune its rotation and stacking.",
   "inspector.shape": "Shape",

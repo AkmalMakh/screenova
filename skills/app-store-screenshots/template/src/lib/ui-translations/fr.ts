@@ -138,6 +138,10 @@ export const fr: Record<TranslationKey, string> = {
   "inspector.appIconNote":
     "Affiche l'icône + le nom + le slogan de l'app. Déposez une icône dans /public/app-icon.png (ou laissez vide — l'initiale de l'app sera utilisée). Le nom se règle dans la barre d'outils.",
   "inspector.elements": "Éléments",
+  "inspector.selection": "Sélection",
+  "inspector.deselect": "Désélectionner",
+  "inspector.addElements": "Ajouter à l'écran",
+  "inspector.addElementsHint": "Cliquez sur un élément du canevas pour le modifier ici.",
   "inspector.elementsHintSelected": "Ajustez la rotation et l'empilement de l'élément sélectionné.",
   "inspector.elementsHint": "Cliquez sur un élément du canevas pour ajuster sa rotation et son empilement.",
   "inspector.shape": "Forme",

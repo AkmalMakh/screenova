@@ -15,6 +15,7 @@ import {
   Trash2,
   Type,
   Award,
+  X,
 } from "lucide-react";
 import { createAwardBadge, type AwardBadgePreset } from "@/lib/award-badge";
 import { AwardBadgePanel, AwardBadgePresets } from "./award-badge-panel";
@@ -91,9 +92,12 @@ export function Inspector({
   const { t } = useT();
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const selectedDevice = selectedElementId === "device" || selectedElementId === "deviceSecondary" ? selectedElementId : null;
+  // A canvas selection brings its controls to the top of the inspector.
   React.useEffect(() => {
-    if (selectedDevice) scrollRef.current?.scrollTo({ top: 0 });
-  }, [selectedDevice, slide.id]);
+    if (!selectedElementId) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    scrollRef.current?.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  }, [selectedElementId, slide.id]);
   const isFeatureGraphic = device === "feature-graphic" || slide.layout === "feature-graphic";
   const isNoDevice = slide.layout === "no-device";
   const layoutValue = device === "feature-graphic" ? "feature-graphic" : slide.layout;
@@ -160,6 +164,17 @@ export function Inspector({
 
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-3">
         {selectedDevice && screenshotControl(selectedDevice === "deviceSecondary")}
+        <ElementTransformControls
+          part="selection"
+          slide={slide}
+          artworkColor={artworkColor}
+          device={device}
+          orientation={orientation}
+          locale={locale}
+          selectedElementId={selectedElementId}
+          onChange={onChange}
+          onSelectElement={onSelectElement}
+        />
         <div className="space-y-1.5">
           <Label className="text-xs">{t("inspector.layout")}</Label>
           <Select
@@ -292,6 +307,7 @@ export function Inspector({
         {selectedDevice !== "deviceSecondary" && screenshotControl(true)}
 
           <ElementTransformControls
+            part="library"
             slide={slide}
             artworkColor={artworkColor}
             device={device}
@@ -312,7 +328,11 @@ export function Inspector({
   );
 }
 
+// Rendered twice: part="selection" (top of the inspector, only while
+// something is selected) and part="library" (add shape/text/badge, bottom).
+// One body, so both share the same patch/reorder helpers.
 function ElementTransformControls({
+  part,
   slide,
   artworkColor,
   device,
@@ -322,6 +342,7 @@ function ElementTransformControls({
   onChange,
   onSelectElement,
 }: {
+  part: "selection" | "library";
   slide: Slide;
   artworkColor: string;
   device: Device;
@@ -543,14 +564,69 @@ function ElementTransformControls({
     });
   }
 
+  if (part === "selection") {
+    if (!activeId) return null;
+    const label = activeDecoration?.kind === "award-badge" ? t("badge.name") : elementLabelFor(activeId, t);
+    return (
+      <section
+        key={activeId}
+        aria-label={t("inspector.selection")}
+        className="space-y-3 duration-short animate-in fade-in-0 slide-in-from-top-1"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="flex min-w-0 items-center gap-1.5 text-footnote font-semibold">
+            {activeTextElement && <Type className="h-3.5 w-3.5 shrink-0 text-primary" />}
+            {activeDecoration && <Circle className="h-3.5 w-3.5 shrink-0 text-primary" />}
+            <span className="truncate">{label}</span>
+          </h3>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 text-muted-foreground"
+            onClick={() => onSelectElement(null)}
+            title={`${t("inspector.deselect")} · Esc`}
+            aria-label={t("inspector.deselect")}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <ActiveElementPanel
+          activeId={activeId}
+          transform={activeTransform}
+          textElement={activeTextElement || undefined}
+          decoration={activeDecoration || undefined}
+          locale={locale}
+          onRotate={(rotation) => patchElement(activeId, { rotation })}
+          onReorder={(dir) => reorder(activeId, dir)}
+          onTextChange={(value) => {
+            if (activeTextElement) setTextElementValue(activeTextElement, value);
+          }}
+          onTextPatch={(patch) => {
+            if (activeTextElement) patchTextElement(activeTextElement.id, patch);
+          }}
+          onDeleteText={() => {
+            if (activeTextElement) deleteTextElement(activeTextElement);
+          }}
+          onDecorationPatch={(patch) => {
+            if (activeDecoration) patchDecoration(activeDecoration.id, patch);
+          }}
+          onDeleteDecoration={() => {
+            if (activeDecoration) deleteDecoration(activeDecoration);
+          }}
+          onDuplicateDecoration={duplicateDecoration}
+        />
+        <div aria-hidden className="-mx-3 h-px bg-border/70" />
+      </section>
+    );
+  }
+
   return (
     <div className="space-y-3 rounded-sm border bg-muted/30 p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <Label className="text-xs font-semibold">{t("inspector.elements")}</Label>
-          <p className="text-caption text-muted-foreground">
-            {activeId ? t("inspector.elementsHintSelected") : t("inspector.elementsHint")}
-          </p>
+          <Label className="text-xs font-semibold">{t("inspector.addElements")}</Label>
+          <p className="text-caption text-muted-foreground">{t("inspector.addElementsHint")}</p>
         </div>
         <div className="flex flex-wrap gap-1">
           <Button
@@ -580,38 +656,6 @@ function ElementTransformControls({
         <Award className="h-4 w-4" /> {t("badge.add")}
       </Button>
       {activeDecoration?.kind !== "award-badge" && <AwardBadgePresets locale={locale} onSelect={addBadge} />}
-
-      {activeId ? (
-        <ActiveElementPanel
-          activeId={activeId}
-          transform={activeTransform}
-          textElement={activeTextElement || undefined}
-          decoration={activeDecoration || undefined}
-          locale={locale}
-          onRotate={(rotation) => patchElement(activeId, { rotation })}
-          onReorder={(dir) => reorder(activeId, dir)}
-          onTextChange={(value) => {
-            if (activeTextElement) setTextElementValue(activeTextElement, value);
-          }}
-          onTextPatch={(patch) => {
-            if (activeTextElement) patchTextElement(activeTextElement.id, patch);
-          }}
-          onDeleteText={() => {
-            if (activeTextElement) deleteTextElement(activeTextElement);
-          }}
-          onDecorationPatch={(patch) => {
-            if (activeDecoration) patchDecoration(activeDecoration.id, patch);
-          }}
-          onDeleteDecoration={() => {
-            if (activeDecoration) deleteDecoration(activeDecoration);
-          }}
-          onDuplicateDecoration={duplicateDecoration}
-        />
-      ) : (
-        <div className="rounded border border-dashed bg-background/40 p-4 text-center text-caption text-muted-foreground">
-          {t("inspector.noElement")}
-        </div>
-      )}
     </div>
   );
 }
@@ -651,12 +695,7 @@ function ActiveElementPanel({
   const label = decoration?.kind === "award-badge" ? t("badge.name") : elementLabelFor(activeId, t);
   return (
     <div className="space-y-2 rounded border bg-background/60 p-2.5">
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1 text-xs font-medium">
-          {textElement && <Type className="h-3.5 w-3.5" />}
-          {decoration && <Circle className="h-3.5 w-3.5" />}
-          {label}
-        </span>
+      <div className="flex items-center justify-end">
         {textElement || decoration ? (
           <Button
             type="button"
