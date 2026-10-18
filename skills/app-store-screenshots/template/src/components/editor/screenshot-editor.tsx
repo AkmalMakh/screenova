@@ -70,6 +70,7 @@ import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides
 import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
 import { DeckCanvas, getCanvas } from "./slide-canvas";
 import { Toolbar } from "./toolbar";
+import { useEditorLayout } from "./use-editor-layout";
 
 type CopyPair = { headline: string; subheader: string };
 
@@ -165,13 +166,13 @@ function Editor() {
   const [generatingDesign, setGeneratingDesign] = React.useState(false);
   const [pendingDesign, setPendingDesign] = React.useState<PendingDesign | null>(null);
   const [showProposal, setShowProposal] = React.useState(true);
-  const [screensOpen, setScreensOpen] = React.useState(false);
-  const [screenSettingsOpen, setScreenSettingsOpen] = React.useState(false);
   const [canvasTool, setCanvasTool] = React.useState<CanvasTool>("select");
-  // Chat panel: open where there's room, collapsed to a pill on small screens.
-  const [chatOpen, setChatOpen] = React.useState(() =>
-    typeof window === "undefined" ? true : window.matchMedia("(min-width: 1024px)").matches,
-  );
+  // Panel layout: manual-first by default, remembered per browser. The left
+  // slot holds the screens list or the design chat, never both.
+  const { layout, showLeft, toggleLeft, setInspector } = useEditorLayout();
+  const screensOpen = layout.left === "screens";
+  const chatOpen = layout.left === "chat";
+  const screenSettingsOpen = layout.inspector;
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [importing, setImporting] = React.useState<string | null>(null);
@@ -819,12 +820,12 @@ function Editor() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "1") {
         e.preventDefault();
-        setScreensOpen((open) => !open);
+        toggleLeft("screens");
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "2") {
         e.preventDefault();
-        setScreenSettingsOpen((open) => !open);
+        setInspector((open) => !open);
         return;
       }
 
@@ -873,7 +874,7 @@ function Editor() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeSlide, currentSlides, duplicateSlide, deleteSlide, exporting, generatingDesign, pendingDesign, undo, redo]);
+  }, [activeSlide, currentSlides, duplicateSlide, deleteSlide, exporting, generatingDesign, pendingDesign, undo, redo, toggleLeft, setInspector]);
 
   // ---------- Export ----------
 
@@ -1114,13 +1115,13 @@ function Editor() {
           id: "palette-screens",
           label: t("palette.action.screens"),
           hint: screensOpen ? t("palette.on") : t("palette.off"),
-          run: () => setScreensOpen((open) => !open),
+          run: () => toggleLeft("screens"),
         },
         {
           id: "palette-settings",
           label: t("palette.action.settings"),
           hint: screenSettingsOpen ? t("palette.on") : t("palette.off"),
-          run: () => setScreenSettingsOpen((open) => !open),
+          run: () => setInspector((open) => !open),
         },
         {
           id: "palette-connected",
@@ -1245,8 +1246,7 @@ function Editor() {
                 setSelectedElement(element);
                 if (element?.elementId === "device" || element?.elementId === "deviceSecondary") {
                   setActiveSlideId(element.slideId);
-                  setScreenSettingsOpen(true);
-                  if (window.innerWidth < 640) { setScreensOpen(false); setChatOpen(false); }
+                  setInspector(true);
                 }
               }}
               editable={!busy}
@@ -1285,7 +1285,8 @@ function Editor() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 shrink-0 rounded-sm"
-                onClick={() => setChatOpen(false)}
+                // The chat borrowed the left slot from the screens list; give it back.
+                onClick={() => showLeft(window.innerWidth < 640 ? null : "screens")}
                 aria-label={t("designSidebar.collapse")}
               >
                 <PanelLeftClose className="h-4 w-4" />
@@ -1296,11 +1297,7 @@ function Editor() {
         ) : (
           <button
             type="button"
-            onClick={() => {
-              setChatOpen(true);
-              setScreensOpen(false);
-              if (window.innerWidth < 640) { setScreensOpen(false); setScreenSettingsOpen(false); }
-            }}
+            onClick={() => showLeft("chat")}
             className={cn("absolute left-4 top-4 z-30 inline-flex h-11 items-center gap-2 rounded-sm border border-border bg-card px-4 text-footnote font-medium shadow-card transition-colors hover:bg-card", screensOpen && "sm:left-[216px]", (screensOpen || screenSettingsOpen) && "hidden sm:inline-flex")}
           >
             <Sparkles className="h-4 w-4 text-primary" />
@@ -1352,11 +1349,7 @@ function Editor() {
             variant={screensOpen ? "secondary" : "ghost"}
             size="icon"
             className="h-9 w-9 rounded-sm"
-            onClick={() => {
-              setScreensOpen(!screensOpen);
-              if (!screensOpen) setChatOpen(false);
-              if (window.innerWidth < 640) { setScreenSettingsOpen(false); setChatOpen(false); }
-            }}
+            onClick={() => toggleLeft("screens")}
             aria-pressed={screensOpen}
             aria-controls="screens-panel"
             aria-label={screensOpen ? t("toolbar.hideScreens") : t("toolbar.showScreens")}
@@ -1369,10 +1362,7 @@ function Editor() {
             variant={screenSettingsOpen ? "secondary" : "ghost"}
             size="icon"
             className="h-9 w-9 rounded-sm"
-            onClick={() => {
-              setScreenSettingsOpen(!screenSettingsOpen);
-              if (window.innerWidth < 640) { setScreensOpen(false); setChatOpen(false); }
-            }}
+            onClick={() => setInspector((open) => !open)}
             aria-pressed={screenSettingsOpen}
             aria-controls="screen-settings-panel"
             aria-label={
@@ -1521,7 +1511,7 @@ function Editor() {
             scope={designScope}
             onScopeChange={(scope) => {
               setDesignScope(scope);
-              if (scope === "selected") setScreensOpen(true);
+              if (scope === "selected") showLeft("screens");
             }}
             targetCount={targetSlideIds.length}
             generating={generatingDesign}
