@@ -76,6 +76,21 @@ const config: Config = {
         card: "0 1px 2px hsl(240 10% 8% / 0.05), 0 8px 24px -4px hsl(240 10% 8% / 0.08)",
         pop: "0 2px 6px hsl(240 10% 8% / 0.06), 0 16px 40px -8px hsl(240 10% 8% / 0.16)",
       },
+      // DESIGN.md motion: enter / exit / move curves and four named durations.
+      transitionTimingFunction: {
+        out: "var(--ease-out)",
+        in: "var(--ease-in)",
+        move: "var(--ease-in-out)",
+      },
+      transitionDuration: {
+        micro: "var(--dur-micro)",
+        short: "var(--dur-short)",
+        medium: "var(--dur-medium)",
+        sheet: "var(--dur-sheet)",
+      },
+      // tailwindcss-animate's animate-in/out set this default with a
+      // state-variant selector, so it must be the token, not 150ms.
+      animationDuration: { DEFAULT: "var(--dur-short)" },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

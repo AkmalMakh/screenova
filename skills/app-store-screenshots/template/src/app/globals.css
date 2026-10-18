@@ -27,10 +27,16 @@
     --ring: 211 100% 50%;
     --radius: 0.75rem;
 
-    /* Custom easings — built-in CSS curves are too weak for UI (emil-design-eng). */
+    /* Motion vocabulary from DESIGN.md: enter, exit, move — and four durations.
+       Components use the Tailwind names (ease-out/ease-in/ease-move,
+       duration-micro/short/medium/sheet), never ad-hoc curves. */
     --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
     --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --dur-micro: 120ms;
+    --dur-short: 200ms;
+    --dur-medium: 300ms;
+    --dur-sheet: 400ms;
   }
 
   .dark,
@@ -149,15 +155,15 @@
 
   /* Gentle entrance, used with staggered inline animation-delay. */
   .fade-up {
-    animation: fade-up 0.45s var(--ease-out) both;
+    animation: fade-up var(--dur-medium) var(--ease-out) both;
   }
 
   /* Card hover lift — gated behind real hover-capable pointers. */
   .lift-hover {
     transition:
-      transform 200ms var(--ease-out),
-      box-shadow 200ms var(--ease-out),
-      border-color 200ms var(--ease-out);
+      transform var(--dur-short) var(--ease-out),
+      box-shadow var(--dur-short) var(--ease-out),
+      border-color var(--dur-short) var(--ease-out);
   }
 
   /* Canvas stage backdrop: soft radial wash + faint dot grid for depth. */
