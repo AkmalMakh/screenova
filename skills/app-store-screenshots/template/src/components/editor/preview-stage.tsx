@@ -157,6 +157,25 @@ export function PreviewStage({
     return { left, top, width: Math.max(1, right - left), height: Math.max(1, bottom - top) };
   }, []);
 
+  // Is the active screen entirely inside the area no chrome covers?
+  const activeVisible = React.useCallback(() => {
+    const container = containerRef.current;
+    if (!container || !activeSlide) return false;
+    const rect = container.getBoundingClientRect();
+    const i = insetsRef.current;
+    const off = (!connectedCanvas && activeSlide.canvasOffset) || { x: 0, y: 0 };
+    const k = scaleRef.current;
+    const x = panRef.current.x + (activeIndex * cW + off.x) * k;
+    const y = panRef.current.y + off.y * k;
+    const slack = 1;
+    return (
+      x >= i.left - slack &&
+      y >= i.top - slack &&
+      x + cW * k <= rect.width - i.right + slack &&
+      y + cH * k <= rect.height - i.bottom + slack
+    );
+  }, [activeSlide, activeIndex, connectedCanvas, cW, cH]);
+
   const computeFit = React.useCallback(() => {
     const free = freeRect();
     if (!free) return null;
@@ -206,6 +225,7 @@ export function PreviewStage({
 
   // Window resizes refit silently; a panel opening or closing glides.
   const animateFitRef = React.useRef(false);
+  const preserveViewRef = React.useRef(false);
   React.useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -227,23 +247,45 @@ export function PreviewStage({
   React.useEffect(() => {
     mountedAtRef.current = performance.now();
   }, []);
+  const activeVisibleRef = React.useRef(activeVisible);
+  activeVisibleRef.current = activeVisible;
   React.useEffect(() => {
     const next = computeFit();
     if (!next) return;
-    const animate = performance.now() - mountedAtRef.current > 600;
-    if (Math.abs(next - fitScaleRef.current) < 1e-6) {
-      // Same scale, different free area (a side panel opened or closed):
-      // reframe in place if the user is at fit.
-      if (Math.abs(zoomRef.current - 1) < 1e-3) centerPanRef.current(animate);
+    const settled = performance.now() - mountedAtRef.current > 600;
+    const fitChanges = Math.abs(next - fitScaleRef.current) > 1e-6;
+    if (!settled) {
+      // First measurements after mount: frame silently.
+      if (fitChanges) setFitScale(next);
+      else if (Math.abs(zoomRef.current - 1) < 1e-3) centerPanRef.current(false);
       return;
     }
-    if (animate) {
-      // Arm the transition before the render that changes the scale, so the
-      // old frame glides to the new one instead of jumping first.
-      animateFitRef.current = true;
-      if (wrapRef.current) {
-        wrapRef.current.style.transition = "transform var(--dur-medium) var(--ease-in-out)";
+    // A panel opened or closed. Minimal motion: the canvas only moves when
+    // the new chrome would cover the screen being edited. Otherwise the view
+    // stays exactly where it is (the on-screen scale is kept too).
+    if (activeVisibleRef.current()) {
+      if (fitChanges) {
+        preserveViewRef.current = true;
+        setFitScale(next);
       }
+      return;
+    }
+    if (!fitChanges) {
+      centerPanRef.current(true);
+      return;
+    }
+    if (Math.abs(zoomRef.current - 1) >= 1e-3) {
+      // Zoomed by the user: keep that scale, just glide the screen clear.
+      preserveViewRef.current = true;
+      setFitScale(next);
+      requestAnimationFrame(() => centerPanRef.current(true));
+      return;
+    }
+    // Arm the transition before the render that changes the scale, so the
+    // old frame glides to the new one instead of jumping first.
+    animateFitRef.current = true;
+    if (wrapRef.current) {
+      wrapRef.current.style.transition = "transform var(--dur-medium) var(--ease-in-out)";
     }
     setFitScale(next);
   }, [insetsKey, computeFit]);
@@ -261,7 +303,9 @@ export function PreviewStage({
     prevArtboardRef.current = artboardKey;
     const animate = animateFitRef.current && !artboardChanged;
     animateFitRef.current = false;
-    if (artboardChanged || Math.abs(zoomRef.current - 1) < 1e-3) {
+    const preserve = preserveViewRef.current && !artboardChanged;
+    preserveViewRef.current = false;
+    if (!preserve && (artboardChanged || Math.abs(zoomRef.current - 1) < 1e-3)) {
       zoomRef.current = 1;
       scaleRef.current = fitScale;
       setZoom(1);
