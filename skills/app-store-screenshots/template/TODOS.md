@@ -18,12 +18,9 @@ All fifteen design findings are fixed on `feat/reference-layout-cloning` (Fixed 
 
 ## 2026-10-18 — open items from /ship (launch-readiness PR, review not converged)
 
-The pre-landing review hit its three-cycle cap. Items below were found after the last fix cycle and were not changed in that PR.
+The pre-landing review hit its three-cycle cap. Unless marked fixed, items below were found after the last fix cycle and were not changed in that PR.
 
-**Fix before merge (adversarial review, medium):**
-
-- **Middleware outage drops rotated session cookies** (`src/middleware.ts`, catch branch). If `getUser()` refreshes the session and the following `/user` call hits a 5xx, 429 or network error, the 503 JSON or redirect response discards the new refresh-token cookies. Supabase reuse detection can then sign the user out, which is what the outage handling exists to prevent. Fix: copy `response.cookies.getAll()` onto both outage responses, as the signed-out branch already does, and add a test.
-- **User-caused save errors page operators** (`src/app/api/project/route.ts`, `workspace_save`). Postgres errors caused by the user's data are reported as Sentry errors and returned as 503 "Cloud save failed". Examples are a NUL character (22P05), other class 22/23 codes, and the `Invalid workspace` P0001 raise. Every autosave repeats the alert. Fix: map class 22/23 and P0001 to 400 with console-only logging, or strip NULs before the RPC.
+**Fixed in the same PR after review (adversarial review, medium):** outage responses now keep cookies rotated by `getUser()`, and database-refused saves (22xxx, 23xxx, P0001) return 400 without paging.
 
 **Silent-failure gaps (review pass 3, deferred):**
 

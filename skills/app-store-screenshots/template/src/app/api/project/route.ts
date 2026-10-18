@@ -89,6 +89,13 @@ export async function GET(req: Request) {
   }
 }
 
+// Data exceptions (22xxx), integrity violations (23xxx) and save_workspace's
+// own 'Invalid workspace' raise (P0001) mean the database refused this bundle.
+function rejectedByDatabase(code: unknown): boolean {
+  return typeof code === "string" && (/^2[23][0-9A-Z]{3}$/.test(code) || code === "P0001");
+}
+const WORKSPACE_REJECTED = "The cloud couldn't store this workspace. Remove unusual characters from recent text and try again; your edits remain in this browser.";
+
 export async function POST(req: Request) {
   const access = await authorizeRequest(req);
   if ("response" in access) return access.response;
@@ -110,9 +117,18 @@ export async function POST(req: Request) {
       // PT409 is deliberately non-retryable by PostgREST. Keep the old code
       // recognizable during rollout, but never retry a stale workspace save.
       const conflict = error.code === "PT409" || error.code === "40001";
-      // A stale tab is expected user behavior; only real save failures page.
-      if (!conflict) report("workspace_save", error, { code: error.code, userId: access.userId, requestId: requestIdOf(req) });
-      return NextResponse.json({ ok: false, error: conflict ? "Projects changed in another tab. Reload before saving again; your edits remain in this browser." : "Cloud save failed. Your previous projects are preserved." }, { status: conflict ? 409 : 503, headers: privateHeaders });
+      if (conflict) {
+        // A stale tab is expected user behavior, not a failure.
+        return NextResponse.json({ ok: false, error: "Projects changed in another tab. Reload before saving again; your edits remain in this browser." }, { status: 409, headers: privateHeaders });
+      }
+      if (rejectedByDatabase(error.code)) {
+        // The user's own data was refused (e.g. a NUL character, 22P05): retrying
+        // cannot help and it is not our outage, so log it and say so.
+        console.warn("screenova_workspace_rejected", { code: error.code, requestId: requestIdOf(req) });
+        return NextResponse.json({ ok: false, error: WORKSPACE_REJECTED }, { status: 400, headers: privateHeaders });
+      }
+      report("workspace_save", error, { code: error.code, userId: access.userId, requestId: requestIdOf(req) });
+      return NextResponse.json({ ok: false, error: "Cloud save failed. Your previous projects are preserved." }, { status: 503, headers: privateHeaders });
     }
     return NextResponse.json({ ok: true, revision: data }, { headers: privateHeaders });
   }

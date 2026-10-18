@@ -79,6 +79,21 @@ describe("protected-route middleware", () => {
     // API clients call response.json() before checking status: the outage must stay JSON.
     expect(await api.json()).toEqual({ ok: false, error: "Cloud workspace is unavailable. No local data was accessed." });
   });
+  it("keeps cookies rotated before an outage so the session survives it", async () => {
+    // Value: protects=a refresh that rotated the token before /user failed keeps the new cookie; fails_when=outage responses drop it and Supabase reuse detection signs the user out
+    mocks.create.mockImplementation((_url, _key, options) => {
+      options.cookies.setAll([{ name: "session", value: "rotated", options: { httpOnly: true, path: "/" } }]);
+      return { auth: { getUser: mocks.user } };
+    });
+    mocks.user.mockResolvedValue({ data: { user: null }, error: Object.assign(new Error("Request rate limit reached"), { status: 429 }) });
+    const page = await middleware(request("/studio"));
+    expect(page.headers.get("location")).toBe(UNAVAILABLE_URL);
+    expect(page.cookies.get("session")?.value).toBe("rotated");
+    const api = await middleware(request("/api/project"));
+    expect(api.status).toBe(503);
+    expect(api.cookies.get("session")?.value).toBe("rotated");
+    expect(api.headers.get("cache-control")).toBe("no-store");
+  });
   it("treats auth rate limiting as an outage reported as a warning, not a sign-out", async () => {
     mocks.user.mockResolvedValue({ data: { user: null }, error: Object.assign(new Error("Request rate limit reached"), { status: 429 }) });
     const response = await middleware(request("/editor"));

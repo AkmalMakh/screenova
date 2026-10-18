@@ -36,12 +36,15 @@ export async function middleware(request: NextRequest) {
     // Missing hosted config or an auth outage blocks every protected route.
     report("middleware", error, { requestId: requestIdOf(request) }, outageLevel(error));
     // API callers parse JSON before checking the status, so keep the API contract.
-    if (request.nextUrl.pathname.startsWith("/api/")) {
-      return NextResponse.json({ ok: false, error: WORKSPACE_UNAVAILABLE }, { status: 503, headers: { "Cache-Control": "no-store" } });
-    }
     // Pages go to the login screen's outage notice (one designed surface, no
     // inline HTML here). /login is outside the matcher, so this cannot loop.
-    const unavailable = NextResponse.redirect(new URL("/login?reason=unavailable", request.url));
+    const unavailable = request.nextUrl.pathname.startsWith("/api/")
+      ? NextResponse.json({ ok: false, error: WORKSPACE_UNAVAILABLE }, { status: 503 })
+      : NextResponse.redirect(new URL("/login?reason=unavailable", request.url));
+    // getUser() may have rotated the refresh token before the outage hit.
+    // Dropping the new cookies would leave the browser with a used token and
+    // sign the user out once Supabase sees it reused.
+    response.cookies.getAll().forEach(cookie => unavailable.cookies.set(cookie));
     unavailable.headers.set("Cache-Control", "no-store");
     return unavailable;
   }

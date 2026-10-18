@@ -137,6 +137,14 @@ describe("cloud request authorization", () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { code: "57014" } });
     expect((await POST(request("POST", { "if-match": "1" }))).status).toBe(503);
     expect(mocks.report).toHaveBeenCalledWith("workspace_save", { code: "57014" }, { code: "57014", userId: owner, requestId: null });
+    // Value: protects=data the database refuses (NUL byte 22P05, constraint 23xxx, P0001) is the user's, not an outage; fails_when=every refused save pages operators and tells the user to retry
+    for (const code of ["22P05", "23514", "P0001"]) {
+      mocks.rpc.mockResolvedValue({ data: null, error: { code } });
+      const refused = await POST(request("POST", { "if-match": "1" }));
+      expect(refused.status).toBe(400);
+      expect((await refused.json()).error).toMatch(/couldn't store this workspace/);
+    }
+    expect(mocks.report).toHaveBeenCalledTimes(1);
     mocks.rpc.mockResolvedValue({ data: "2", error: null });
     const response = await POST(request("POST", { "if-match": "1" }));
     expect(await response.json()).toEqual({ ok: true, revision: "2" });
