@@ -40,6 +40,7 @@ import type { DeckSuggestion } from "@/lib/suggest-deck";
 import type { Device, Slide, Theme } from "@/lib/types";
 import { buildTemplateSlides, type TemplateEntry } from "@/lib/studio-templates";
 import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
+import { formatUpdatedAt } from "@/lib/relative-time";
 import type { TranslationKey } from "@/lib/ui-translations/en";
 import { cn } from "@/lib/utils";
 
@@ -1186,19 +1187,6 @@ function LocalePicker({
       })}
     </span>
   );
-}
-
-function formatUpdatedAt(updatedAt: number, t: T): string {
-  if (!updatedAt) return t("home.updatedNow");
-  const seconds = Math.max(0, (Date.now() - updatedAt) / 1000);
-  if (seconds < 60) return t("home.updatedNow");
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return t("home.updatedMinutes", { minutes });
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t("home.updatedHours", { hours });
-  const days = Math.floor(hours / 24);
-  if (days < 30) return t("home.updatedDays", { days });
-  return new Date(updatedAt).toLocaleDateString();
 }
 
 function chatId() {
