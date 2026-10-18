@@ -16,7 +16,8 @@
     "start": "next start",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test:hosted": "node -e \"if(!process.env.E2E_BASE_URL){console.error('Set E2E_BASE_URL to the deployment to smoke-test (see RUNBOOK.md).');process.exit(1)}\" && playwright test"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
@@ -30,6 +31,7 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.1",
     "@radix-ui/react-tooltip": "^1.1.4",
+    "@sentry/nextjs": "11.8.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "canvas-confetti": "^1.9.4",

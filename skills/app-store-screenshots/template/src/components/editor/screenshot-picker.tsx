@@ -1,7 +1,7 @@
 "use client";
 import { accountScope } from "@/lib/account-scope";
-import { uploadDataUrl } from "@/lib/upload-client";
-export { uploadDataUrl } from "@/lib/upload-client";
+import { uploadImage } from "@/lib/upload-client";
+export { uploadDataUrl, uploadImage } from "@/lib/upload-client";
 import * as React from "react";
 import { Image as ImageIcon, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,7 +63,8 @@ export function ScreenshotPicker({ label, value, locale, locales = [], localized
     // to the inline data URI — still works in the current session.
     setUploading(true);
     const { pattern: localizedPattern, options } = localizedUpload(value, locale, locales, localizedSlug);
-    const uploadedPath = await uploadDataUrl(dataUrl, options);
+    const upload = await uploadImage(dataUrl, options);
+    const uploadedPath = upload.path;
     setUploading(false);
     if (uploadedPath) {
       const savedPattern = uploadedPath.startsWith("/api/assets/") && localizedPattern && locale
@@ -73,7 +74,7 @@ export function ScreenshotPicker({ label, value, locale, locales = [], localized
       onChange(savedPattern);
     } else {
       if (accountScope()) {
-        setError("Image was not saved to your account. Please try again.");
+        setError(upload.error ?? "Image was not saved to your account. Please try again.");
         return;
       }
       setImage(dataUrl, dataUrl);

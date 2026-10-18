@@ -24,7 +24,7 @@ import {
   STUDIO_TEMPLATES,
   type ComposerReference,
 } from "@/components/home/studio-shell";
-import { fileToDataUrl, uploadDataUrl } from "@/components/editor/screenshot-picker";
+import { fileToDataUrl, uploadImage } from "@/components/editor/screenshot-picker";
 import type { AppStoreLookupResult } from "@/lib/app-store";
 import {
   MAX_REFERENCE_SCREENSHOTS,
@@ -422,9 +422,9 @@ function Home() {
         throw new Error(t("home.attachTooMany", { count: MAX_ATTACHMENTS }));
       }
       for (const attachment of attachments) {
-        const uploaded = await uploadDataUrl(attachment.dataUrl);
+        const { path: uploaded, error: uploadError } = await uploadImage(attachment.dataUrl);
         if (!uploaded) {
-          throw new Error(t("home.uploadFailed", { name: attachment.name }));
+          throw new Error(uploadError ?? t("home.uploadFailed", { name: attachment.name }));
         }
         screenshots.push({ name: attachment.name, path: uploaded });
       }

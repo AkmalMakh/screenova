@@ -12,7 +12,7 @@ export function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSucc
           Create and edit your screenshot decks in Studio. Local mode needs no account or email verification.
         </DialogDescription>
         <p className="text-sm text-muted-foreground">
-          Local projects stay on this computer. Cloud installations use email sign-in and private project storage.
+          Local projects stay on this computer. Cloud installations sign in with a verified email account and keep projects in private storage.
         </p>
         <button type="button" onClick={onSuccess} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground">
           Open Studio <ArrowRight className="h-4 w-4" />

@@ -12,6 +12,12 @@ describe("Google sign-in", () => {
   it("supports local cloud sign-in", () => {
     expect(googleAccessRequest("http://localhost:3001").options.redirectTo).toBe("http://localhost:3001/auth/callback");
   });
+  it("tells users an outage is not their session", () => {
+    expect(signInError("unavailable")).toContain("Cloud workspace is unavailable");
+    expect(signInError("unavailable")).toContain("kept");
+    expect(signInError("unavailable")).not.toMatch(/sign in again/i);
+    expect(signInError("session")).not.toMatch(/unavailable/i);
+  });
   it.each(["oauth", "cancelled"])("keeps shared %s errors provider-neutral", (reason) => {
     expect(signInError(reason)).not.toContain("GitHub");
     expect(signInError(reason)).toContain("Sign-in");

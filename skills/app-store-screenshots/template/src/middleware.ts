@@ -1,5 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { report, requestIdOf } from "@/lib/ops";
+import { isAuthOutage, outageLevel } from "@/lib/supabase/auth-outage";
+import { WORKSPACE_UNAVAILABLE } from "@/lib/supabase/messages";
 import { storageMode, supabaseConfig } from "@/lib/supabase/config";
 
 export async function middleware(request: NextRequest) {
@@ -18,6 +21,8 @@ export async function middleware(request: NextRequest) {
       },
     } });
     const { data: { user }, error } = await supabase.auth.getUser();
+    // An unreachable auth server is an outage (503 / outage notice below), not a sign-out.
+    if (isAuthOutage(error)) throw error;
     if (error || !user) {
       const denied = request.nextUrl.pathname.startsWith("/api/")
         ? NextResponse.json({ ok: false, error: "Please sign in." }, { status: 401 })
@@ -27,8 +32,21 @@ export async function middleware(request: NextRequest) {
     }
     response.headers.set("Cache-Control", "private, no-store");
     return response;
-  } catch {
-    return new NextResponse("Cloud workspace is not configured or unavailable.", { status: 503, headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    // Missing hosted config or an auth outage blocks every protected route.
+    report("middleware", error, { requestId: requestIdOf(request) }, outageLevel(error));
+    // API callers parse JSON before checking the status, so keep the API contract.
+    // Pages go to the login screen's outage notice (one designed surface, no
+    // inline HTML here). /login is outside the matcher, so this cannot loop.
+    const unavailable = request.nextUrl.pathname.startsWith("/api/")
+      ? NextResponse.json({ ok: false, error: WORKSPACE_UNAVAILABLE }, { status: 503 })
+      : NextResponse.redirect(new URL("/login?reason=unavailable", request.url));
+    // getUser() may have rotated the refresh token before the outage hit.
+    // Dropping the new cookies would leave the browser with a used token and
+    // sign the user out once Supabase sees it reused.
+    response.cookies.getAll().forEach(cookie => unavailable.cookies.set(cookie));
+    unavailable.headers.set("Cache-Control", "no-store");
+    return unavailable;
   }
 }
 
