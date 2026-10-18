@@ -63,6 +63,7 @@ import {
   useT,
   type T,
 } from "@/lib/ui-i18n";
+import { cn } from "@/lib/utils";
 import { ScreenshotPicker } from "./screenshot-picker";
 import { getCanvas, getElementTransform } from "./slide-canvas";
 
@@ -91,6 +92,7 @@ export function Inspector({
 }: Props) {
   const { t } = useT();
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const fieldId = React.useId();
   const selectedDevice = selectedElementId === "device" || selectedElementId === "deviceSecondary" ? selectedElementId : null;
   // A canvas selection brings its controls to the top of the inspector.
   React.useEffect(() => {
@@ -125,9 +127,8 @@ export function Inspector({
   function screenshotControl(secondary: boolean) {
     const elementId = secondary ? "deviceSecondary" : "device";
     if (isFeatureGraphic || isNoDevice || (secondary && slide.layout !== "two-devices")) return null;
-    return <div key={elementId} data-screenshot-control={elementId}
-      className={selectedDevice === elementId ? "space-y-2 rounded-lg border border-primary/40 bg-accent/30 p-2" : "space-y-1.5"}>
-      <Label className="text-[13px]">
+    return <div key={elementId} data-screenshot-control={elementId} className="space-y-1.5">
+      <Label className={FIELD_LABEL}>
         {secondary ? t("inspector.backScreenshot") : slide.layout === "two-devices" ? t("inspector.frontScreenshot") : t("inspector.screenshot")}
       </Label>
       <ScreenshotPicker
@@ -152,7 +153,7 @@ export function Inspector({
     <div className="flex h-full flex-col">
       <div className="border-b border-border/70 px-3 py-3">
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-[13px] font-semibold tracking-tight">
+          <h2 className="text-footnote font-semibold tracking-tight">
             {t("inspector.screenSettings")}
           </h2>
           <span className="rounded-full border border-border/70 bg-muted/60 px-1.5 py-0.5 text-caption font-medium uppercase tracking-wide text-muted-foreground">
@@ -176,7 +177,7 @@ export function Inspector({
           onSelectElement={onSelectElement}
         />
         <div className="space-y-1.5">
-          <Label className="text-xs">{t("inspector.layout")}</Label>
+          <Label htmlFor={`${fieldId}-layout`} className={FIELD_LABEL}>{t("inspector.layout")}</Label>
           <Select
             value={layoutValue}
             onValueChange={(layout) => {
@@ -189,7 +190,7 @@ export function Inspector({
               });
             }}
           >
-            <SelectTrigger>
+            <SelectTrigger id={`${fieldId}-layout`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -204,8 +205,9 @@ export function Inspector({
 
         {!isFeatureGraphic && (
           <div className="space-y-1.5">
-            <Label className="text-xs">{t("inspector.label")}</Label>
+            <Label htmlFor={`${fieldId}-label`} className={FIELD_LABEL}>{t("inspector.label")}</Label>
             <Input
+              id={`${fieldId}-label`}
               aria-label={t("inspector.label")}
               value={localeLabel}
               onChange={(e) => setLocaleField("label", e.target.value)}
@@ -216,12 +218,13 @@ export function Inspector({
 
         <div className="space-y-1.5">
           <div className="flex items-baseline justify-between">
-            <Label className="text-xs">
+            <Label htmlFor={`${fieldId}-headline`} className={FIELD_LABEL}>
               {isFeatureGraphic ? t("inspector.tagline") : t("inspector.headline")}
             </Label>
             <span className="text-caption text-muted-foreground">{t("inspector.newlineBreak")}</span>
           </div>
           <Textarea
+            id={`${fieldId}-headline`}
             aria-label={isFeatureGraphic ? t("inspector.tagline") : t("inspector.headline")}
             value={localeHeadline}
             onChange={(e) => setLocaleField("headline", e.target.value)}
@@ -231,7 +234,7 @@ export function Inspector({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">
+          <Label htmlFor={`${fieldId}-font`} className={FIELD_LABEL}>
             {isFeatureGraphic ? t("inspector.taglineFont") : t("inspector.headlineFont")}
           </Label>
           <Select
@@ -240,7 +243,7 @@ export function Inspector({
               onChange({ headlineFontFamily: value as HeadlineFontFamily })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger id={`${fieldId}-font`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -254,16 +257,16 @@ export function Inspector({
         </div>
 
         {slide.visualAsset && (
-          <div className="space-y-2 rounded-sm border bg-muted/25 p-2.5">
+          <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <Label className="flex items-center gap-1.5 text-xs">
+              <Label className={cn(FIELD_LABEL, "flex items-center gap-1.5")}>
                 <ImageIcon className="h-3.5 w-3.5" /> {t("inspector.gptImage")}
               </Label>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-caption hover:text-destructive"
+                className="h-7 px-2 text-caption hover:text-destructive"
                 onClick={() => onChange({ visualAsset: undefined })}
               >
                 {t("inspector.remove")}
@@ -272,7 +275,7 @@ export function Inspector({
             <img
               src={img(slide.visualAsset.src)}
               alt={t("inspector.generatedVisualAlt")}
-              className="h-20 w-full rounded border object-cover"
+              className="h-20 w-full rounded-xs border object-cover"
             />
             <div className="space-y-1">
               <div className="flex items-center justify-between text-caption text-muted-foreground">
@@ -319,7 +322,7 @@ export function Inspector({
           />
 
         {isFeatureGraphic && (
-          <p className="rounded-sm border bg-muted/40 p-3 text-caption leading-relaxed text-muted-foreground">
+          <p className="text-caption leading-relaxed text-muted-foreground">
             {t("inspector.appIconNote")}
           </p>
         )}
@@ -567,6 +570,12 @@ function ElementTransformControls({
   if (part === "selection") {
     if (!activeId) return null;
     const label = activeDecoration?.kind === "award-badge" ? t("badge.name") : elementLabelFor(activeId, t);
+    const deleteLabel =
+      activeDecoration?.kind === "award-badge"
+        ? t("badge.delete")
+        : activeDecoration
+          ? t("inspector.deleteDecorationA11y")
+          : t("inspector.deleteTextA11y");
     return (
       <section
         key={activeId}
@@ -579,17 +588,34 @@ function ElementTransformControls({
             {activeDecoration && <Circle className="h-3.5 w-3.5 shrink-0 text-primary" />}
             <span className="truncate">{label}</span>
           </h3>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 text-muted-foreground"
-            onClick={() => onSelectElement(null)}
-            title={`${t("inspector.deselect")} · Esc`}
-            aria-label={t("inspector.deselect")}
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex shrink-0 items-center">
+            {(activeTextElement || activeDecoration) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                onClick={() =>
+                  activeDecoration ? deleteDecoration(activeDecoration) : activeTextElement && deleteTextElement(activeTextElement)
+                }
+                title={deleteLabel}
+                aria-label={deleteLabel}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground"
+              onClick={() => onSelectElement(null)}
+              title={`${t("inspector.deselect")} · Esc`}
+              aria-label={t("inspector.deselect")}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
         <ActiveElementPanel
           activeId={activeId}
@@ -605,14 +631,8 @@ function ElementTransformControls({
           onTextPatch={(patch) => {
             if (activeTextElement) patchTextElement(activeTextElement.id, patch);
           }}
-          onDeleteText={() => {
-            if (activeTextElement) deleteTextElement(activeTextElement);
-          }}
           onDecorationPatch={(patch) => {
             if (activeDecoration) patchDecoration(activeDecoration.id, patch);
-          }}
-          onDeleteDecoration={() => {
-            if (activeDecoration) deleteDecoration(activeDecoration);
           }}
           onDuplicateDecoration={duplicateDecoration}
         />
@@ -622,18 +642,17 @@ function ElementTransformControls({
   }
 
   return (
-    <div className="space-y-3 rounded-sm border bg-muted/30 p-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <Label className="text-xs font-semibold">{t("inspector.addElements")}</Label>
-          <p className="text-caption text-muted-foreground">{t("inspector.addElementsHint")}</p>
-        </div>
-        <div className="flex flex-wrap gap-1">
+    <section className="-mx-3 space-y-3 border-t border-border/70 px-3 pt-4">
+      <div className="space-y-0.5">
+        <h3 className="text-footnote font-semibold">{t("inspector.addElements")}</h3>
+        <p className="text-caption text-muted-foreground">{t("inspector.addElementsHint")}</p>
+      </div>
+        <div className="grid grid-cols-2 gap-1.5">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 px-2 text-xs"
+            className="justify-start px-2.5"
             onClick={addDecoration}
           >
             <Circle className="h-3.5 w-3.5" />
@@ -643,20 +662,19 @@ function ElementTransformControls({
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 px-2 text-xs"
+            className="justify-start px-2.5"
             onClick={addTextElement}
           >
             <Plus className="h-3.5 w-3.5" />
             {t("inspector.text")}
           </Button>
         </div>
-      </div>
 
-      <Button type="button" variant="outline" className="w-full justify-start text-[13px]" onClick={() => addBadge()}>
-        <Award className="h-4 w-4" /> {t("badge.add")}
+      <Button type="button" variant="outline" size="sm" className="w-full justify-start px-2.5" onClick={() => addBadge()}>
+        <Award className="h-3.5 w-3.5" /> {t("badge.add")}
       </Button>
       {activeDecoration?.kind !== "award-badge" && <AwardBadgePresets locale={locale} onSelect={addBadge} />}
-    </div>
+    </section>
   );
 }
 
@@ -670,9 +688,7 @@ function ActiveElementPanel({
   onReorder,
   onTextChange,
   onTextPatch,
-  onDeleteText,
   onDecorationPatch,
-  onDeleteDecoration,
   onDuplicateDecoration,
 }: {
   activeId: ElementId;
@@ -684,9 +700,7 @@ function ActiveElementPanel({
   onReorder: (dir: "front" | "back" | "up" | "down") => void;
   onTextChange: (value: string) => void;
   onTextPatch: (patch: Partial<TextElement>) => void;
-  onDeleteText: () => void;
   onDecorationPatch: (patch: Partial<DecorationElement>) => void;
-  onDeleteDecoration: () => void;
   onDuplicateDecoration: () => void;
 }) {
   const { t } = useT();
@@ -694,32 +708,10 @@ function ActiveElementPanel({
   const rotation = transform?.rotation ?? 0;
   const label = decoration?.kind === "award-badge" ? t("badge.name") : elementLabelFor(activeId, t);
   return (
-    <div className="space-y-2 rounded border bg-background/60 p-2.5">
-      <div className="flex items-center justify-end">
-        {textElement || decoration ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 hover:text-destructive"
-            onClick={decoration ? onDeleteDecoration : onDeleteText}
-            title={
-              decoration?.kind === "award-badge" ? t("badge.delete") : decoration
-                ? t("inspector.deleteDecorationA11y")
-                : t("inspector.deleteTextA11y")
-            }
-            aria-label={
-              decoration?.kind === "award-badge" ? t("badge.delete") : decoration
-                ? t("inspector.deleteDecorationA11y")
-                : t("inspector.deleteTextA11y")
-            }
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        ) : !engaged ? (
-          <span className="text-caption text-muted-foreground">{t("inspector.dragToEnable")}</span>
-        ) : null}
-      </div>
+    <div className="space-y-3">
+      {!engaged && !textElement && !decoration && (
+        <p className="text-caption text-muted-foreground">{t("inspector.dragToEnable")}</p>
+      )}
 
       {textElement && (
         <TextElementPanel
@@ -809,7 +801,7 @@ function TextElementPanel({
   const { t } = useT();
   const text = element.text?.[locale] ?? pickText(element.text, locale);
   return (
-    <div className="space-y-2 rounded border bg-muted/30 p-2">
+    <div className="space-y-3">
       <div className="space-y-1">
         <Label className="text-caption text-muted-foreground">{t("inspector.text")}</Label>
         <Textarea
@@ -843,6 +835,7 @@ function TextElementPanel({
       <div className="grid grid-cols-3 gap-1">
         <LayerButton
           disabled={false}
+          pressed={(element.align ?? "center") === "left"}
           onClick={() => onTextPatch({ align: "left" })}
           label={t("inspector.alignLeft")}
         >
@@ -850,6 +843,7 @@ function TextElementPanel({
         </LayerButton>
         <LayerButton
           disabled={false}
+          pressed={(element.align ?? "center") === "center"}
           onClick={() => onTextPatch({ align: "center" })}
           label={t("inspector.alignCenter")}
         >
@@ -857,6 +851,7 @@ function TextElementPanel({
         </LayerButton>
         <LayerButton
           disabled={false}
+          pressed={(element.align ?? "center") === "right"}
           onClick={() => onTextPatch({ align: "right" })}
           label={t("inspector.alignRight")}
         >
@@ -878,7 +873,7 @@ function DecorationPanel({
   const primary = element.fill.colors[0] || "#5B7CFA";
   const secondary = element.fill.colors[1] || "#8B5CF6";
   return (
-    <div className="space-y-2 rounded border bg-muted/30 p-2">
+    <div className="space-y-3">
       <div className="space-y-1">
         <Label className="text-caption text-muted-foreground">{t("inspector.shape")}</Label>
         <Select
@@ -1020,28 +1015,35 @@ function LayerButton({
   disabled,
   onClick,
   label,
+  pressed,
   children,
 }: {
   disabled: boolean;
   onClick: () => void;
   label: string;
+  /** Toggle buttons (alignment) show and announce the current choice. */
+  pressed?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <Button
       type="button"
-      variant="outline"
+      variant={pressed ? "secondary" : "outline"}
       size="sm"
-      className="h-7 px-0"
+      className={cn("h-8 px-0", pressed && "border border-foreground/15")}
       disabled={disabled}
       onClick={onClick}
       title={label}
       aria-label={label}
+      aria-pressed={pressed}
     >
       {children}
     </Button>
   );
 }
+
+// Field labels: 13px, DESIGN.md's floor for controls and labels.
+const FIELD_LABEL = "text-footnote font-medium";
 
 // Map an ElementId (which may carry text:/decoration: prefixes) to the
 // dictionary element kind, then look up the translated label.
