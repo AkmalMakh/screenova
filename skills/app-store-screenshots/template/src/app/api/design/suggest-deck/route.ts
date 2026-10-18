@@ -2,6 +2,8 @@ import path from "node:path";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
+import { report, requestIdOf } from "@/lib/ops";
+import { openAIErrorResponse } from "@/lib/openai-errors";
 import { authorizeRequest } from "@/lib/supabase/access";
 import { readAsset } from "@/lib/supabase/assets";
 import { z } from "zod";
@@ -239,24 +241,15 @@ export async function POST(req: Request) {
     }
     throw lastError;
   } catch (error) {
-    if (error instanceof OpenAI.APIError) {
-      const status = error.status || 502;
-      const message =
-        status === 401
-          ? "The OpenAI API key was rejected."
-          : status === 429
-            ? "OpenAI is rate-limited right now. Try again shortly."
-            : status >= 500
-              ? "OpenAI could not draft a template right now. Try again."
-              : error.message;
-      return NextResponse.json({ ok: false, error: message }, { status });
-    }
+    const providerFailure = openAIErrorResponse(error, "OpenAI could not draft a template right now. Try again.", req);
+    if (providerFailure) return providerFailure;
     if (req.signal.aborted) {
       return NextResponse.json(
         { ok: false, error: "Template generation cancelled." },
         { status: 499 },
       );
     }
+    report("ai_template_failed", error, { requestId: requestIdOf(req) });
     const message = error instanceof Error ? error.message : "Template generation failed.";
     return NextResponse.json({ ok: false, error: message }, { status: 502 });
   }
