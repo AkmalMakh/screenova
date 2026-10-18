@@ -57,9 +57,9 @@ export const de: Record<TranslationKey, string> = {
   "toolbar.saveFailed": "Speichern fehlgeschlagen",
   "toolbar.notSavedYet": "Noch nicht gespeichert",
   "toolbar.saved": "Gespeichert",
-  "toolbar.savedSeconds": "Vor {seconds}s gespeichert",
-  "toolbar.savedMinutes": "Vor {minutes} Min. gespeichert",
-  "toolbar.savedHours": "Vor {hours} Std. gespeichert",
+  "toolbar.savedSeconds": "vor {seconds}s gespeichert",
+  "toolbar.savedMinutes": "vor {minutes} Min. gespeichert",
+  "toolbar.savedHours": "vor {hours} Std. gespeichert",
   "toolbar.interfaceLanguage": "Sprache der Oberfläche",
 
   // ---- sidebar ----

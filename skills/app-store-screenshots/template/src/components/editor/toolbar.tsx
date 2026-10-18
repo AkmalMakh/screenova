@@ -51,6 +51,7 @@ import { supportsLandscape } from "@/lib/constants";
 import { detectPlatform } from "@/lib/defaults";
 import type { Device, Orientation, ProjectMeta } from "@/lib/types";
 import { deviceLabel, UI_LANGUAGES, useT, type UiLang } from "@/lib/ui-i18n";
+import { formatUpdatedAt } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 import { ProjectSwitcher } from "./project-switcher";
 
@@ -532,15 +533,7 @@ function SaveStatus({ savedAt, saveError }: { savedAt: number | null; saveError:
       </span>
     );
   }
-  const seconds = Math.max(0, Math.round((Date.now() - savedAt) / 1000));
-  const when =
-    seconds < 5
-      ? t("toolbar.saved")
-      : seconds < 60
-        ? t("toolbar.savedSeconds", { seconds })
-        : seconds < 3600
-          ? t("toolbar.savedMinutes", { minutes: Math.round(seconds / 60) })
-          : t("toolbar.savedHours", { hours: Math.round(seconds / 3600) });
+  const when = `${t("toolbar.saved")} · ${formatUpdatedAt(savedAt, t)}`;
   return (
     <span role="status" className={cn(base, "text-muted-foreground")} title={when}>
       {/* Keyed on the save time: the check pops once per real save. */}

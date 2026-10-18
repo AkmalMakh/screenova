@@ -70,9 +70,9 @@ export const en = {
   "toolbar.saveFailed": "Save failed",
   "toolbar.notSavedYet": "Not saved yet",
   "toolbar.saved": "Saved",
-  "toolbar.savedSeconds": "Saved {seconds}s ago",
-  "toolbar.savedMinutes": "Saved {minutes}m ago",
-  "toolbar.savedHours": "Saved {hours}h ago",
+  "toolbar.savedSeconds": "saved {seconds}s ago",
+  "toolbar.savedMinutes": "saved {minutes}m ago",
+  "toolbar.savedHours": "saved {hours}h ago",
   "toolbar.interfaceLanguage": "Interface language",
 
   // ---- sidebar ----

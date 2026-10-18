@@ -57,9 +57,9 @@ export const es: Record<TranslationKey, string> = {
   "toolbar.saveFailed": "Error al guardar",
   "toolbar.notSavedYet": "Aún sin guardar",
   "toolbar.saved": "Guardado",
-  "toolbar.savedSeconds": "Guardado hace {seconds}s",
-  "toolbar.savedMinutes": "Guardado hace {minutes} min",
-  "toolbar.savedHours": "Guardado hace {hours}h",
+  "toolbar.savedSeconds": "guardado hace {seconds}s",
+  "toolbar.savedMinutes": "guardado hace {minutes} min",
+  "toolbar.savedHours": "guardado hace {hours}h",
   "toolbar.interfaceLanguage": "Idioma de la interfaz",
 
   // ---- sidebar ----

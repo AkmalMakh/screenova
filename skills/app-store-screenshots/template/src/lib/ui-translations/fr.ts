@@ -57,9 +57,9 @@ export const fr: Record<TranslationKey, string> = {
   "toolbar.saveFailed": "Échec de l'enregistrement",
   "toolbar.notSavedYet": "Pas encore enregistré",
   "toolbar.saved": "Enregistré",
-  "toolbar.savedSeconds": "Enregistré il y a {seconds}s",
-  "toolbar.savedMinutes": "Enregistré il y a {minutes} min",
-  "toolbar.savedHours": "Enregistré il y a {hours}h",
+  "toolbar.savedSeconds": "enregistré il y a {seconds}s",
+  "toolbar.savedMinutes": "enregistré il y a {minutes} min",
+  "toolbar.savedHours": "enregistré il y a {hours}h",
   "toolbar.interfaceLanguage": "Langue de l'interface",
 
   // ---- sidebar ----
