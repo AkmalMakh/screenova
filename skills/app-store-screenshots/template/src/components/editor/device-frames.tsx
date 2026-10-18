@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { ImagePlus } from "lucide-react";
 import type { FrameStyle } from "@/lib/slide-appearance";
 import { PHONE_SCREEN } from "@/lib/constants";
 import { img } from "@/lib/image-cache";
@@ -280,24 +281,50 @@ export function IPad({ src, alt = "", style, hideEmpty }: FrameProps) {
   );
 }
 
+// An empty screen reads as a drop zone at any zoom: sized in container
+// units (% of the screen it sits in), so it scales with the phone instead of
+// shrinking to a 3px line at the default 20% zoom. Never exported (hideEmpty).
 function EmptySlot({ light = false }: { light?: boolean } = {}) {
   const { t } = useT();
+  const ink = light ? "#70737c" : "rgba(255,255,255,0.62)";
   return (
     <div
       style={{
+        position: "relative",
         width: "100%",
         height: "100%",
+        containerType: "inline-size",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: light ? "#70737c" : "rgba(255,255,255,0.4)",
-        fontSize: light ? 42 : "min(2vw, 14px)",
         background: light ? "#fdfdfe" : "linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)",
-        textAlign: "center",
-        padding: "4%",
       }}
     >
-      {t("canvas.dropHere")}
+      <div
+        style={{
+          position: "absolute",
+          inset: "7% 8%",
+          border: `0.6cqw dashed ${light ? "rgba(19,19,22,0.16)" : "rgba(255,255,255,0.16)"}`,
+          borderRadius: "7cqw",
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "3cqw",
+          color: ink,
+          fontSize: "5.5cqw",
+          fontWeight: 500,
+          lineHeight: 1.25,
+          textAlign: "center",
+          padding: "0 14%",
+        }}
+      >
+        <ImagePlus style={{ width: "13cqw", height: "13cqw", strokeWidth: 1.5 }} aria-hidden />
+        {t("canvas.dropHere")}
+      </div>
     </div>
   );
 }
