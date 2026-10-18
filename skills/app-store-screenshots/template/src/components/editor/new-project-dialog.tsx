@@ -197,7 +197,7 @@ export function NewProjectDialog({ open, onOpenChange, importing, onSubmit }: Pr
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-0.5 top-0.5 h-6 w-6 rounded bg-background/80 opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
+                    className="absolute right-0.5 top-0.5 h-6 w-6 rounded-xs bg-background/80 opacity-0 transition-opacity duration-micro hover:bg-background group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                     onClick={() => removeFile(index)}
                     disabled={busy}
                     title={t("newProject.removeFile", { name: file.name })}

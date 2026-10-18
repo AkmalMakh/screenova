@@ -64,9 +64,11 @@ const config: Config = {
       // Explicit radius hierarchy. The old scale derived md/sm from --radius,
       // which made `rounded-lg` and Tailwind's stock `rounded-xl` both resolve
       // to 12px — two names, one size, and no way to read intent from the code.
-      // DESIGN.md scale only: chips 6, inputs/buttons 8, panels/cards 12,
-      // large surfaces/sheets 18. `md` and `xl` are deliberately not defined
-      // here; device-frame artwork uses explicit pixel radii instead.
+      // DESIGN.md scale for app chrome: chips 6 (xs), inputs/buttons 8 (sm),
+      // panels/cards 12 (lg), large surfaces/sheets 18 (2xl), pills (full)
+      // only for status tags and segmented thumbs. Tailwind's own DEFAULT/md/
+      // xl names still exist (this is `extend`) for illustrative artwork such
+      // as the landing phone mockup; chrome must not use them.
       borderRadius: {
         xs: "6px",
         sm: "8px",
