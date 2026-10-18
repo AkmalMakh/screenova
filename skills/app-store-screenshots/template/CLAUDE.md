@@ -31,7 +31,10 @@ Key routing rules:
 
 ### Custom deploy hooks
 
-- Pre-deploy: `npm test`, `npm run check`, `npm run build`, `npm run test:e2e`; verify `vercel deploy --dry --json` excludes personal assets, project JSON and secrets and includes `src/lib/supabase/*`.
+- Pre-deploy: `npm test`, `npm run check`, `npm run build`, `npm run test:e2e`; verify `vercel deploy --dry --json` excludes personal assets, project JSON and secrets and includes `src/lib/supabase/*`. Record the middleware bundle size from the build output; it must stay under Vercel's 1 MB edge limit (186 kB on 2026-10-18).
+- Migrations first: apply new `supabase/migrations/*.sql` in the SQL Editor before deploying code that calls them. Deploying this app code before `202610170003` is applied makes every budgeted route return 503. Never drop `consume_beta_budget` (v1); it keeps `vercel rollback` working.
+- Post-deploy smoke: `E2E_BASE_URL=<deployment> npm run test:hosted` with the two dedicated test accounts (sessions per host under `e2e/.auth/<host>/a.json` and `b.json`; add `VERCEL_AUTOMATION_BYPASS_SECRET` for previews, sent only as Vercel's host-only bypass cookie). `INCONCLUSIVE` results are not passes. Sign-in and sign-out are checked by hand. See `RUNBOOK.md`.
+- Error reporting: server-only Sentry, enabled by `SENTRY_DSN` in Vercel Preview and Production; no source-map upload and no Sentry auth token. Prove delivery on preview from a forced error path (RUNBOOK.md, deploy order step 3).
 - Production deploy trigger: `vercel deploy --prod --yes --scope stylerxs-projects` from this directory. Preview: use `--target preview` instead. Inspect the returned target.
 - Deploy status: `vercel inspect <deployment-url> --wait --timeout 60s --scope stylerxs-projects`.
 - Health check: `vercel curl /login --deployment <deployment-url> --scope stylerxs-projects -- --silent --output /dev/null --write-out '%{http_code}'`.

@@ -1,5 +1,17 @@
 # Screenova Vercel deployment preparation
 
+## Launch-readiness code — 2026-10-18 (not yet deployed)
+
+Implements the reviewed public-beta plan (`.gstack/plans/2026-10-17-public-beta-launch-readiness.md`). Status: local verification only; nothing below is deployed or hosted-verified yet.
+
+- Operator alerting: server-only Sentry (`src/instrumentation.ts`, `src/lib/ops.ts`) reports auth/membership/quota-service outages, middleware config failures, workspace read/save failures and AI provider failures. Automatic data collection is off; events carry only stage, kind, code, request id and (workspace read/save only) user id. A post-response flush covers early-return error paths.
+- Budget verdicts: `202610170003_budget_verdict.sql` adds `consume_beta_budget_v2` returning `ok`/`user`/`global`/`denied` (global checked first). `202610170004_budget_v1_wrapper.sql` turns v1 into a boolean wrapper, kept permanently for rollback. The global-pool alert fires once per kind per UTC day per instance.
+- OpenAI monthly-limit exhaustion now shows "AI features are paused for now; manual editing and export still work." (503) on all three AI routes; existing 401/429/5xx copy is unchanged and now pinned by tests.
+- Hosted smoke (`npm run test:hosted`) and `RUNBOOK.md` (alerts, caps, deploy order, restore drill, weekly checks).
+- Local verification: unit and SQL tests and TypeScript pass; production build passes; middleware bundle 186 kB. Local browser suite result is recorded in the release notes for this change.
+
+Still required before calling the beta launched, in order: vendor settings (OpenAI hard limit and 80% email, Sentry project, alert rule and `SENTRY_DSN`), apply migrations 0003 and 0004, preview deploy with hosted smoke and a forced error-path Sentry event, production deploy with hosted smoke. Scheduled backups are a separate owner-tracked item (TODOS.md).
+
 ## Current release status — 2026-10-17
 
 Production is deployed at **https://screenova-sigma.vercel.app**. The authenticated workspace outage is fixed: a fresh Google login, Studio access, and a new deck save/reload passed on 2026-10-17. This is focused recovery verification, not a fresh complete public-launch certification. No custom domain is configured. This section supersedes the historical deployment diary below.

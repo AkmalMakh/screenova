@@ -13,4 +13,33 @@ All fifteen design findings are fixed on `feat/reference-layout-cloning` (Fixed 
 
 - **Email/SMTP sign-in (DEPLOYMENT.md gate 2).** Deferred: launch is Google + GitHub only; `AUTH_EMAIL_ENABLED=false` and no enabled UI depends on SMTP. Pick up when a user asks for email login or when OAuth-only measurably blocks signups. Work: custom SMTP in Supabase, signup/magic-link/expired-link templates (SUPABASE-SETUP.md §3), enable the login-form email UI, hosted test of signup, confirmation, expired link. The `enroll_confirmed_user` trigger already enrolls confirmed email accounts, so no schema change is needed.
 - **Orphan and staging asset cleanup (DEPLOYMENT.md:76).** Deferred: leak is bounded by per-user caps (100 uploads/day, 8 MiB each). Trigger: `project-assets` bucket above 500 MB or above 5,000 objects in the Supabase dashboard (check in RUNBOOK). Work: database-side sweep (pg_cron, security definer) that removes `<uid>/_uploads/*` older than 24 h and asset keys not referenced by any saved workspace bundle; SQL test in PGlite; alert on sweep failure. Never add a service-role key to the Vercel app for this.
-- **Storage image mirror for backups.** Deferred: the Supabase tier backup (D6) covers the database only. When the D5 cleanup trigger fires or before any paid tier is offered, add an operator-side mirror of the `project-assets` bucket and include it in the restore drill.
+- **Database backups (Supabase paid tier) and restore drill.** Deferred by the owner on 2026-10-18; supersedes the CEO-review approval. Pick up before inviting users beyond the two test accounts. Work: enable the paid tier, confirm daily backups, run the drill in RUNBOOK.md "Backups and restore", record it. Until then, take a manual `pg_dump` before risky migrations (RUNBOOK.md).
+- **Storage image mirror for backups.** Deferred until database backups exist (entry above): a Supabase tier backup would cover the database only. Once that is enabled, or when the cleanup trigger fires, add an operator-side mirror of the `project-assets` bucket and include it in the restore drill.
+
+## 2026-10-18 — open items from /ship (launch-readiness PR, review not converged)
+
+The pre-landing review hit its three-cycle cap. Items below were found after the last fix cycle and were not changed in that PR.
+
+**Fix before merge (adversarial review, medium):**
+
+- **Middleware outage drops rotated session cookies** (`src/middleware.ts`, catch branch). If `getUser()` refreshes the session and the following `/user` call hits a 5xx, 429 or network error, the 503 JSON or redirect response discards the new refresh-token cookies. Supabase reuse detection can then sign the user out, which is what the outage handling exists to prevent. Fix: copy `response.cookies.getAll()` onto both outage responses, as the signed-out branch already does, and add a test.
+- **User-caused save errors page operators** (`src/app/api/project/route.ts`, `workspace_save`). Postgres errors caused by the user's data are reported as Sentry errors and returned as 503 "Cloud save failed". Examples are a NUL character (22P05), other class 22/23 codes, and the `Invalid workspace` P0001 raise. Every autosave repeats the alert. Fix: map class 22/23 and P0001 to 400 with console-only logging, or strip NULs before the RPC.
+
+**Silent-failure gaps (review pass 3, deferred):**
+
+- Supabase Storage failures (uploads, images) are never reported.
+- Route errors outside `report()` are never sent to Sentry. Add `onRequestError` in `src/instrumentation.ts`, with the same scrubbing.
+- An OpenAI call can outlive the function's `maxDuration` and end with no report. Give the SDK a timeout below the route limit.
+- Model refusals caused by the user's own content page as app bugs.
+- Unknown OpenAI 4xx codes (schema or parameter errors after a deploy) only log. Report codes outside the known user-caused list as a warning.
+- The `denied` budget verdict only logs. It almost always means contract drift, so report it as a warning.
+
+**Hardening (adversarial review, low):**
+
+- `scrubEvent` keeps `event.extra` and `event.contexts`. SDK-captured non-Error throwables can carry serialized content there.
+- `redactedError` keeps message lines that begin with whitespace and "at " as fake stack frames.
+- Hosted Playwright traces on failure may contain the preview bypass header and test-account cookies. Turn tracing off for the hosted suite or confirm it is not captured.
+- In local mode, the upload route's raw `fs` error text, which includes absolute paths, now reaches the toast.
+- OpenAI 4xx vendor messages are written to Vercel logs and can echo user content. Log the code only.
+- RUNBOOK's Sentry test one-liner ends with `exit` and leaves `.env.ops` behind on Ctrl-C. Wrap it in a subshell with an EXIT trap.
+- Any authenticated account can call the budget functions directly. About fifty accounts can drain the shared AI pool for a day. Revisit before opening signups wider.

@@ -29,3 +29,5 @@ LOCAL-QA.md
 TESTING.md
 BADGE-VERIFICATION.md
 CLAUDE.md
+RUNBOOK.md
+scripts/ops-test-event.mjs

@@ -19,11 +19,11 @@ To enable chat-based redesigns, copy the environment template and add an OpenAI 
 cp .env.example .env.local  # only if .env.local does not already exist
 ```
 
-`OPENAI_API_KEY` is read only by server-side AI routes. The design model plans editable layouts and the image model generates explicitly requested raster backdrops. Override them with `OPENAI_DESIGN_MODEL` and `OPENAI_IMAGE_MODEL` when needed. Manual editing and PNG export work without an API key.
+`OPENAI_API_KEY` is read only by server-side AI routes. The design model plans editable layouts and the image model generates explicitly requested raster backdrops. Override them with `OPENAI_DESIGN_MODEL` and `OPENAI_IMAGE_MODEL` when needed. Manual editing and PNG export work without an API key. Hosted installations can set the server-only `SENTRY_DSN` to report operator errors to Sentry; local mode never reports.
 
 There are two storage modes: **local** preserves the original single-user JSON workspace; **supabase** adds accounts, account-owned projects and private image storage. Google and GitHub sign-in are enabled; email UI stays off until SMTP is configured and tested. Public signup grants workspace access to confirmed, non-anonymous accounts. The production origin is `https://screenova-sigma.vercel.app`; its exact callback is configured in Supabase. Local sign-in and second-account separation were user-verified; the hosted authenticated upload/export and two-account checks must be verified separately. See [SUPABASE-SETUP.md](SUPABASE-SETUP.md) and the current status in [DEPLOYMENT.md](DEPLOYMENT.md). No billing or shared-team collaboration is implemented.
 
-For Vercel, see [DEPLOYMENT.md](DEPLOYMENT.md). Cloud uploads go directly to private Supabase Storage, preserving the 8 MiB image limit without putting base64 images through Vercel's request body limit. AI redesigns send private asset paths; private image responses are streamed. Cloud workspace metadata is limited to 4 MB UTF-8, checked before sending and again before saving. Local mode is unchanged. Vercel always forces cloud mode even if a local-mode environment value is accidentally copied.
+For Vercel, see [DEPLOYMENT.md](DEPLOYMENT.md); alerts, limits, deploy order and the hosted smoke test are in [RUNBOOK.md](RUNBOOK.md). Cloud uploads go directly to private Supabase Storage, preserving the 8 MiB image limit without putting base64 images through Vercel's request body limit. AI redesigns send private asset paths; private image responses are streamed. Cloud workspace metadata is limited to 4 MB UTF-8, checked before sending and again before saving. Local mode is unchanged. Vercel always forces cloud mode even if a local-mode environment value is accidentally copied.
 
 For production on a persistent local machine:
 
@@ -62,9 +62,11 @@ npm run test:e2e
 # Optional: live Apple/OpenAI calls, including one image generation; incurs provider charges.
 RUN_LIVE_SERVICE_TESTS=1 npm run test:e2e
 npm audit --omit=dev
+# Hosted smoke against a real deployment (two dedicated test accounts; see RUNBOOK.md).
+E2E_BASE_URL=<deployment-url> npm run test:hosted
 ```
 
-Browser tests start a production server on port 3100 and use an isolated temporary project file. They never overwrite your project bundle. Image fixtures and live-provider imports are written under `public/screenshots/`; browser artifacts go to ignored `test-results/` and `playwright-report/`. The normal suite mocks AI and Apple responses for repeatability; the opt-in tests verify actual providers. See [TESTING.md](TESTING.md) for the latest coverage and limitations.
+Browser tests start a production server on port 3100 and use an isolated temporary project file. They never overwrite your project bundle. Image fixtures and live-provider imports are written under `public/screenshots/`; browser artifacts go to ignored `test-results/` and `playwright-report/`. The normal suite mocks AI and Apple responses for repeatability; the opt-in tests verify actual providers. See [TESTING.md](TESTING.md) for the latest coverage and limitations. When `E2E_BASE_URL` is set, Playwright starts no server and runs only the hosted smoke suite in `e2e/hosted/`; the local suite cannot run in that mode.
 
 ## What's inside
 
