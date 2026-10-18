@@ -333,7 +333,7 @@ export const fr: Record<TranslationKey, string> = {
   "palette.group.view": "Affichage",
   "palette.group.device": "Appareil",
   "palette.group.edit": "Modifier",
-  "palette.action.home": "Aller à l'accueil",
+  "palette.action.home": "Aller au Studio",
   "palette.action.newProject": "Nouveau projet",
   "palette.action.export": "Exporter le bundle",
   "palette.action.screens": "Panneau des écrans",

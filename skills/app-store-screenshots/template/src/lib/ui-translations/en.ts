@@ -346,7 +346,7 @@ export const en = {
   "palette.group.view": "View",
   "palette.group.device": "Device",
   "palette.group.edit": "Edit",
-  "palette.action.home": "Go to home page",
+  "palette.action.home": "Go to Studio",
   "palette.action.newProject": "New project",
   "palette.action.export": "Export bundle",
   "palette.action.screens": "Screens panel",

@@ -1104,7 +1104,8 @@ function Editor() {
     {
       label: t("palette.group.navigate"),
       items: [
-        { id: "palette-home", label: t("palette.action.home"), run: () => router.push("/") },
+        // Same destination as the toolbar's Home button: the Studio.
+        { id: "palette-home", label: t("palette.action.home"), run: () => router.push("/studio") },
         {
           id: "palette-new-project",
           label: t("palette.action.newProject"),
@@ -1124,13 +1125,13 @@ function Editor() {
         {
           id: "palette-screens",
           label: t("palette.action.screens"),
-          hint: screensOpen ? t("palette.on") : t("palette.off"),
+          hint: `${screensOpen ? t("palette.on") : t("palette.off")} · ⌘1`,
           run: () => toggleLeft("screens"),
         },
         {
           id: "palette-settings",
           label: t("palette.action.settings"),
-          hint: screenSettingsOpen ? t("palette.on") : t("palette.off"),
+          hint: `${screenSettingsOpen ? t("palette.on") : t("palette.off")} · ⌘2`,
           run: () => setInspector((open) => !open),
         },
         {
