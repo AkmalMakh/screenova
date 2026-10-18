@@ -334,6 +334,9 @@ export const en = {
   "toolbar.toolPan": "Pan — H, or hold Space",
   "toolbar.commands": "Commands",
   "toolbar.more": "More",
+  "common.close": "Close",
+  "theme.toLight": "Switch to light theme",
+  "theme.toDark": "Switch to dark theme",
 
   // ---- command palette ----
   "palette.title": "Commands",

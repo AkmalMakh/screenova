@@ -321,6 +321,9 @@ export const fr: Record<TranslationKey, string> = {
   "toolbar.toolPan": "Déplacer — H ou maintenir Espace",
   "toolbar.commands": "Commandes",
   "toolbar.more": "Plus",
+  "common.close": "Fermer",
+  "theme.toLight": "Passer au thème clair",
+  "theme.toDark": "Passer au thème sombre",
 
   // ---- command palette ----
   "palette.title": "Commandes",
