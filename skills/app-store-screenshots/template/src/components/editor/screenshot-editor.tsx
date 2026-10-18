@@ -68,7 +68,7 @@ import { fileToDataUrl, uploadImage } from "./screenshot-picker";
 import { Sidebar } from "./sidebar";
 import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides";
 import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
-import { DeckCanvas, getCanvas } from "./slide-canvas";
+import { DeckCanvas, getCanvas, getElementTransform } from "./slide-canvas";
 import { parseBulkCopy, planBulkCopy, serializeBulkCopy } from "@/lib/bulk-copy";
 import { Toolbar } from "./toolbar";
 import { chromeGeometry, useEditorLayout, useElementSize, usePresence } from "./use-editor-layout";
@@ -821,12 +821,51 @@ function Editor() {
         return;
       }
       if (!currentSlides.length) return;
+
+      // A selected element owns the arrow and delete keys, like Figma/Sketch:
+      // arrows nudge it (Shift = 10×), Delete/Backspace removes text, shapes
+      // and badges. Nothing else happens on the same key press.
+      if (selectedElement && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const slide = currentSlides.find((s) => s.id === selectedElement.slideId);
+        const id = selectedElement.elementId;
+        if (slide && e.key.startsWith("Arrow")) {
+          const current = getElementTransform(slide, state.device, state.orientation, id);
+          if (current) {
+            e.preventDefault();
+            // One step is one point at the export's @3x scale; Shift is ten.
+            const unit = Math.max(1, Math.round(getCanvas(state.device, state.orientation).cW / 440));
+            const step = unit * (e.shiftKey ? 10 : 1);
+            const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+            const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+            patchElementTransform(slide.id, id, { ...current, x: current.x + dx, y: current.y + dy });
+          }
+          return;
+        }
+        if (slide && (e.key === "Backspace" || e.key === "Delete")) {
+          if (isTextElementId(id)) {
+            e.preventDefault();
+            const next = (slide.textElements || []).filter((el) => el.id !== textElementKey(id));
+            patchSlide(slide.id, { textElements: next.length ? next : undefined });
+            setSelectedElement(null);
+          } else if (isDecorationElementId(id)) {
+            e.preventDefault();
+            const next = (slide.decorations || []).filter((el) => el.id !== decorationElementKey(id));
+            patchSlide(slide.id, { decorations: next.length ? next : undefined });
+            setSelectedElement(null);
+          }
+          return;
+        }
+      }
+
+      // Marked screens on a free (isolated) canvas: the stage nudges them with
+      // the arrows, so the arrows must not also jump to another screen.
+      const nudgingScreens = selectedSlideIds.size > 0 && !state.connectedCanvas;
       const idx = activeSlide ? currentSlides.findIndex((s) => s.id === activeSlide.id) : -1;
-      if (e.key === "ArrowDown" || (e.key === "j" && !e.metaKey && !e.ctrlKey)) {
+      if ((e.key === "ArrowDown" && !nudgingScreens) || (e.key === "j" && !e.metaKey && !e.ctrlKey)) {
         e.preventDefault();
         const next = currentSlides[Math.min(currentSlides.length - 1, idx + 1)];
         if (next) setActiveSlideId(next.id);
-      } else if (e.key === "ArrowUp" || (e.key === "k" && !e.metaKey && !e.ctrlKey)) {
+      } else if ((e.key === "ArrowUp" && !nudgingScreens) || (e.key === "k" && !e.metaKey && !e.ctrlKey)) {
         e.preventDefault();
         const next = currentSlides[Math.max(0, idx - 1)];
         if (next) setActiveSlideId(next.id);
@@ -836,7 +875,8 @@ function Editor() {
           duplicateSlide(activeSlide.id);
         }
       } else if ((e.key === "Backspace" || e.key === "Delete") && (e.metaKey || e.ctrlKey)) {
-        if (activeSlide) {
+        // Cmd+Delete removes the screen, never while an element is selected.
+        if (activeSlide && !selectedElement) {
           e.preventDefault();
           deleteSlide(activeSlide.id);
         }
@@ -844,7 +884,7 @@ function Editor() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeSlide, currentSlides, duplicateSlide, deleteSlide, exporting, generatingDesign, pendingDesign, undo, redo, toggleLeft, setInspector]);
+  }, [activeSlide, currentSlides, duplicateSlide, deleteSlide, exporting, generatingDesign, pendingDesign, undo, redo, toggleLeft, setInspector, selectedElement, selectedSlideIds, state.connectedCanvas, state.device, state.orientation, patchElementTransform, patchSlide]);
 
   // ---------- Export ----------
 

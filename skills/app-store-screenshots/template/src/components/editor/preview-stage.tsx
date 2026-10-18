@@ -462,6 +462,7 @@ export function PreviewStage({
       } else if (
         event.key.startsWith("Arrow") &&
         selectedIds.size &&
+        !selectedElement &&
         !connectedCanvas &&
         editable
       ) {
@@ -506,6 +507,7 @@ export function PreviewStage({
     zoomTo,
     fitScreen,
     fitAll,
+    selectedElement,
   ]);
 
   React.useEffect(() => {
