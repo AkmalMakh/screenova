@@ -66,12 +66,12 @@ export const en = {
   "toolbar.loadFile": "Load file",
   "toolbar.bulkResult": "Updated {applied} of {total} screens",
   "toolbar.apply": "Apply",
-  "toolbar.saveFailed": "save failed",
-  "toolbar.notSavedYet": "not saved yet",
-  "toolbar.saved": "saved",
-  "toolbar.savedSeconds": "saved {seconds}s ago",
-  "toolbar.savedMinutes": "saved {minutes}m ago",
-  "toolbar.savedHours": "saved {hours}h ago",
+  "toolbar.saveFailed": "Save failed",
+  "toolbar.notSavedYet": "Not saved yet",
+  "toolbar.saved": "Saved",
+  "toolbar.savedSeconds": "Saved {seconds}s ago",
+  "toolbar.savedMinutes": "Saved {minutes}m ago",
+  "toolbar.savedHours": "Saved {hours}h ago",
   "toolbar.interfaceLanguage": "Interface language",
 
   // ---- sidebar ----
@@ -328,6 +328,7 @@ export const en = {
   "toolbar.toolMarquee": "Mark screens — M, Shift adds",
   "toolbar.toolPan": "Pan — H, or hold Space",
   "toolbar.commands": "Commands",
+  "toolbar.more": "More",
 
   // ---- command palette ----
   "palette.title": "Commands",

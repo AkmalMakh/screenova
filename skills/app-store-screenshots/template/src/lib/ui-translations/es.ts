@@ -53,12 +53,12 @@ export const es: Record<TranslationKey, string> = {
   "toolbar.loadFile": "Cargar archivo",
   "toolbar.bulkResult": "Actualizadas {applied} de {total} pantallas",
   "toolbar.apply": "Aplicar",
-  "toolbar.saveFailed": "error al guardar",
-  "toolbar.notSavedYet": "aún sin guardar",
-  "toolbar.saved": "guardado",
-  "toolbar.savedSeconds": "guardado hace {seconds}s",
-  "toolbar.savedMinutes": "guardado hace {minutes} min",
-  "toolbar.savedHours": "guardado hace {hours}h",
+  "toolbar.saveFailed": "Error al guardar",
+  "toolbar.notSavedYet": "Aún sin guardar",
+  "toolbar.saved": "Guardado",
+  "toolbar.savedSeconds": "Guardado hace {seconds}s",
+  "toolbar.savedMinutes": "Guardado hace {minutes} min",
+  "toolbar.savedHours": "Guardado hace {hours}h",
   "toolbar.interfaceLanguage": "Idioma de la interfaz",
 
   // ---- sidebar ----
@@ -315,6 +315,7 @@ export const es: Record<TranslationKey, string> = {
   "toolbar.toolMarquee": "Marcar pantallas — M, Shift añade",
   "toolbar.toolPan": "Desplazar — H o mantén Espacio",
   "toolbar.commands": "Comandos",
+  "toolbar.more": "Más",
 
   // ---- command palette ----
   "palette.title": "Comandos",
