@@ -8,6 +8,7 @@ import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { deviceLabel, useT } from "@/lib/ui-i18n";
 import type { Device } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { SegmentThumb, useSegmentThumb } from "@/components/ui/segment-thumb";
 import { STUDIO_TEMPLATES, type TemplateEntry } from "@/lib/studio-templates";
 export { STUDIO_TEMPLATES, type TemplateEntry } from "@/lib/studio-templates";
 
@@ -476,12 +477,15 @@ function SegmentedControl({
   onChange: (value: string) => void;
   disabled?: boolean;
 }) {
+  const [ref, thumb] = useSegmentThumb<HTMLDivElement>();
   return (
     <div
+      ref={ref}
       role="group"
       aria-label={label}
-      className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-sm bg-muted/70 p-0.5"
+      className="relative inline-flex h-9 shrink-0 items-center gap-0.5 rounded-sm bg-muted/70 p-0.5"
     >
+      <SegmentThumb rect={thumb} />
       {options.map((option) => {
         const on = option.value === value;
         return (
@@ -492,10 +496,8 @@ function SegmentedControl({
             aria-pressed={on}
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-8 rounded-xs px-2.5 text-footnote font-medium transition-colors disabled:opacity-50",
-              on
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
+              "relative z-10 h-8 rounded-xs px-2.5 text-footnote font-medium transition-colors duration-micro disabled:opacity-50",
+              on ? "text-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >
             {option.label}

@@ -17,6 +17,7 @@ import type {
 import { useT } from "@/lib/ui-i18n";
 import type { TranslationKey } from "@/lib/ui-translations/en";
 import { cn } from "@/lib/utils";
+import { SegmentThumb, useSegmentThumb } from "@/components/ui/segment-thumb";
 
 /* The design-with-AI surface is split Stitch-style: the chat log floats as a
    collapsible panel over the canvas, and the composer is a separate floating
@@ -107,6 +108,7 @@ export function DesignComposer({
   disabled?: boolean;
 }) {
   const { t } = useT();
+  const [scopeRef, scopeThumb] = useSegmentThumb<HTMLDivElement>();
   const [prompt, setPrompt] = React.useState("");
   const [references, setReferences] = React.useState<DesignReference[]>([]);
   const [attachmentError, setAttachmentError] = React.useState<string | null>(null);
@@ -212,10 +214,12 @@ export function DesignComposer({
         />
 
         <div
+          ref={scopeRef}
           role="group"
           aria-label={t("designSidebar.scopeLabel")}
-          className="inline-flex h-9 min-w-0 max-w-full items-center gap-0.5 overflow-x-auto rounded-sm bg-muted/70 p-0.5"
+          className="relative inline-flex h-9 min-w-0 max-w-full items-center gap-0.5 overflow-x-auto rounded-sm bg-muted/70 p-0.5"
         >
+          <SegmentThumb rect={scopeThumb} />
           {(["current", "selected", "deck"] as DesignScope[]).map((item) => (
             <button
               key={item}
@@ -224,10 +228,8 @@ export function DesignComposer({
               onClick={() => onScopeChange(item)}
               disabled={generating || disabled}
               className={cn(
-                "h-8 shrink-0 whitespace-nowrap rounded-xs px-2.5 text-footnote font-medium capitalize transition-colors disabled:opacity-50",
-                scope === item
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+                "relative z-10 h-8 shrink-0 whitespace-nowrap rounded-xs px-2.5 text-footnote font-medium capitalize transition-colors duration-micro disabled:opacity-50",
+                scope === item ? "text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
               {item === "deck"
