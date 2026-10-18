@@ -75,6 +75,8 @@ type Props = {
   orientation: Orientation;
   setOrientation: (v: Orientation) => void;
   onExport: () => void;
+  /** The deck's current copy, one "Headline | Subheader" row per screen. */
+  bulkCopyText: string;
   onBulkCopy: (input: string) => { applied: number; total: number };
   onResetAll: () => void;
   onResetDevice: () => void;
@@ -273,6 +275,7 @@ export function Toolbar(props: Props) {
           className="h-8 gap-1.5 px-2"
           onClick={() => {
             setBulkResult(null);
+            setBulkInput(props.bulkCopyText);
             setCopyOpen(true);
           }}
           title={t("toolbar.bulkCopyHint")}
@@ -389,10 +392,11 @@ export function Toolbar(props: Props) {
                 setBulkInput(e.target.value);
                 setBulkResult(null);
               }}
-              rows={12}
-              // Example CONTENT (brand copy) — intentionally not translated.
-              placeholder={"Header | Subheader\nJust say it. It files itself. | Speak once - MoteCalendar sorts it into the right calendar\nOne sentence. Five outcomes. | Tasks, expenses, diary, cycle, shifts - detected automatically"}
-              className="font-mono text-xs"
+              rows={Math.min(14, Math.max(6, props.bulkCopyText.split("\n").length + 1))}
+              placeholder={t("toolbar.bulkPlaceholder")}
+              aria-label={t("toolbar.bulkTitle")}
+              spellCheck
+              className="leading-relaxed"
             />
             <input
               ref={fileInputRef}

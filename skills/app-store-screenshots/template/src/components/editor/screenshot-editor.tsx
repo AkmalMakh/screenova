@@ -69,10 +69,10 @@ import { Sidebar } from "./sidebar";
 import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides";
 import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
 import { DeckCanvas, getCanvas } from "./slide-canvas";
+import { parseBulkCopy, planBulkCopy, serializeBulkCopy } from "@/lib/bulk-copy";
 import { Toolbar } from "./toolbar";
 import { chromeGeometry, useEditorLayout, useElementSize } from "./use-editor-layout";
 
-type CopyPair = { headline: string; subheader: string };
 
 const PALETTE_DEVICES: Device[] = [
   "iphone",
@@ -89,40 +89,6 @@ type PendingDesign = {
   targetSlideIds: string[];
   createdSlideIds: string[];
 };
-
-function parseBulkCopy(input: string): CopyPair[] {
-  const normalized = input.replace(/\r\n?/g, "\n").trim();
-  if (!normalized) return [];
-  const lines = normalized.split("\n").map((line) => line.trim()).filter(Boolean);
-  if (lines.some((line) => line.includes("|") || line.includes("\t"))) {
-    return lines
-      .map((line) => {
-        const separator = line.includes("|") ? "|" : "\t";
-        const [headline, ...rest] = line.split(separator);
-        return { headline: headline.trim(), subheader: rest.join(separator).trim() };
-      })
-      .filter((pair) => pair.headline || pair.subheader);
-  }
-  const blocks = normalized.split(/\n\s*\n/g).map((block) => block.trim()).filter(Boolean);
-  if (blocks.length > 1) {
-    return blocks.map((block) => {
-      const [headline = "", ...rest] = block.split("\n").map((line) => line.trim());
-      return { headline, subheader: rest.join("\n").trim() };
-    });
-  }
-  const pairs: CopyPair[] = [];
-  for (let i = 0; i < lines.length; i += 2) {
-    pairs.push({ headline: lines[i] || "", subheader: lines[i + 1] || "" });
-  }
-  return pairs.filter((pair) => pair.headline || pair.subheader);
-}
-
-function captionElementIndex(slide: Slide): number {
-  const elements = slide.textElements || [];
-  const captionIndex = elements.findIndex((element) => element.id === "caption");
-  if (captionIndex >= 0) return captionIndex;
-  return elements.length > 0 ? 0 : -1;
-}
 
 export function ScreenshotEditor() {
   return (
@@ -409,42 +375,33 @@ function Editor() {
     [patchSlide, state.locale],
   );
 
+  // "Edit copy" opens on the deck's current copy; Apply writes only the rows
+  // that changed (untouched headlines keep their line breaks).
+  const bulkCopyText = React.useMemo(
+    () => serializeBulkCopy(currentSlides, state.locale),
+    [currentSlides, state.locale],
+  );
   const applyBulkCopy = React.useCallback(
     (input: string) => {
       const pairs = parseBulkCopy(input);
-      const applied = Math.min(pairs.length, currentSlides.length);
-      if (!applied) return { applied: 0, total: currentSlides.length };
+      const { patches, changed } = planBulkCopy(currentSlides, pairs, state.locale);
+      if (!changed) return { applied: 0, total: currentSlides.length };
       setState((prev) => ({
         ...prev,
         slidesByDevice: {
           ...prev.slidesByDevice,
           [prev.device]: (prev.slidesByDevice[prev.device] || []).map((slide, index) => {
-            const pair = pairs[index];
-            if (!pair) return slide;
-            const patch: Partial<Slide> = {};
-            if (pair.headline) {
-              patch.headline = writeLocalized(slide.headline, prev.locale, pair.headline);
-            }
-            if (pair.subheader) {
-              const subheaderIndex = captionElementIndex(slide);
-              if (subheaderIndex >= 0) {
-                patch.textElements = (slide.textElements || []).map((element, elementIndex) =>
-                  elementIndex === subheaderIndex
-                    ? { ...element, text: writeLocalized(element.text, prev.locale, pair.subheader) }
-                    : element,
-                );
-              }
-            }
-            return Object.keys(patch).length ? { ...slide, ...patch } : slide;
+            const patch = patches.get(index);
+            return patch ? { ...slide, ...patch } : slide;
           }),
         },
       }));
       toast.success(
-        t("toasts.updatedScreens", { count: applied, locale: state.locale.toUpperCase() }),
+        t("toasts.updatedScreens", { count: changed, locale: state.locale.toUpperCase() }),
       );
-      return { applied, total: currentSlides.length };
+      return { applied: changed, total: currentSlides.length };
     },
-    [currentSlides.length, setState, state.locale],
+    [currentSlides, setState, state.locale],
   );
 
   const patchElementTransform = React.useCallback(
@@ -1196,6 +1153,7 @@ function Editor() {
         orientation={state.orientation}
         setOrientation={(v) => setState((p) => ({ ...p, orientation: v }))}
         onExport={exportAll}
+        bulkCopyText={bulkCopyText}
         onBulkCopy={applyBulkCopy}
         onResetAll={() => {
           reset();
