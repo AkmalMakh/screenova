@@ -17,3 +17,6 @@ next-env.d.ts
 # Local-mode personal workspace (never commit private project data).
 # New installs fall back to src/lib/defaults.ts when this file is absent.
 /app-store-screenshots.json
+
+# Captured sessions for the hosted smoke test accounts. Never commit.
+e2e/.auth/
