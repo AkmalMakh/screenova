@@ -14,6 +14,7 @@ import type {
   Theme,
 } from "@/lib/types";
 import { DeckCanvas, getCanvas } from "./slide-canvas";
+import type { Insets } from "./use-editor-layout";
 
 export type CanvasTool = "select" | "marquee" | "pan";
 
@@ -29,6 +30,9 @@ type Props = {
   appName?: string;
   appIcon?: string;
   connectedCanvas: boolean;
+  /** Canvas area covered by floating chrome (panels, composer). The HUD and
+      the fit/centering math work inside what is left. */
+  insets?: Insets;
   selectedElement: SelectedElement | null;
   tool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
@@ -47,6 +51,7 @@ type Props = {
   editable?: boolean;
 };
 
+const NO_INSETS: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 4;
 /** Ignore pointer travel below this (screen px) so a drag never eats a click. */
@@ -64,6 +69,7 @@ export function PreviewStage({
   appName,
   appIcon,
   connectedCanvas,
+  insets = NO_INSETS,
   selectedElement,
   tool,
   onToolChange,
@@ -90,6 +96,7 @@ export function PreviewStage({
   const zoomRef = React.useRef(1);
   const suppressNextActiveScreenPanRef = React.useRef(false);
   const [fitScale, setFitScale] = React.useState(0.2);
+  const [containerW, setContainerW] = React.useState(0);
   const [zoom, setZoom] = React.useState(1);
   const [spaceHeld, setSpaceHeld] = React.useState(false);
   const [panning, setPanning] = React.useState(false);
@@ -172,6 +179,7 @@ export function PreviewStage({
     if (!el) return;
     const update = () => {
       const rect = el.getBoundingClientRect();
+      setContainerW(rect.width);
       const sx = (rect.width - 96) / cW;
       const sy = (rect.height - 96) / cH;
       setFitScale(Math.max(0.05, Math.min(sx, sy)));
@@ -711,40 +719,39 @@ export function PreviewStage({
         style={{ display: "none" }}
       />
 
-      {/* Context HUD lives bottom-left: the floating design chat owns top-left. */}
-      <div className="pointer-events-none absolute bottom-4 left-4 hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-caption text-muted-foreground shadow-sm backdrop-blur-md md:flex">
-        <span className="font-medium text-foreground">{deviceLabel(device, t)}</span>
-        {activeSlide && (
+      {/* Canvas HUD: where you are + zoom, top-right of the free canvas so it
+          never sits under a panel or the composer. Phones keep it top-right too. */}
+      <div
+        className="absolute right-3 top-3 z-20 flex items-center gap-0.5 overflow-hidden rounded-lg border border-border/80 bg-card p-0.5 text-caption tabular-nums text-muted-foreground shadow-card"
+        style={insets.right || insets.left ? { right: insets.right + 16, top: 16 } : undefined}
+      >
+        {activeSlide && containerW - insets.left - insets.right >= 420 && (
           <>
-            <span aria-hidden>·</span>
-            <span>{t("preview.screen", { index: activeIndex + 1 })}</span>
-            <span aria-hidden>·</span>
-            <span>{layoutLabel(activeSlide.layout, t)}</span>
+            <span
+              className="hidden max-w-48 truncate px-2 sm:inline"
+              title={[
+                deviceLabel(device, t),
+                `${slides.length}× ${cW}×${cH}`,
+                orientation === "landscape" ? t("preview.landscape") : null,
+                !connectedCanvas ? t("preview.isolated") : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            >
+              <span className="font-medium text-foreground">
+                {t("preview.screen", { index: activeIndex + 1 })}
+              </span>
+              <span aria-hidden> · </span>
+              {layoutLabel(activeSlide.layout, t)}
+            </span>
+            <span aria-hidden className="mx-0.5 hidden h-4 w-px bg-border sm:inline" />
           </>
         )}
-        {orientation === "landscape" && (
-          <>
-            <span aria-hidden>·</span>
-            <span>{t("preview.landscape")}</span>
-          </>
-        )}
-        {!connectedCanvas && (
-          <>
-            <span aria-hidden>·</span>
-            <span>{t("preview.isolated")}</span>
-          </>
-        )}
-      </div>
-
-      {/* Zoom cluster clears the floating composer on small screens. */}
-      <div className="absolute top-4 right-3 flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-1.5 py-1 text-caption tabular-nums text-muted-foreground shadow-sm backdrop-blur-md sm:top-auto sm:bottom-4 sm:right-16">
-        <span className="hidden px-1 sm:inline">{slides.length}× {cW}×{cH}</span>
-        <span aria-hidden className="hidden text-border sm:inline">|</span>
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="h-6 w-6"
+          className="h-7 w-7 rounded-sm"
           onClick={() => setZoom((value) => Math.max(MIN_ZOOM, Number((value / 1.2).toFixed(3))))}
           disabled={zoom <= MIN_ZOOM}
           title={t("preview.zoomOut")}
@@ -757,7 +764,7 @@ export function PreviewStage({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-6 w-6"
+          className="h-7 w-7 rounded-sm"
           onClick={() => setZoom((value) => Math.min(MAX_ZOOM, Number((value * 1.2).toFixed(3))))}
           disabled={zoom >= MAX_ZOOM}
           title={t("preview.zoomIn")}
@@ -769,7 +776,7 @@ export function PreviewStage({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-6 w-6"
+          className="h-7 w-7 rounded-sm"
           onClick={() => {
             scaleRef.current = fitScale;
             zoomRef.current = 1;

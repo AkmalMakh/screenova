@@ -70,7 +70,7 @@ import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides
 import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
 import { DeckCanvas, getCanvas } from "./slide-canvas";
 import { Toolbar } from "./toolbar";
-import { useEditorLayout } from "./use-editor-layout";
+import { chromeGeometry, useEditorLayout, useElementSize } from "./use-editor-layout";
 
 type CopyPair = { headline: string; subheader: string };
 
@@ -173,6 +173,15 @@ function Editor() {
   const screensOpen = layout.left === "screens";
   const chatOpen = layout.left === "chat";
   const screenSettingsOpen = layout.inspector;
+  const [areaRef, areaSize] = useElementSize<HTMLDivElement>();
+  const [composerRef, composerSize] = useElementSize<HTMLDivElement>();
+  const geometry = chromeGeometry(
+    areaSize.width,
+    layout,
+    composerSize.height,
+    // The composer is always on from tablet width up; on phones it belongs to the chat sheet.
+    areaSize.width >= 640 || chatOpen,
+  );
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [importing, setImporting] = React.useState<string | null>(null);
@@ -1215,8 +1224,9 @@ function Editor() {
         onSubmit={handleCreateProject}
       />
 
-      <div className="relative flex-1 overflow-hidden">
-        {/* Full-bleed deck canvas — everything else floats above it. */}
+      <div ref={areaRef} className="relative flex-1 overflow-hidden">
+        {/* Full-bleed deck canvas — everything else floats above it, laid out
+            by chromeGeometry so no panel, HUD or composer overlaps another. */}
         <main className="absolute inset-0">
           {activeSlide && currentSlides.length > 0 ? (
             <PreviewStage
@@ -1229,6 +1239,7 @@ function Editor() {
               appName={state.appName}
               appIcon={state.appIcon}
               connectedCanvas={state.connectedCanvas}
+              insets={geometry.canvas}
               selectedElement={selectedElement}
               tool={canvasTool}
               onToolChange={setCanvasTool}
@@ -1266,7 +1277,8 @@ function Editor() {
         {chatOpen ? (
           <section
             aria-label={t("designSidebar.title")}
-            className="absolute inset-x-3 top-3 z-30 flex max-h-[45vh] flex-col overflow-hidden rounded-lg border border-border/80 bg-card/95 shadow-pop backdrop-blur-md sm:inset-x-auto sm:left-4 sm:top-4 sm:w-80 sm:max-h-[min(64vh,560px)]"
+            className={cn(PANEL_SURFACE, "absolute inset-x-3 top-3 z-30 flex max-h-[45vh] flex-col sm:inset-x-auto sm:left-4 sm:top-4 sm:max-h-none sm:w-80")}
+            style={geometry.phone ? undefined : { bottom: geometry.panelBottom }}
           >
             <div className="flex shrink-0 items-center gap-2 border-b border-border/70 px-3 py-2.5">
               <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary text-primary-foreground">
@@ -1298,7 +1310,8 @@ function Editor() {
           <button
             type="button"
             onClick={() => showLeft("chat")}
-            className={cn("absolute left-4 top-4 z-30 inline-flex h-11 items-center gap-2 rounded-sm border border-border bg-card px-4 text-footnote font-medium shadow-card transition-colors hover:bg-card", screensOpen && "sm:left-[216px]", (screensOpen || screenSettingsOpen) && "hidden sm:inline-flex")}
+            className={cn(PANEL_SURFACE, "absolute left-4 top-4 z-30 inline-flex h-9 items-center gap-2 px-3 text-footnote font-medium transition-colors duration-micro hover:bg-accent", (screensOpen || screenSettingsOpen) && "hidden sm:inline-flex")}
+            style={geometry.phone ? undefined : { left: geometry.leftEdge + 16 }}
           >
             <Sparkles className="h-4 w-4 text-primary" />
             {t("designSidebar.expand")}
@@ -1306,7 +1319,7 @@ function Editor() {
         )}
 
         {/* Tool rail — right edge, vertically centered (Stitch's toolbar). */}
-        <div className="absolute right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-1 rounded-lg border border-border/80 bg-card/95 p-1 shadow-pop backdrop-blur-md">
+        <div className={cn(PANEL_SURFACE, "absolute right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-1 p-1")}>
           <Button
             type="button"
             variant={canvasTool === "select" ? "secondary" : "ghost"}
@@ -1381,7 +1394,8 @@ function Editor() {
               <section
                 id="screens-panel"
                 aria-label={t("toolbar.screens")}
-                className="absolute bottom-32 right-[76px] top-3 z-20 flex w-[184px] max-w-[78vw] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-card sm:left-4 sm:right-auto sm:top-4"
+                className={cn(PANEL_SURFACE, "absolute bottom-32 right-[76px] top-3 z-20 flex w-[184px] max-w-[78vw] flex-col sm:left-4 sm:right-auto sm:top-4")}
+                style={geometry.phone ? undefined : { bottom: geometry.panelBottom }}
               >
                 <Sidebar
                   slides={displaySlides}
@@ -1415,7 +1429,12 @@ function Editor() {
               <section
                 id="screen-settings-panel"
                 aria-label={t("toolbar.settings")}
-                className="absolute bottom-32 right-[76px] top-3 z-20 flex w-[250px] max-w-[78vw] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-card sm:top-4"
+                className={cn(PANEL_SURFACE, "absolute bottom-32 right-[76px] top-3 z-20 flex w-[250px] max-w-[78vw] flex-col sm:top-4")}
+                style={
+                  geometry.phone
+                    ? undefined
+                    : { bottom: geometry.panelBottom, right: geometry.inspectorRight }
+                }
               >
                 {activeSlide && !pendingDesign && !generatingDesign ? (
                   <Inspector
@@ -1465,7 +1484,14 @@ function Editor() {
 
         {/* AI proposal review — floats top-center, above everything. */}
         {pendingDesign && (
-          <div className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-border/80 bg-background/95 p-1.5 shadow-pop backdrop-blur">
+          <div
+            className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-border/80 bg-card p-1.5 shadow-pop"
+            style={
+              geometry.phone
+                ? undefined
+                : { left: `calc(${geometry.leftEdge}px + (100% - ${geometry.leftEdge + geometry.rightEdge}px) / 2)` }
+            }
+          >
             <div className="mr-1 hidden items-center gap-1.5 px-2 text-caption font-medium sm:flex">
               <Eye className="h-3.5 w-3.5" /> {t("design.aiPreview")}
             </div>
@@ -1506,7 +1532,15 @@ function Editor() {
         )}
 
         {/* Composer — floating bottom center (Stitch's prompt bar). */}
-        <div className={cn("absolute inset-x-3 bottom-3 z-30 sm:block sm:inset-x-auto sm:left-1/2 sm:bottom-5 sm:w-[min(62vw,640px)] sm:-translate-x-1/2", !chatOpen && "hidden")}>
+        <div
+          className={cn("absolute inset-x-3 bottom-3 z-30 sm:block", !chatOpen && "hidden")}
+          style={
+            geometry.phone
+              ? undefined
+              : { left: geometry.composer.left, right: geometry.composer.right, bottom: 20 }
+          }
+        >
+          <div ref={composerRef} className="mx-auto w-full max-w-[640px]">
           <DesignComposer
             scope={designScope}
             onScopeChange={(scope) => {
@@ -1519,6 +1553,7 @@ function Editor() {
             onCancel={() => designAbortRef.current?.abort()}
             disabled={busy}
           />
+          </div>
         </div>
       </div>
 
@@ -1577,6 +1612,11 @@ function Editor() {
     </div>
   );
 }
+
+// Every floating editor surface (panels, rail, pill) shares one material:
+// opaque card, hairline border, the subtle card shadow. No backdrop blur —
+// it repainted under every pan frame.
+const PANEL_SURFACE = "overflow-hidden rounded-lg border border-border/80 bg-card shadow-card";
 
 function slugify(s: string) {
   return (
