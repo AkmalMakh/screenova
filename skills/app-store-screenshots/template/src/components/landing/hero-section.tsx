@@ -30,7 +30,7 @@ export function HeroSection({ onGenerate, onStart }: HeroSectionProps) {
         <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3"><span className="text-footnote font-medium">MoteCalendar · Real output</span><button type="button" onClick={onStart} className="flex items-center gap-2 rounded-sm px-2 text-footnote text-primary">Open Studio <ArrowRight aria-hidden="true" className="h-4 w-4" /></button></div>
           <div className="grid grid-cols-3 items-start gap-3 bg-muted p-4 sm:gap-4 sm:p-6">
-            {["01-hero","02-split-landscape","03-device-bottom"].map((slide, index) => <img key={slide} src={"/deck/" + slide + ".webp"} width={520} height={1125} alt={"MoteCalendar screenshot " + (index + 1)} className="h-auto w-full rounded-xs shadow-sm" />)}
+            {["01-hero","02-split-landscape","03-device-bottom"].map((slide, index) => <img key={slide} src={"/deck/" + slide + ".webp"} width={520} height={1125} alt={"MoteCalendar screenshot " + (index + 1)} className="hero-rise h-auto w-full rounded-xs shadow-sm" style={{ animationDelay: `${120 + index * 80}ms` }} />)}
           </div>
           <p className="border-t border-border px-5 py-4 text-caption text-muted-foreground">One coordinated story. Every screen stays yours to edit.</p>
         </div>
