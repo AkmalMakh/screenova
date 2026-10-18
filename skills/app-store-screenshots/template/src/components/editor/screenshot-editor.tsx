@@ -1135,7 +1135,7 @@ function Editor() {
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
-      <Toaster position="top-right" richColors closeButton />
+      <EditorToaster bottom={geometry.phone ? 16 : geometry.canvas.bottom + 16} />
       <Toolbar
         projects={projects}
         activeProjectId={activeProjectId}
@@ -1577,6 +1577,32 @@ function Editor() {
         groups={paletteGroups}
       />
     </div>
+  );
+}
+
+// Toasts rise from the bottom center, just above the AI composer: clear of
+// the toolbar's Export button and both side panels. Follows the workspace
+// theme (the html class), which the toggle can flip at any time.
+function EditorToaster({ bottom }: { bottom: number }) {
+  const [dark, setDark] = React.useState(false);
+  React.useEffect(() => {
+    const root = document.documentElement;
+    const read = () => setDark(root.classList.contains("screenova-dark"));
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <Toaster
+      position="bottom-center"
+      offset={{ bottom }}
+      mobileOffset={{ bottom: 16 }}
+      theme={dark ? "dark" : "light"}
+      richColors
+      closeButton
+      toastOptions={{ classNames: { toast: "rounded-lg font-sans shadow-pop", title: "text-footnote font-medium", description: "text-caption" } }}
+    />
   );
 }
 
