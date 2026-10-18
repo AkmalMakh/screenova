@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // Real Postgres execution (WASM), not mocks of policy outcomes. The hosted
@@ -32,8 +32,11 @@ beforeEach(async () => {
     grant usage on all sequences in schema storage to authenticated;
     insert into auth.users(id) values('${alice}'),('${bob}'),('${outsider}');
   `);
-  await db.exec(await readFile("supabase/migrations/202610160001_private_workspaces.sql", "utf8"));
-  await db.exec(await readFile("supabase/migrations/202610170001_nonretrying_workspace_conflicts.sql", "utf8"));
+  // Apply every migration in filename order, exactly as hosted Supabase does.
+  // A hand-maintained list once skipped two live migrations without failing.
+  for (const file of (await readdir("supabase/migrations")).filter((name) => name.endsWith(".sql")).sort()) {
+    await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+  }
   await db.query("insert into public.beta_members(user_id) values ($1), ($2)", [alice, bob]);
 }, 20_000);
 afterEach(async () => { await db.close(); });
@@ -97,11 +100,70 @@ describe("Supabase migration policies", () => {
     await asUser(bob); expect((await db.query("select * from public.beta_usage")).rows).toHaveLength(0);
     expect((await db.query<{ allowed: boolean }>("select consume_beta_budget('ai') as allowed")).rows[0].allowed).toBe(true);
   });
+  // Value: protects=per-account daily caps for import (10) and upload (100) through the v1 name older deploys call; fails_when=the v2 rewrite or wrapper changes a non-AI cap
+  // why_new=existing cap tests exercise only 'ai'; seam=none; no_claim=global pool sizes, concurrent callers, hosted PostgREST behavior
+  it("keeps the per-account import and upload caps through the v1 name", async () => {
+    const allowed = async (kind: string) => (await db.query<{ allowed: boolean }>("select consume_beta_budget($1) as allowed", [kind])).rows[0].allowed;
+    await asUser(alice);
+    for (const [kind, cap] of [["import", 10], ["upload", 100]] as const) {
+      for (let n = 0; n < cap; n++) expect(await allowed(kind)).toBe(true);
+      expect(await allowed(kind)).toBe(false);
+    }
+    await asUser(bob);
+    expect(await allowed("import")).toBe(true);
+  });
+  it("explains refusals: global pool before per-user cap, and denies unknown kinds", async () => {
+    const verdict = async (kind: string | null) =>
+      (await db.query<{ verdict: string }>("select public.consume_beta_budget_v2($1) as verdict", [kind])).rows[0].verdict;
+    await asUser(alice);
+    expect(await verdict("ai")).toBe("ok");
+    expect(await verdict("video")).toBe("denied");
+    expect(await verdict(null)).toBe("denied");
+    for (let n = 1; n < 20; n++) await verdict("ai");
+    expect(await verdict("ai")).toBe("user");
+    // Fill the shared pool from another account; alice is also at her cap,
+    // and the global verdict must win so operators see the real cause.
+    await db.exec("reset role;");
+    await db.query("insert into public.beta_usage(user_id, day, kind, attempts) values($1, (now() at time zone 'utc')::date, 'ai', 980)", [bob]);
+    await asUser(bob);
+    expect(await verdict("ai")).toBe("global");
+    await asUser(alice);
+    expect(await verdict("ai")).toBe("global");
+    expect(await verdict("upload")).toBe("ok");
+    await asUser(outsider);
+    expect(await verdict("ai")).toBe("denied");
+  });
+  it("refuses to drop v2 while the v1 wrapper depends on it", async () => {
+    await db.exec("reset role;");
+    await expect(db.exec("drop function public.consume_beta_budget_v2(text)")).rejects.toThrow(/depend/i);
+    expect((await db.query("select 1 from pg_proc where proname = 'consume_beta_budget_v2'")).rows).toHaveLength(1);
+  });
+  it("keeps the v1 name as a boolean mirror of v2 so older deployments survive rollback", async () => {
+    await asUser(bob);
+    expect((await db.query<{ allowed: boolean }>("select consume_beta_budget('import') as allowed")).rows[0].allowed).toBe(true);
+    expect((await db.query<{ attempts: number }>("select attempts from public.beta_usage where kind='import'")).rows[0].attempts).toBe(1);
+    expect((await db.query<{ allowed: boolean }>("select consume_beta_budget('video') as allowed")).rows[0].allowed).toBe(false);
+    const { rows } = await db.query<{ name: string; authenticated: boolean; anon: boolean }>(`
+      select proname as name,
+        has_function_privilege('authenticated', oid, 'execute') as authenticated,
+        has_function_privilege('anon', oid, 'execute') as anon
+      from pg_proc where proname in ('consume_beta_budget', 'consume_beta_budget_v2') order by proname
+    `);
+    expect(rows).toEqual([
+      { name: "consume_beta_budget", authenticated: true, anon: false },
+      { name: "consume_beta_budget_v2", authenticated: true, anon: false },
+    ]);
+  });
 });
 
 describe("public signup enrollment", () => {
   const newcomer = "44444444-4444-4444-8444-444444444444";
-  const apply = async () => db.exec(await readFile("supabase/migrations/202610160002_public_signup.sql", "utf8"));
+  // The harness already applied every migration. Re-apply this one from scratch
+  // so the tests can also prove its one-time backfill of pre-existing users.
+  const apply = async () => {
+    await db.exec("drop trigger if exists screenova_enroll_confirmed_user on auth.users; drop function if exists public.enroll_confirmed_user();");
+    await db.exec(await readFile("supabase/migrations/202610160002_public_signup.sql", "utf8"));
+  };
 
   it("grants a private workspace only after email confirmation, without an invitation", async () => {
     await apply();
