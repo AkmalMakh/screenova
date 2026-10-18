@@ -388,6 +388,7 @@ export const en = {
   "home.groupRecent": "Last 7 days",
   "home.groupEarlier": "Earlier",
   "home.importCta": "Import from App Store",
+  "home.importShort": "Import",
   "home.emptyProjects": "No decks yet",
   "home.slideCount": "{count} slides",
   "home.closeMenu": "Close menu",

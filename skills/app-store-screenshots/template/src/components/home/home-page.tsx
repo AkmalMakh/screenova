@@ -41,6 +41,7 @@ import type { Device, Slide, Theme } from "@/lib/types";
 import { buildTemplateSlides, type TemplateEntry } from "@/lib/studio-templates";
 import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
 import { formatUpdatedAt } from "@/lib/relative-time";
+import { ProjectPreview } from "./project-preview";
 import type { TranslationKey } from "@/lib/ui-translations/en";
 import { cn } from "@/lib/utils";
 
@@ -97,6 +98,7 @@ function Home() {
   const {
     hydrated,
     projects,
+    projectStates,
     activeProjectId,
     createProject,
     switchProject,
@@ -610,10 +612,11 @@ function Home() {
               className="h-9 gap-1.5 rounded-sm px-3 text-footnote font-medium"
               onClick={() => setImportOpen((value) => !value)}
               aria-expanded={importOpen}
+              aria-label={t("home.importCta")}
             >
               <Download className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t("home.importCta")}</span>
-              <span className="sm:hidden">{t("home.fetch")}</span>
+              <span className="sm:hidden">{t("home.importShort")}</span>
             </Button>
             <Button
               type="button"
@@ -805,10 +808,19 @@ function Home() {
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {projects.slice(0, 6).map((project) => (
                     <button key={project.id} type="button" onClick={() => openProject(project.id)}
-                      className="flex min-h-24 items-center justify-between gap-4 rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-primary/50">
-                      <span className="min-w-0"><span className="block truncate text-title3 font-semibold">{project.name}</span>
-                        <span className="mt-1 block text-caption text-muted-foreground">{formatUpdatedAt(project.updatedAt, t)}</span></span>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      className="lift-hover group flex flex-col overflow-hidden rounded-lg border border-border bg-card text-left shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
+                      {/* The deck itself, not a placeholder: ten projects called
+                          "MoteCalendar" are told apart by what they look like. */}
+                      <span className="flex h-36 items-end justify-center overflow-hidden border-b border-border/70 bg-muted/60 px-4 pt-4">
+                        <ProjectPreview project={projectStates[project.id]} height={128} />
+                      </span>
+                      <span className="flex items-center justify-between gap-3 px-4 py-3">
+                        <span className="min-w-0">
+                          <span className="block truncate text-footnote font-semibold">{project.name}</span>
+                          <span className="mt-0.5 block text-caption text-muted-foreground">{formatUpdatedAt(project.updatedAt, t)}</span>
+                        </span>
+                        <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-short ease-out group-hover:translate-x-0.5" />
+                      </span>
                     </button>
                   ))}
                 </div>

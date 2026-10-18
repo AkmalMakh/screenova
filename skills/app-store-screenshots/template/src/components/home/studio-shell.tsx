@@ -113,7 +113,7 @@ export function StudioSidebar({
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("home.searchProjects")}
             aria-label={t("home.searchProjects")}
-            className="h-9 w-full rounded-sm border border-border/80 bg-muted/40 pl-8 pr-3 text-footnote outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50 focus:bg-card"
+            className="h-9 w-full rounded-sm border border-border/80 bg-muted/40 pl-8 pr-3 text-footnote outline-none transition-[border-color,box-shadow,background-color] duration-micro ease-out placeholder:text-muted-foreground focus-visible:border-ring focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-ring/20"
           />
         </div>
       </div>
@@ -210,8 +210,9 @@ function ProjectRow({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors",
-        active ? "bg-muted" : "hover:bg-muted/70",
+        "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors duration-micro",
+        // DESIGN.md soft selected surface; keeps the caption above 4.5:1.
+        active ? "bg-primary/[0.08]" : "hover:bg-muted/70",
       )}
     >
       <span

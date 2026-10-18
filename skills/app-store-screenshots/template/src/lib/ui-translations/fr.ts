@@ -375,6 +375,7 @@ export const fr: Record<TranslationKey, string> = {
   "home.groupRecent": "7 derniers jours",
   "home.groupEarlier": "Plus ancien",
   "home.importCta": "Importer depuis l'App Store",
+  "home.importShort": "Importer",
   "home.emptyProjects": "Aucun deck pour l'instant",
   "home.slideCount": "{count} diapositives",
   "home.closeMenu": "Fermer le menu",
