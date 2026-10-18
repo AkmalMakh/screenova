@@ -89,6 +89,7 @@ export const de: Record<TranslationKey, string> = {
   "preview.zoomOut": "Verkleinern",
   "preview.zoomIn": "Vergrößern",
   "preview.fitScreen": "Aktiven Bildschirm einpassen",
+  "preview.fitAll": "alle Bildschirme einpassen",
 
   // ---- canvas chrome ----
   "canvas.labelPlaceholder": "LABEL",

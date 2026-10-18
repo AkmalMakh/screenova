@@ -102,6 +102,7 @@ export const en = {
   "preview.zoomOut": "Zoom out",
   "preview.zoomIn": "Zoom in",
   "preview.fitScreen": "Fit active screen",
+  "preview.fitAll": "fit all screens",
 
   // ---- canvas chrome ----
   "canvas.labelPlaceholder": "LABEL",

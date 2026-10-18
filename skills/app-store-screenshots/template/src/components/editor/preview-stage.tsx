@@ -58,6 +58,11 @@ const FIT_PAD_TOP = 68;
 const FIT_PAD_BOTTOM = 28;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 4;
+/** Zoom is relative to fit; never cap below 300% real size for detail work. */
+const maxZoomFor = (fit: number) => Math.max(MAX_ZOOM, 3 / fit);
+const ZOOM_STEP = 1.25;
+const ZOOM_EASE = "transform var(--dur-short) var(--ease-out)";
+const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
 /** Ignore pointer travel below this (screen px) so a drag never eats a click. */
 const DRAG_THRESHOLD = 4;
 
@@ -119,14 +124,17 @@ export function PreviewStage({
 
   // Writes the viewport transform and glides the dot lattice with it — the
   // background moving in lockstep is what sells "surface", not "document".
-  const applyPan = React.useCallback((x: number, y: number, animate = false) => {
+  const applyPan = React.useCallback((x: number, y: number, animate: boolean | string = false) => {
     panRef.current = { x, y };
     const world = wrapRef.current;
     const container = containerRef.current;
     if (world) {
-      world.style.transition = animate
-        ? "transform var(--dur-medium) var(--ease-in-out)"
-        : "";
+      world.style.transition =
+        typeof animate === "string"
+          ? animate
+          : animate
+            ? "transform var(--dur-medium) var(--ease-in-out)"
+            : "";
       world.style.transform = `translate(${x}px, ${y}px) scale(${scaleRef.current})`;
     }
     if (container) {
@@ -196,6 +204,58 @@ export function PreviewStage({
     [applyPan, freeRect, activeIndex, activeSlide, connectedCanvas, cW, cH],
   );
   centerPanRef.current = centerPan;
+
+  // Zoom about a point (default: the middle of the free canvas) so what you
+  // are looking at stays put, with a short ease for button/keyboard steps.
+  const zoomTo = React.useCallback(
+    (requested: number, anchor?: { x: number; y: number }, ease: string | false = ZOOM_EASE) => {
+      const free = freeRect();
+      if (!free) return;
+      const nextZoom = Math.min(maxZoomFor(fitScale), Math.max(MIN_ZOOM, requested));
+      const ax = anchor?.x ?? free.left + free.width / 2;
+      const ay = anchor?.y ?? free.top + free.height / 2;
+      const ratio = (fitScale * nextZoom) / scaleRef.current;
+      const pan = panRef.current;
+      zoomRef.current = nextZoom;
+      scaleRef.current = fitScale * nextZoom;
+      applyPan(ax - ratio * (ax - pan.x), ay - ratio * (ay - pan.y), ease);
+      setZoom(nextZoom);
+    },
+    [applyPan, fitScale, freeRect],
+  );
+
+  const fitScreen = React.useCallback(() => {
+    zoomRef.current = 1;
+    scaleRef.current = fitScale;
+    setZoom(1);
+    centerPan(true);
+  }, [centerPan, fitScale]);
+
+  // Frame every screen (Figma's Shift+1): the whole deck at once.
+  const fitAll = React.useCallback(() => {
+    const free = freeRect();
+    if (!free || slides.length === 0) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    slides.forEach((slide, index) => {
+      const off = (!connectedCanvas && slide.canvasOffset) || { x: 0, y: 0 };
+      minX = Math.min(minX, index * cW + off.x);
+      minY = Math.min(minY, off.y);
+      maxX = Math.max(maxX, index * cW + off.x + cW);
+      maxY = Math.max(maxY, off.y + cH);
+    });
+    const k = Math.min(free.width / (maxX - minX), free.height / (maxY - minY));
+    const nextZoom = Math.min(maxZoomFor(fitScale), Math.max(MIN_ZOOM, k / fitScale));
+    const scale = fitScale * nextZoom;
+    zoomRef.current = nextZoom;
+    scaleRef.current = scale;
+    applyPan(
+      free.left + (free.width - (maxX - minX) * scale) / 2 - minX * scale,
+      free.top + (free.height - (maxY - minY) * scale) / 2 - minY * scale,
+      true,
+    );
+    setZoom(nextZoom);
+  }, [applyPan, freeRect, slides, connectedCanvas, cW, cH, fitScale]);
+
   const panMode = tool === "pan" || spaceHeld;
 
   const offsets = React.useMemo(() => {
@@ -334,7 +394,7 @@ export function PreviewStage({
         const py = event.clientY - rect.top;
         const oldScale = scaleRef.current;
         const nextZoom = Math.min(
-          MAX_ZOOM,
+          maxZoomFor(fitScale),
           Math.max(MIN_ZOOM, zoomRef.current * Math.exp(-event.deltaY * 0.002)),
         );
         const nextScale = fitScale * nextZoom;
@@ -358,12 +418,37 @@ export function PreviewStage({
 
   // Tool shortcuts: V select, H pan, Space temporarily pans (like Figma/Stitch).
   React.useEffect(() => {
+    // Shortcuts stay live after clicking a toolbar button; only real text
+    // entry (and Space on a focused control, which presses it) opts out.
     const isTyping = (target: EventTarget | null) =>
       target instanceof HTMLElement &&
-      !!target.closest("input, textarea, select, button, a[href], [role=menu], [role=dialog], [contenteditable]");
+      !!target.closest("input, textarea, select, [role=menu], [role=listbox], [role=dialog], [contenteditable]");
+    const isControl = (target: EventTarget | null) =>
+      target instanceof HTMLElement && !!target.closest("button, a[href]");
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
+      if (event.altKey || isTyping(event.target)) return;
+      if (event.metaKey || event.ctrlKey) {
+        // Canvas zoom, like Figma/Sketch: Cmd +/− step, Cmd 0 fits the screen.
+        if (event.key === "=" || event.key === "+") {
+          event.preventDefault();
+          zoomTo(zoomRef.current * ZOOM_STEP);
+        } else if (event.key === "-" || event.key === "_") {
+          event.preventDefault();
+          zoomTo(zoomRef.current / ZOOM_STEP);
+        } else if (event.key === "0") {
+          event.preventDefault();
+          fitScreen();
+        }
+        return;
+      }
+      if (event.shiftKey && (event.code === "Digit1" || event.code === "Digit2")) {
+        event.preventDefault();
+        if (event.code === "Digit1") fitAll();
+        else fitScreen();
+        return;
+      }
       if (event.key === " " && !event.repeat) {
+        if (isControl(event.target)) return;
         event.preventDefault();
         setSpaceHeld(true);
       } else if (event.key === "v" || event.key === "V") {
@@ -418,6 +503,9 @@ export function PreviewStage({
     cW,
     cH,
     onScreenOffsetCommit,
+    zoomTo,
+    fitScreen,
+    fitAll,
   ]);
 
   React.useEffect(() => {
@@ -872,22 +960,22 @@ export function PreviewStage({
           variant="ghost"
           size="icon"
           className="h-7 w-7 rounded-sm"
-          onClick={() => setZoom((value) => Math.max(MIN_ZOOM, Number((value / 1.2).toFixed(3))))}
+          onClick={() => zoomTo(zoom / ZOOM_STEP)}
           disabled={zoom <= MIN_ZOOM}
-          title={t("preview.zoomOut")}
+          title={`${t("preview.zoomOut")} · ${MOD}−`}
           aria-label={t("preview.zoomOut")}
         >
           <ZoomOut className="h-3.5 w-3.5" />
         </Button>
-        <span className="min-w-10 text-center">{(scale * 100).toFixed(0)}%</span>
+        <span className="min-w-10 text-center" aria-live="polite">{(scale * 100).toFixed(0)}%</span>
         <Button
           type="button"
           variant="ghost"
           size="icon"
           className="h-7 w-7 rounded-sm"
-          onClick={() => setZoom((value) => Math.min(MAX_ZOOM, Number((value * 1.2).toFixed(3))))}
-          disabled={zoom >= MAX_ZOOM}
-          title={t("preview.zoomIn")}
+          onClick={() => zoomTo(zoom * ZOOM_STEP)}
+          disabled={zoom >= maxZoomFor(fitScale) - 1e-6}
+          title={`${t("preview.zoomIn")} · ${MOD}+`}
           aria-label={t("preview.zoomIn")}
         >
           <ZoomIn className="h-3.5 w-3.5" />
@@ -897,13 +985,8 @@ export function PreviewStage({
           variant="ghost"
           size="icon"
           className="h-7 w-7 rounded-sm"
-          onClick={() => {
-            scaleRef.current = fitScale;
-            zoomRef.current = 1;
-            setZoom(1);
-            requestAnimationFrame(() => centerPan(true));
-          }}
-          title={t("preview.fitScreen")}
+          onClick={fitScreen}
+          title={`${t("preview.fitScreen")} · ${MOD}0  ·  ⇧1 ${t("preview.fitAll")}`}
           aria-label={t("preview.fitScreen")}
         >
           <Maximize2 className="h-3.5 w-3.5" />
