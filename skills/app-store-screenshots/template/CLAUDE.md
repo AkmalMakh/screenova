@@ -23,7 +23,7 @@ Key routing rules:
 - Application root: this `template/` directory. Next.js, Node `22.x`, install `npm ci`, build `npm run build`.
 - Approved production URL: https://screenova-sigma.vercel.app. Public production deployment was explicitly approved on 2026-10-16; keep application authentication, RLS and private Storage enabled.
 - Preview URL: https://screenova-304b16uzw-stylerxs-projects.vercel.app
-- Deploy workflow: manual CLI from this directory. No Git integration; no automatic push/merge deployment.
+- Deploy workflow: Git integration with `AkmalMakh/screenova` (since 2026-10-18). Vercel Root Directory is `skills/app-store-screenshots/template`. Every pushed branch builds a Preview; merging to `main` deploys Production automatically. Apply new migrations before merging.
 - Deploy status command: `vercel inspect screenova-304b16uzw-stylerxs-projects.vercel.app --scope stylerxs-projects`.
 - Repository: `screenova` remote, https://github.com/AkmalMakh/screenova.git; the working branch tracks `screenova/main`. Never publish personal workspace changes.
 - Project type: web app.
@@ -35,7 +35,7 @@ Key routing rules:
 - Migrations first: apply new `supabase/migrations/*.sql` in the SQL Editor before deploying code that calls them. Deploying this app code before `202610170003` is applied makes every budgeted route return 503. Never drop `consume_beta_budget` (v1); it keeps `vercel rollback` working.
 - Post-deploy smoke: `E2E_BASE_URL=<deployment> npm run test:hosted` with the two dedicated test accounts (sessions per host under `e2e/.auth/<host>/a.json` and `b.json`; add `VERCEL_AUTOMATION_BYPASS_SECRET` for previews, sent only as Vercel's host-only bypass cookie). `INCONCLUSIVE` results are not passes. Sign-in and sign-out are checked by hand. See `RUNBOOK.md`.
 - Error reporting: server-only Sentry, enabled by `SENTRY_DSN` in Vercel Preview and Production; no source-map upload and no Sentry auth token. Prove delivery on preview from a forced error path (RUNBOOK.md, deploy order step 3).
-- Production deploy trigger: `vercel deploy --prod --yes --scope stylerxs-projects` from this directory. Preview: use `--target preview` instead. Inspect the returned target.
+- Production deploy trigger: merge to `main` on `AkmalMakh/screenova`. Rebuild an existing deployment with `vercel redeploy <deployment-url> --scope stylerxs-projects` (add `--target preview` for a preview). Manual `vercel deploy` must now run from the repository root because of the Root Directory setting. Inspect the returned target.
 - Deploy status: `vercel inspect <deployment-url> --wait --timeout 60s --scope stylerxs-projects`.
 - Health check: `vercel curl /login --deployment <deployment-url> --scope stylerxs-projects -- --silent --output /dev/null --write-out '%{http_code}'`.
 - Preview and Production configuration are stored in Vercel; OpenAI key is sensitive/server-only. Supabase Site URL uses the stable production origin and its exact `/auth/callback`; localhost callback remains for development. Never copy local project data into the upload.

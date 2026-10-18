@@ -59,9 +59,9 @@ Keep `public.consume_beta_budget` (v1). It is a one-line boolean wrapper over v2
 ## Deploy order (migrations first)
 
 1. Apply new migrations in the Supabase SQL Editor, oldest first. Verify with a test account: `select public.consume_beta_budget_v2('import');` returns `ok`, `user`, `global` or `denied`.
-2. `vercel deploy --target preview --scope stylerxs-projects`, then run the hosted smoke against the preview URL (below).
+2. Push the branch: Vercel builds a Preview automatically. Run the hosted smoke against that preview URL (below).
 3. On preview only, prove alert delivery from a real error path: set `NEXT_PUBLIC_SUPABASE_URL` for Preview to `https://<your-project-ref>.invalid` (keep the same first label: the session cookie is named after it, so a different host signs you out instead of simulating an outage), redeploy preview, open `/api/project` signed in, confirm a `middleware` or `access_unavailable` event (environment preview) appears in Sentry, then restore the value and redeploy. Preview events do not email by design; the weekly self-test proves the production email path. A 401 here means the drill URL changed the project ref, not that alerting is broken.
-4. `vercel deploy --prod --yes --scope stylerxs-projects`, then the hosted smoke against production.
+4. Merge to `main`: Vercel deploys Production automatically. Then run the hosted smoke against production.
 5. Update `DEPLOYMENT.md` with measured results.
 
 Deploying app code before its migration makes every upload, import and AI request return 503 (`PGRST202`, function not found). Roll back with `vercel rollback <previous-deployment-url> --scope stylerxs-projects` (under two minutes). Deployments before this release have no error reporting: after rolling back past it, alerts are off, so watch Vercel logs and Supabase by hand and roll forward as soon as a fixed build exists.

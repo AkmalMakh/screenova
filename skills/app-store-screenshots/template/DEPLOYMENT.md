@@ -55,7 +55,7 @@ Deployment ID: `dpl_H3c1PiRZm45tp1UQiN162r3ps2kY`; Vercel reports **Preview / Re
 - Vercel team: **StylerX's projects** (`stylerxs-projects`).
 - Created project: **screenova** (`prj_0aIlKTkm58K1Omz6bkQFkEZkNByb`). Other projects were untouched.
 - Application root: this `template/` directory; Node `22.x`; Next.js; `npm ci` and `npm run build`. Package and project runtime settings are pinned to Node 22.
-- Manual CLI deployment; no Git integration, commit, push, merge or successful production promotion.
+- Deployment: Git integration with `AkmalMakh/screenova`, Root Directory `skills/app-store-screenshots/template` (set 2026-10-18). Branch pushes build Previews and merges to `main` deploy Production. The first Git preview (`fb514ea`) built and passed the health checks: `/login` 200, `/studio` redirects to login, `/api/project` 401, `/screenshots/*` 404.
 - Repeatable settings and commands are recorded in `CLAUDE.md` under Deploy Configuration.
 
 ## Verified on the hosted preview
