@@ -205,6 +205,9 @@ export const es: Record<TranslationKey, string> = {
   "designSidebar.matchReference": "Igualar referencia",
   "designSidebar.matchReferenceHint": "Rediseñar la pantalla objetivo como la imagen adjunta",
   "designSidebar.matchReferencePrompt": "Rediseña la pantalla objetivo como la referencia adjunta: diseño, fondo, marco del teléfono, estilo del titular y decoraciones. Conserva mi captura y lo que dice la pantalla.",
+  "designSidebar.addInspiration": "Inspiración",
+  "designSidebar.addInspirationHint": "Añade una imagen de inspiración para rediseñar la pantalla objetivo",
+  "designSidebar.inspirationTag": "Inspiración",
   "designSidebar.footnote":
     "Los prompts, las vistas previas de destino y las referencias se envían a OpenAI. El arte visual solicitado usa GPT Image 2 y puede tardar hasta dos minutos. Tu clave de API permanece en el servidor.",
   "designSidebar.cancel": "Cancelar",

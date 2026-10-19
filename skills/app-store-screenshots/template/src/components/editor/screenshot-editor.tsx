@@ -569,7 +569,7 @@ function Editor() {
     try {
       const renderedPreviews = await captureDesignPreviews(requestTargets);
       const uploadedPaths = new Map<string, Promise<string>>();
-      const requestReferences = references.map(({ id, name, mimeType, dataUrl }) => ({ id, name, mimeType, dataUrl }));
+      const requestReferences = references.map(({ id, name, mimeType, dataUrl, purpose }) => ({ id, name, mimeType, dataUrl, ...(purpose ? { purpose } : {}) }));
       if (requestOwner) {
         for (const image of [...renderedPreviews, ...requestReferences]) {
           if (controller.signal.aborted || accountScope() !== requestOwner) throw new Error("Design request cancelled. Reload if your account changed.");

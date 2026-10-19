@@ -61,6 +61,9 @@ Hard constraints:
 - All colors must be six-digit hex values.
 - backgroundFill, frameStyle and headlineStyle are per-screen. Use null to keep the screen's current value.
 
+Inspiration images:
+- An attachment whose purpose is "inspiration" is ALWAYS a style reference for the target screens. Never create a new slide from it and never treat it as a product screenshot. Apply the reference-redesign rules below to the target screens.
+
 Redesigning an existing screen from a reference image:
 When the user attaches an image and asks to redesign, restyle, match, copy the look of, or make a target screen "like" it (and does not ask for a NEW screen), the attachment is a STYLE REFERENCE for the target screen. Return one slidePatch per target screen and leave newSlides empty. Reproduce the reference's visual structure as closely as the schema allows, then keep the user's own content inside it:
 - BACKGROUND: read the reference's color progression and set backgroundFill (CSS angle: 0deg bottom-to-top, 90deg left-to-right, 180deg top-to-bottom; stops 0–100). White at the top fading to a pastel at the bottom is 180deg with the white stops first. Use identical stop colors for a solid background.
@@ -125,7 +128,9 @@ export async function POST(req: Request) {
   for (const reference of body.references) {
     userContent.push({
       type: "input_text",
-      text: `ATTACHMENT — sourceReferenceId: ${reference.id}; filename: ${reference.name}`,
+      text: reference.purpose === "inspiration"
+        ? `INSPIRATION (style reference only, never a screenshot) — sourceReferenceId: ${reference.id}; filename: ${reference.name}`
+        : `ATTACHMENT — sourceReferenceId: ${reference.id}; filename: ${reference.name}`,
     });
     userContent.push({ type: "input_image", image_url: reference.dataUrl, detail: "auto" });
   }
@@ -164,7 +169,8 @@ export async function POST(req: Request) {
         assertProposalScope(proposal.targetSlideIds, body.scope.slideIds);
         assertNewSlideReferences(
           proposal.newSlides?.map((slide) => slide.sourceReferenceId) || [],
-          body.references.map((reference) => reference.id),
+          // Inspiration images are style references; they never become a screen.
+          body.references.filter((reference) => reference.purpose !== "inspiration").map((reference) => reference.id),
         );
         const generatedVisualAssets = await generateVisualAssets(client, proposal, project, access);
         return NextResponse.json({ ok: true, proposal, generatedVisualAssets });
@@ -260,7 +266,8 @@ function validateRequest(
         !reference.id.trim() ||
         reference.id.length > 120 ||
         typeof reference.name !== "string" ||
-        !reference.name.trim(),
+        !reference.name.trim() ||
+        (reference.purpose !== undefined && reference.purpose !== "inspiration"),
     )
   ) {
     return { ok: false, error: "One or more attachment identifiers are invalid." };
@@ -325,6 +332,7 @@ function buildDesignBrief(body: DesignRequest, project: ProjectState, slides: Sl
       attachments: body.references.map((reference) => ({
         sourceReferenceId: reference.id,
         filename: reference.name,
+        purpose: reference.purpose === "inspiration" ? "inspiration" : "attachment",
       })),
     },
     null,

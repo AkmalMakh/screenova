@@ -205,6 +205,9 @@ export const de: Record<TranslationKey, string> = {
   "designSidebar.matchReference": "Referenz übernehmen",
   "designSidebar.matchReferenceHint": "Zielbildschirm wie das angehängte Bild gestalten",
   "designSidebar.matchReferencePrompt": "Gestalte den Zielbildschirm wie die angehängte Referenz: Layout, Hintergrund, Gerätrahmen, Überschriftenstil und Dekorationen. Behalte meinen Screenshot und die Aussage des Bildschirms bei.",
+  "designSidebar.addInspiration": "Inspiration",
+  "designSidebar.addInspirationHint": "Inspirationsbild hinzufügen, um den Zielbildschirm daran anzulehnen",
+  "designSidebar.inspirationTag": "Inspiration",
   "designSidebar.footnote":
     "Prompts, Ziel-Vorschauen und Referenzen werden an OpenAI gesendet. Angeforderte Visuals nutzen GPT Image 2 und können bis zu zwei Minuten dauern. Dein API-Schlüssel bleibt auf dem Server.",
   "designSidebar.cancel": "Abbrechen",

@@ -299,6 +299,27 @@ test("Match reference restyles the current screen from an attached image", async
   expect((await activeProject(request)).slidesByDevice.iphone[0].screenshot).toBe(screenshotBefore);
 });
 
+test("Inspiration button attaches a style reference that sends without typing", async ({ page }) => {
+  await openEditor(page);
+  let sent: { prompt: string; references: { name: string; purpose?: string }[] } | undefined;
+  await page.route("**/api/design", async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({ json: { ok: true, proposal: {
+      summary: "Matched", targetSlideIds: ["screen-iphone"],
+      slidePatches: [{ slideId: "screen-iphone", frameStyle: "white" }],
+    }, generatedVisualAssets: [] } });
+  });
+  const image = await sharp({ create: { width: 120, height: 260, channels: 3, background: "#C9E4F6" } }).png().toBuffer();
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Add an inspiration image to restyle the target screen like it" }).click();
+  await (await chooser).setFiles({ name: "look.png", mimeType: "image/png", buffer: image });
+  await expect(page.getByRole("img", { name: "Inspiration", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Generate redesign" }).click();
+  await expect(page.getByRole("button", { name: "Apply", exact: true })).toBeVisible();
+  expect(sent?.references).toEqual([expect.objectContaining({ name: "look.png", purpose: "inspiration" })]);
+  expect(sent?.prompt).toMatch(/^Redesign the target screen to match the attached reference/);
+});
+
 test("AI preview disables export, supports discard and applies one undoable edit", async ({ page, request }) => {
   await openEditor(page);
   let release = () => {};

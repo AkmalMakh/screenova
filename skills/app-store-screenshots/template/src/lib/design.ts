@@ -312,6 +312,8 @@ export type DesignReference = {
   name: string;
   mimeType: "image/png" | "image/jpeg" | "image/webp";
   dataUrl: string;
+  /** "inspiration": a style reference only, never a new screen's screenshot. */
+  purpose?: "inspiration";
 };
 
 export type DesignRequest = {
@@ -320,7 +322,7 @@ export type DesignRequest = {
   project: ProjectState;
   // dataUrl carries an inline image locally, or a private /api/assets/ path in cloud mode.
   renderedPreviews: Array<{ slideId: string; dataUrl: string }>;
-  references: Array<{ id: string; name: string; mimeType: string; dataUrl: string }>;
+  references: Array<{ id: string; name: string; mimeType: string; dataUrl: string; purpose?: string }>;
   conversation: Array<{ role: "user" | "assistant"; text: string }>;
 };
 
