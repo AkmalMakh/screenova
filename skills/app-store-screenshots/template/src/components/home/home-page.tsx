@@ -151,6 +151,9 @@ function Home() {
         detectDescriptionLinks(prompt, true);
         sessionStorage.removeItem("screenova:studio-prompt");
       }
+      const device = sessionStorage.getItem("screenova:studio-device");
+      if (device && (CHAT_DEVICES as string[]).includes(device)) setChatDevice(device as Device);
+      sessionStorage.removeItem("screenova:studio-device");
     } catch { /* The composer also works without browser storage. */ }
   }, []);
 

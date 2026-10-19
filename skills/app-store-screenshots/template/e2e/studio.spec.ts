@@ -39,21 +39,22 @@ test.beforeEach(async ({ page, request }) => {
 });
 
 test("workspace appearance persists across routes without changing artwork and fits phones", async ({ page, request }, testInfo) => {
-  await page.goto("/");
+  await page.goto("/studio");
   await expect(page.locator("html")).not.toHaveClass(/screenova-dark/);
   await page.getByRole("button", { name: "Switch to dark theme" }).click();
-  for (const route of ["/", "/studio", "/editor"]) {
+  for (const route of ["/studio", "/editor"]) {
     await page.goto(route);
     await expect(page.getByRole("button", { name: "Switch to light theme" })).toBeVisible();
     await expect(page.locator("html")).toHaveClass(/screenova-dark/);
-    await page.screenshot({ path: testInfo.outputPath(`${route.slice(1) || "landing"}-dark.png`) });
+    await page.screenshot({ path: testInfo.outputPath(`${route.slice(1)}-dark.png`) });
   }
   expect((await activeProject(request)).themeId).toBe("clean-light");
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   for (const route of ["/", "/studio", "/editor"]) {
     await page.goto(route);
-    await expect(page.getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
+    // The landing is always dark and has no appearance toggle.
+    if (route !== "/") await expect(page.getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
     await expect(page.locator("html")).not.toHaveClass(/screenova-dark/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (route === "/editor") {
@@ -69,10 +70,12 @@ test("workspace appearance persists across routes without changing artwork and f
 
 test("landing AI opens the real composer with the supplied prompt", async ({ page }) => {
   await page.goto("/");
-  await page.getByPlaceholder("Describe a design direction…").fill("A calm calendar app for busy parents");
+  await page.getByPlaceholder("What app shall we make screenshots for?").fill("A calm calendar app for busy parents");
+  await page.getByRole("group", { name: "Device" }).getByRole("button", { name: "iPad", exact: true }).click();
   await page.getByRole("button", { name: "Design with AI", exact: true }).click();
   await expect(page).toHaveURL(/\/studio$/);
   await expect(page.getByPlaceholder(/Describe your app/)).toHaveValue("A calm calendar app for busy parents");
+  await expect(page.getByRole("group", { name: "Device" }).getByRole("button", { name: "iPad", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("pasted description links auto-attach and Send waits for App Store screenshots", async ({ page, context }) => {
