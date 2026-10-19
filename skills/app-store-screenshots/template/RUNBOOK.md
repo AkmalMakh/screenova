@@ -27,6 +27,7 @@ Every Sentry event carries `stage` and, when available, `kind`, `code`, the Verc
 | `budget_global` | `select kind, sum(attempts), count(*) from public.beta_usage where day = (now() at time zone 'utc')::date group by kind;` and the top accounts below | Expected on a busy day. If one account dominates, revoke it; if it is real demand, raise the cap with a migration |
 | `ai_quota` | OpenAI billing | Raise the hard limit or wait for the month; manual editing and export keep working |
 | `ai_provider` | Code tag: `invalid_api_key` (or `401`) means the key was rejected | Rotate `OPENAI_API_KEY` in Vercel; any other code is a vendor incident |
+| `gallery_publish` / `gallery_read` / `gallery_unpublish` / `gallery_hide` | Vercel logs for the request id; `select count(*) from public.gallery_posts;` | A missing `gallery_posts` table means `202610190001_gallery.sql` was not applied; RLS denials on publish usually mean the account is not in `beta_members` |
 | `ai_design_failed` / `ai_template_failed` / `ai_analysis_failed` | Vercel logs for the request id | An app-side failure after OpenAI answered (schema, parsing, normalizing), not a vendor incident |
 
 Top accounts today:
@@ -35,6 +36,24 @@ Top accounts today:
 select user_id, kind, attempts from public.beta_usage
 where day = (now() at time zone 'utc')::date order by attempts desc limit 10;
 ```
+
+## Gallery moderation
+
+The public gallery (`/gallery`) shows posts as soon as they are published. Publishers can unpublish their own posts from the post page. To hide someone else's post:
+
+1. Make yourself a moderator once, in the SQL Editor (find your user id under Authentication → Users):
+
+   ```sql
+   insert into public.gallery_moderators(user_id) values ('<your-user-id>');
+   ```
+
+2. Open the post signed in and click **Hide post**. Or in the SQL Editor:
+
+   ```sql
+   update public.gallery_posts set hidden = true where id = '<post-id>';
+   ```
+
+Unhide with `hidden = false`. Delete a post permanently with `delete from public.gallery_posts where id = '<post-id>';`. Hidden posts disappear from the list and their preview images stop serving within five minutes (the preview cache window). Publishing counts against the daily upload limit.
 
 ## Access and limits
 

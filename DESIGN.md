@@ -191,3 +191,4 @@ a package; individual pixel values were not separately reviewed.
 | 2026-10-16 | Make this root document canonical | Replace competing UI guidance with one source of truth. |
 | 2026-10-16 | Keep chrome separate from exported artwork | App branding must not restrict users' screenshot styles. |
 | 2026-10-16 | Apply the direction to the live app | Shared light/dark appearance, Studio creation and recent projects, separated editor panels, and output-led landing. |
+| 2026-10-19 | Public template gallery (`/gallery`) | Owner-approved. Users publish a deck's design; others reuse it as a template with their own screenshots. Publishing is opt-in and explicit about what becomes public; it is sharing, not team collaboration. |
