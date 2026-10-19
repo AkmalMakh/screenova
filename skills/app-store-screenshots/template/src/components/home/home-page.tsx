@@ -1,10 +1,13 @@
 "use client";
 import { apiFetch } from "@/lib/account-scope";
+import Link from "next/link";
+import { galleryTemplateSchema, PENDING_TEMPLATE_KEY, slidesFromTemplate, themeFromTemplate } from "@/lib/gallery";
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  LayoutGrid,
   Download,
   ExternalLink,
   Loader2,
@@ -536,6 +539,45 @@ function Home() {
     router.push("/editor");
   }
 
+  // "Use this template" from the public gallery: the choice waits in this
+  // browser through sign-in, then becomes a new project opened in the editor.
+  const [galleryError, setGalleryError] = React.useState<string | null>(null);
+  const galleryStarted = React.useRef(false);
+  React.useEffect(() => {
+    if (!hydrated || galleryStarted.current) return;
+    let id: string | null = null;
+    try { id = localStorage.getItem(PENDING_TEMPLATE_KEY); } catch { id = null; }
+    if (!id) return;
+    galleryStarted.current = true;
+    try { localStorage.removeItem(PENDING_TEMPLATE_KEY); } catch { /* ignore */ }
+    void (async () => {
+      try {
+        const response = await apiFetch(`/api/gallery/${encodeURIComponent(id)}`);
+        const json = (await response.json().catch(() => ({}))) as { ok?: boolean; title?: string; template?: unknown; error?: string };
+        const template = galleryTemplateSchema.safeParse(json.template);
+        if (!response.ok || !json.ok || !template.success) throw new Error(json.error || t("home.galleryOpenFailed"));
+        const data = template.data;
+        const theme = themeFromTemplate(data);
+        createProject(json.title || t("home.galleryProject"), data.locales);
+        setState((prev) => ({
+          ...prev,
+          device: data.device,
+          orientation: data.orientation,
+          themeId: data.themeId,
+          connectedCanvas: data.connectedCanvas,
+          locale: data.locale,
+          ...(theme
+            ? { customThemesByDevice: { ...(prev.customThemesByDevice || {}), [data.device]: theme } }
+            : {}),
+          slidesByDevice: { ...prev.slidesByDevice, [data.device]: slidesFromTemplate(data, () => crypto.randomUUID()) },
+        }));
+        router.push("/editor");
+      } catch (error) {
+        setGalleryError(error instanceof Error ? error.message : t("home.galleryOpenFailed"));
+      }
+    })();
+  }, [hydrated, createProject, setState, router, t]);
+
   if (!hydrated) {
     return (
       <div className="flex h-[100dvh] items-center justify-center">
@@ -603,6 +645,14 @@ function Home() {
 
           <div className="flex shrink-0 items-center gap-2">
             <ThemeToggle />
+            <Link
+              href="/gallery"
+              className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-input bg-background px-3 text-footnote font-medium hover:bg-accent hover:text-accent-foreground"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
+              <span className="hidden sm:inline">{t("home.gallery")}</span>
+              <span className="sr-only sm:hidden">{t("home.gallery")}</span>
+            </Link>
             <Button
               type="button"
               variant="outline"
@@ -629,6 +679,11 @@ function Home() {
 
         <main className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-5xl px-5 pb-24 pt-8 sm:px-8 sm:pt-12">
+            {galleryError && (
+              <p role="alert" className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-footnote text-destructive">
+                {galleryError}
+              </p>
+            )}
             <h1 className="text-title1 font-semibold tracking-tight sm:text-[34px] sm:leading-[1.15]">
               {t("home.welcome")}
             </h1>
