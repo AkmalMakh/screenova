@@ -636,6 +636,17 @@ export function DeckCanvas({
     : undefined;
 
   return (
+    <>
+    {showGuides && (
+      <ScreenLabels
+        slides={slides}
+        cW={cW}
+        previewScale={previewScale}
+        activeSlideId={activeSlideId}
+        selectedScreenIds={selectedScreenIds}
+        offsetFor={offsetFor}
+      />
+    )}
     <div
       style={{
         width: totalW,
@@ -712,8 +723,6 @@ export function DeckCanvas({
               {showGuides && (
                 <ScreenGuide
                   cW={cW}
-                  cH={cH}
-                  index={index}
                   active={active}
                   selected={!!selectedScreenIds?.has(slide.id)}
                 />
@@ -745,8 +754,6 @@ export function DeckCanvas({
             {showGuides && (
               <ScreenGuide
                 cW={cW}
-                cH={cH}
-                index={index}
                 active={active}
                 selected={!!selectedScreenIds?.has(slide.id)}
               />
@@ -811,6 +818,72 @@ export function DeckCanvas({
         );
       })}
     </div>
+    </>
+  );
+}
+
+// Screen numbers sit just above each screen, outside the artwork, so they never
+// cover a headline. Sized in screen pixels (1/previewScale) per DESIGN.md:
+// selection chrome reads the same at every zoom. Workspace-only (showGuides).
+function ScreenLabels({
+  slides,
+  cW,
+  previewScale,
+  activeSlideId,
+  selectedScreenIds,
+  offsetFor,
+}: {
+  slides: Slide[];
+  cW: number;
+  previewScale: number;
+  activeSlideId: string | null;
+  selectedScreenIds?: ReadonlySet<string>;
+  offsetFor: (id: string) => { x: number; y: number };
+}) {
+  const inverse = 1 / Math.max(previewScale, 0.001);
+  return (
+    <div aria-hidden style={{ position: "absolute", left: 0, top: 0, width: 0, height: 0, pointerEvents: "none" }}>
+      {slides.map((slide, index) => {
+        const active = activeSlideId === slide.id;
+        const selected = !active && !!selectedScreenIds?.has(slide.id);
+        const offset = offsetFor(slide.id);
+        return (
+          <div
+            key={slide.id}
+            className={
+              active
+                ? "bg-primary text-primary-foreground"
+                : selected
+                  ? "bg-primary/15 text-primary"
+                  : "bg-card/80 text-muted-foreground ring-1 ring-border"
+            }
+            style={{
+              position: "absolute",
+              left: index * cW + offset.x,
+              top: offset.y,
+              // Lift by its own height + 6px, then scale from the screen's
+              // top-left corner: the label floats 6 screen px above the edge.
+              transform: `scale(${inverse}) translateY(calc(-100% - 6px))`,
+              transformOrigin: "0 0",
+              minWidth: 20,
+              height: 20,
+              padding: "0 6px",
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 12,
+              lineHeight: 1,
+              fontWeight: 600,
+              fontVariantNumeric: "tabular-nums",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {index + 1}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -861,14 +934,10 @@ function SlideBackground({
 
 function ScreenGuide({
   cW,
-  cH,
-  index,
   active,
   selected = false,
 }: {
   cW: number;
-  cH: number;
-  index: number;
   active: boolean;
   selected?: boolean;
 }) {
@@ -895,23 +964,6 @@ function ScreenGuide({
             : "inset 0 0 0 1px rgba(255, 255, 255, 0.22)",
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          left: cW * 0.035,
-          top: cH * 0.024,
-          borderRadius: cW * 0.018,
-          padding: `${cH * 0.006}px ${cW * 0.018}px`,
-          background: emphasized ? "rgba(0, 113, 230, 0.92)" : "rgba(15, 23, 42, 0.72)",
-          color: "white",
-          fontSize: Math.max(24, cW * 0.022),
-          lineHeight: 1,
-          fontWeight: 700,
-          letterSpacing: 0,
-        }}
-      >
-        {index + 1}
-      </div>
     </div>
   );
 }
