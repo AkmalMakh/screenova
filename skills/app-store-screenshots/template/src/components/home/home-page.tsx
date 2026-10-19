@@ -7,6 +7,8 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   LayoutGrid,
   Download,
   ExternalLink,
@@ -16,6 +18,7 @@ import {
   Star,
   X,
 } from "lucide-react";
+import { AccountButton } from "@/components/auth/account-button";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Input } from "@/components/ui/input";
@@ -24,7 +27,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   StudioComposer,
   StudioSidebar,
-  STUDIO_TEMPLATES,
   type ComposerReference,
 } from "@/components/home/studio-shell";
 import { fileToDataUrl, uploadImage } from "@/components/editor/screenshot-picker";
@@ -41,7 +43,6 @@ import { useProject } from "@/lib/storage";
 import { extractReferenceLinks, normalizeReferenceUrl } from "@/lib/reference-links";
 import type { DeckSuggestion } from "@/lib/suggest-deck";
 import type { Device, Slide, Theme } from "@/lib/types";
-import { buildTemplateSlides, type TemplateEntry } from "@/lib/studio-templates";
 import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
 import type { TranslationKey } from "@/lib/ui-translations/en";
 import { cn } from "@/lib/utils";
@@ -526,19 +527,6 @@ function Home() {
     router.push("/editor");
   }
 
-  function startTemplate(template: TemplateEntry) {
-    const locales = chatLocales.length ? chatLocales : ["en"];
-    const slides = buildTemplateSlides(template, locales);
-    createProject(template.name, locales);
-    setState((prev) => ({
-      ...prev,
-      device: chatDevice,
-      themeId: template.themeId,
-      slidesByDevice: { ...prev.slidesByDevice, [chatDevice]: slides },
-    }));
-    router.push("/editor");
-  }
-
   // "Use this template" from the public gallery: the choice waits in this
   // browser through sign-in, then becomes a new project opened in the editor.
   const [galleryError, setGalleryError] = React.useState<string | null>(null);
@@ -602,109 +590,101 @@ function Home() {
     );
   }
 
+  const sidebar = (onOpen: (id: string) => void) => (
+    <StudioSidebar
+      projects={projects}
+      activeId={activeProjectId}
+      onOpenProject={onOpen}
+      galleryPosts={galleryPosts}
+      formatUpdatedAt={formatUpdatedAt}
+    />
+  );
+
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-background">
-      {/* Persistent workspace rail. Hidden below lg, where it becomes a sheet. */}
-      <aside className="hidden w-[224px] shrink-0 border-r border-border/70 lg:block">
-        <StudioSidebar
-          projects={projects}
-          activeId={activeProjectId}
-          onOpenProject={openProject}
-          onNewDeck={startBlank}
-          onOpenTemplate={startTemplate}
-          formatUpdatedAt={formatUpdatedAt}
-        />
-      </aside>
+    <div className="studio-dots flex h-[100dvh] flex-col overflow-hidden bg-background">
+      <header className="flex h-16 shrink-0 items-center justify-between gap-3 px-4 sm:h-[72px] sm:px-6">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-full lg:hidden"
+            ref={menuButtonRef}
+            onClick={() => setSidebarOpen(true)}
+            aria-label={t("home.openMenu")}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <span className="truncate text-[24px] font-semibold tracking-[-0.03em] sm:text-[28px]">{t("home.brand")}</span>
+          <span className="rounded-full border border-foreground/70 px-2 py-0.5 text-caption font-medium uppercase tracking-wide">
+            {t("home.beta")}
+          </span>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <Link
+            href="/gallery"
+            className="inline-flex h-10 items-center gap-2 rounded-full px-3 text-subhead font-medium hover:bg-foreground/[0.06]"
+          >
+            <LayoutGrid className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">{t("home.gallery")}</span>
+            <span className="sr-only sm:hidden">{t("home.gallery")}</span>
+          </Link>
+          <ThemeToggle />
+          <AccountButton />
+        </div>
+      </header>
 
       <DialogPrimitive.Root open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-foreground/20 backdrop-blur-sm" />
-          <DialogPrimitive.Content onCloseAutoFocus={(event) => { event.preventDefault(); menuButtonRef.current?.focus(); }} aria-describedby={undefined} className="fixed inset-y-0 left-0 z-50 w-[280px] max-w-[85vw] border-r border-border/70 bg-card pt-8 shadow-pop">
+          <DialogPrimitive.Content onCloseAutoFocus={(event) => { event.preventDefault(); menuButtonRef.current?.focus(); }} aria-describedby={undefined} className="fixed inset-y-0 left-0 z-50 w-[320px] max-w-[88vw] border-r border-border/70 bg-background pt-10 shadow-pop">
             <DialogPrimitive.Title className="sr-only">{t("home.openMenu")}</DialogPrimitive.Title>
-            <DialogPrimitive.Close aria-label={t("home.closeMenu")} className="absolute right-3 top-2 flex h-8 w-8 items-center justify-center rounded-sm hover:bg-muted"><X className="h-4 w-4" /></DialogPrimitive.Close>
-            <StudioSidebar
-              projects={projects}
-              activeId={activeProjectId}
-              onOpenProject={(id) => {
-                setSidebarOpen(false);
-                openProject(id);
-              }}
-              onNewDeck={() => { setSidebarOpen(false); startBlank(); }}
-              onOpenTemplate={(template) => { setSidebarOpen(false); startTemplate(template); }}
-              formatUpdatedAt={formatUpdatedAt}
-            />
+            <DialogPrimitive.Close aria-label={t("home.closeMenu")} className="absolute right-3 top-2 flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted"><X className="h-4 w-4" /></DialogPrimitive.Close>
+            {sidebar((id) => { setSidebarOpen(false); openProject(id); })}
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-16 bg-card shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
-          <div className="flex min-w-0 items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-9 w-9 shrink-0 rounded-sm lg:hidden"
-              ref={menuButtonRef}
-              onClick={() => setSidebarOpen(true)}
-              aria-label={t("home.openMenu")}
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-            <span className="truncate text-footnote font-semibold tracking-tight lg:hidden">
-              {t("home.brand")}
-            </span>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <ThemeToggle />
-            <Link
-              href="/gallery"
-              className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-input bg-background px-3 text-footnote font-medium hover:bg-accent hover:text-accent-foreground"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
-              <span className="hidden sm:inline">{t("home.gallery")}</span>
-              <span className="sr-only sm:hidden">{t("home.gallery")}</span>
-            </Link>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9 gap-1.5 rounded-sm px-3 text-footnote font-medium"
-              onClick={() => setImportOpen((value) => !value)}
-              aria-expanded={importOpen}
-            >
-              <Download className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{t("home.importCta")}</span>
-              <span className="sm:hidden">{t("home.fetch")}</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9 gap-1.5 rounded-sm px-3 text-footnote font-medium"
-              onClick={startBlank}
-              aria-label={t("home.blankCardTitle")}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{t("home.blankCardTitle")}</span>
-            </Button>
-          </div>
-        </header>
+      <div className="flex min-h-0 flex-1 gap-2 px-0 pb-0 lg:px-4 lg:pb-4">
+        {/* Floating workspace panel. Below lg it becomes the menu sheet. */}
+        <aside className="hidden w-[320px] shrink-0 overflow-hidden rounded-[18px] border border-border/80 bg-muted/70 backdrop-blur lg:block">
+          {sidebar(openProject)}
+        </aside>
 
         <main className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-5xl px-5 pb-24 pt-8 sm:px-8 sm:pt-12">
+          <div className="mx-auto w-full max-w-[1120px] px-5 pb-24 pt-8 sm:px-10 sm:pt-16 lg:pt-24">
             {galleryError && (
               <p role="alert" className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-footnote text-destructive">
                 {galleryError}
               </p>
             )}
-            <h1 className="text-title1 font-semibold tracking-tight sm:text-[34px] sm:leading-[1.15]">
-              {t("home.welcome")}
-            </h1>
-            <p className="mt-3 max-w-2xl text-body text-muted-foreground">{t("home.subtitle")}</p>
+            <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+              <h1 className="text-[40px] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[56px] lg:text-[64px]">
+                {t("home.welcome")}
+              </h1>
+              <div className="flex flex-wrap gap-2 pb-2">
+                <button
+                  type="button"
+                  className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card/70 px-4 text-subhead font-medium transition-colors hover:bg-card"
+                  onClick={() => setImportOpen((value) => !value)}
+                  aria-expanded={importOpen}
+                >
+                  <Download className="h-4 w-4" aria-hidden />
+                  {t("home.importCta")}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card/70 px-4 text-subhead font-medium transition-colors hover:bg-card"
+                  onClick={startBlank}
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                  {t("home.blankCardTitle")}
+                </button>
+              </div>
+            </div>
 
-            <div className="mt-6 grid items-start gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-            <div className="min-w-0">
-            <div>
+            <div className="mt-8">
               <StudioComposer
                 draft={chatDraft}
                 onDraftChange={changeChatDraft}
@@ -740,12 +720,12 @@ function Home() {
             </div>
 
             {chatMessages.length === 0 ? (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-5 flex flex-wrap gap-2">
                 {SUGGESTION_CHIPS.map((key) => (
                   <button
                     key={key}
                     type="button"
-                    className="rounded-sm border border-border/80 bg-card px-3 py-2 text-footnote text-muted-foreground transition-colors duration-150 ease-out hover:border-border hover:text-foreground"
+                    className="max-w-full truncate rounded-full border border-border bg-card/70 px-4 py-2 text-subhead text-foreground/80 transition-colors duration-150 ease-out hover:bg-card hover:text-foreground sm:max-w-[360px]"
                     onClick={() => void submitChat(t(key))}
                   >
                     {t(key)}
@@ -783,18 +763,6 @@ function Home() {
               </div>
             )}
 
-            </div>
-            <aside className="hidden overflow-hidden rounded-lg border border-border bg-card xl:block" aria-label={t("home.inspiration")}>
-              <div className="flex items-center justify-between gap-3 border-b border-border p-4">
-                <span className="text-footnote font-medium">{STUDIO_TEMPLATES[0].name}</span>
-                <button type="button" className="rounded-sm px-3 text-footnote text-primary" onClick={() => startTemplate(STUDIO_TEMPLATES[0])} aria-label={STUDIO_TEMPLATES[0].name}><ArrowRight className="h-4 w-4" /></button>
-              </div>
-              <div className="grid grid-cols-3 gap-2 bg-muted p-4">
-                {["01-hero", "02-split-landscape", "03-device-bottom"].map((name, index) => <img key={name} src={`/deck/${name}.webp`} alt={`${STUDIO_TEMPLATES[0].name} ${index + 1}`} className="h-auto w-full rounded-xs" />)}
-              </div>
-              <p className="p-4 text-caption text-muted-foreground">{t("home.slideCount", { count: STUDIO_TEMPLATES[0].slides })}</p>
-            </aside>
-            </div>
             {importOpen && (
               <section className="mt-8" aria-label={t("home.linkSectionTitle")}>
                 <h2 className="mb-3 text-title3 font-semibold tracking-tight">
@@ -867,12 +835,12 @@ function Home() {
             )}
 
             {projects.length > 0 && (
-              <section className="mt-10" aria-label={t("home.recentTitle")}>
+              <section className="mt-10 lg:hidden" aria-label={t("home.recentTitle")}>
                 <h2 className="mb-4 text-title2 font-semibold tracking-tight">{t("home.recentTitle")}</h2>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {projects.slice(0, 6).map((project) => (
                     <button key={project.id} type="button" onClick={() => openProject(project.id)}
-                      className="flex min-h-24 items-center justify-between gap-4 rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-primary/50">
+                      className="flex min-h-20 items-center justify-between gap-4 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:border-primary/50">
                       <span className="min-w-0"><span className="block truncate text-title3 font-semibold">{project.name}</span>
                         <span className="mt-1 block text-caption text-muted-foreground">{formatUpdatedAt(project.updatedAt, t)}</span></span>
                       <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -881,65 +849,94 @@ function Home() {
                 </div>
               </section>
             )}
-            <section className="mt-10" aria-label={t("home.inspiration")}>
-              <div className="mb-3 flex items-baseline justify-between gap-4">
-                <h2 className="text-title3 font-semibold tracking-tight">
-                  {t("home.inspiration")}
-                </h2>
-                <Link href="/gallery" className="inline-flex shrink-0 items-center gap-1 text-footnote font-medium text-primary hover:underline">
-                  {t("home.gallerySeeAll")}
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                </Link>
-              </div>
-              <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:-mx-8 sm:px-8">
-                {galleryPosts && galleryPosts.length > 0
-                  ? galleryPosts.map((post) => (
-                    <Link
-                      key={post.id}
-                      href={`/gallery/${post.id}`}
-                      className="lift-hover group w-[168px] shrink-0 snap-start overflow-hidden rounded-lg border border-border/80 bg-card text-left shadow-card"
-                    >
-                      <img
-                        src={`/gallery/${post.id}/preview/0`}
-                        alt=""
-                        loading="lazy"
-                        className="aspect-[9/19] w-full bg-muted object-cover object-top"
-                      />
-                      <span className="block px-3 py-2.5">
-                        <span className="block truncate text-footnote font-medium">{post.title}</span>
-                        <span className="block truncate text-caption text-muted-foreground">
-                          {t("home.slideCount", { count: post.screenCount })}
-                        </span>
-                      </span>
-                    </Link>
-                  ))
-                  : STUDIO_TEMPLATES.map((tpl) => (
-                    <button
-                      key={tpl.id}
-                      type="button"
-                      onClick={() => startTemplate(tpl)}
-                      className="lift-hover group w-[168px] shrink-0 snap-start overflow-hidden rounded-lg border border-border/80 bg-card text-left shadow-card"
-                    >
-                      <img
-                        src={tpl.thumb}
-                        alt=""
-                        loading="lazy"
-                        className="aspect-[9/19] w-full object-cover"
-                      />
-                      <span className="block px-3 py-2.5">
-                        <span className="block truncate text-footnote font-medium">{tpl.name}</span>
-                        <span className="block truncate text-caption text-muted-foreground">
-                          {t("home.slideCount", { count: tpl.slides })}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-              </div>
-            </section>
+
+            <InspirationRow posts={galleryPosts} />
           </div>
         </main>
       </div>
     </div>
+  );
+}
+
+// ---------- Need inspiration ----------
+
+/** Newest public gallery designs as a scrollable row with prev/next arrows. */
+function InspirationRow({ posts }: { posts: GalleryPostSummary[] | null }) {
+  const { t } = useT();
+  const rowRef = React.useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = React.useState({ start: true, end: true });
+
+  const measure = React.useCallback(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    setEdges({ start: row.scrollLeft <= 4, end: row.scrollLeft + row.clientWidth >= row.scrollWidth - 4 });
+  }, []);
+  React.useEffect(() => {
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure, posts]);
+
+  function page(direction: 1 | -1) {
+    const row = rowRef.current;
+    if (!row) return;
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    row.scrollBy({ left: direction * row.clientWidth * 0.85, behavior: smooth ? "smooth" : "auto" });
+  }
+
+  return (
+    <section className="mt-16 sm:mt-24" aria-label={t("home.inspiration")}>
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <h2 className="text-[28px] font-medium leading-tight tracking-[-0.02em] sm:text-[32px]">{t("home.inspiration")}</h2>
+        <div className="flex shrink-0 items-center gap-1">
+          <Link href="/gallery" className="mr-2 hidden text-subhead font-medium text-primary hover:underline sm:inline">
+            {t("home.gallerySeeAll")}
+          </Link>
+          <button type="button" onClick={() => page(-1)} disabled={edges.start} aria-label={t("home.inspirationPrev")}
+            className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-foreground/[0.06] disabled:opacity-30">
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button type="button" onClick={() => page(1)} disabled={edges.end} aria-label={t("home.inspirationNext")}
+            className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-foreground/[0.06] disabled:opacity-30">
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
+      {posts && posts.length > 0 ? (
+        <div ref={rowRef} onScroll={measure} className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-5 pb-2 [scrollbar-width:none] sm:-mx-10 sm:px-10">
+          {posts.map((post) => (
+            <Link
+              key={post.id}
+              href={`/gallery/${post.id}`}
+              className="group w-[300px] shrink-0 snap-start sm:w-[400px]"
+            >
+              <span className="relative flex aspect-[4/3] items-end justify-center gap-3 overflow-hidden rounded-[18px] bg-gradient-to-b from-foreground/[0.05] to-foreground/[0.12] px-6 pt-8 transition-transform duration-200 ease-out group-hover:-translate-y-0.5">
+                {Array.from({ length: Math.min(3, post.previewCount) }, (_, index) => (
+                  <img
+                    key={index}
+                    src={`/gallery/${post.id}/preview/${index}`}
+                    alt=""
+                    loading="lazy"
+                    className={cn(
+                      "w-[30%] rounded-t-lg object-cover object-top shadow-card",
+                      index === 1 ? "translate-y-0" : "translate-y-3",
+                    )}
+                  />
+                ))}
+              </span>
+              <span className="mt-3 block truncate text-title3 font-semibold">{post.title}</span>
+              <span className="block text-footnote text-muted-foreground">{t("home.slideCount", { count: post.screenCount })}</span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-[18px] border border-dashed border-border bg-card/60 p-8 text-center">
+          <p className="text-title3 font-semibold">{posts === null ? t("home.galleryUnavailable") : t("home.galleryEmpty")}</p>
+          <p className="mt-1 text-subhead text-muted-foreground">{t("home.galleryEmptyHint")}</p>
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -813,10 +813,13 @@ export function useProject() {
         .filter((id) => bundle.projects[id])
         .map((id) => {
           const project = bundle.projects[id];
+          const thumb = project.slidesByDevice?.[project.device]?.find((slide) => slide.screenshot)?.screenshot;
           return {
             id,
             name: project.name || "Project",
             updatedAt: project.updatedAt || 0,
+            device: project.device,
+            ...(thumb ? { thumb } : {}),
           };
         }),
     [bundle],

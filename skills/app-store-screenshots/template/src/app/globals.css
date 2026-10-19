@@ -356,3 +356,12 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea {
 }
 /* Touch-target size comes from the pointer: coarse hit-area rule near the top
    of this file, so compact desktop controls keep their designed size. */
+
+/* Studio home: quiet dot grid behind the floating panel and composer. */
+.studio-dots {
+  background-image: radial-gradient(hsl(var(--foreground) / 0.09) 1px, transparent 1.2px);
+  background-size: 20px 20px;
+}
+.studio-composer {
+  background-image: linear-gradient(115deg, hsl(var(--card) / 0.9) 30%, hsl(var(--primary) / 0.07) 100%);
+}
