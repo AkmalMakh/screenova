@@ -76,6 +76,7 @@ export const en = {
   "publish.close": "Done",
   "publish.empty": "Add at least one screen before publishing.",
   "home.gallery": "Gallery",
+  "home.gallerySeeAll": "See all in gallery",
   "home.galleryProject": "Gallery template",
   "home.galleryOpenFailed": "That gallery template couldn't be opened. It may have been unpublished.",
   "toolbar.exporting": "Exporting {progress}",

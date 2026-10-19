@@ -1,7 +1,7 @@
 "use client";
 import { apiFetch } from "@/lib/account-scope";
 import Link from "next/link";
-import { galleryTemplateSchema, PENDING_TEMPLATE_KEY, slidesFromTemplate, themeFromTemplate } from "@/lib/gallery";
+import { galleryTemplateSchema, type GalleryPostSummary, PENDING_TEMPLATE_KEY, slidesFromTemplate, themeFromTemplate } from "@/lib/gallery";
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
@@ -542,6 +542,19 @@ function Home() {
   // "Use this template" from the public gallery: the choice waits in this
   // browser through sign-in, then becomes a new project opened in the editor.
   const [galleryError, setGalleryError] = React.useState<string | null>(null);
+  // Newest public designs for the inspiration row; null until loaded or when
+  // the gallery is unreachable, in which case the built-in starters show.
+  const [galleryPosts, setGalleryPosts] = React.useState<GalleryPostSummary[] | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch("/api/gallery")
+      .then((response) => response.json())
+      .then((json: { ok?: boolean; posts?: GalleryPostSummary[] }) => {
+        if (!cancelled && json.ok && Array.isArray(json.posts)) setGalleryPosts(json.posts.slice(0, 12));
+      })
+      .catch(() => { /* starters stay */ });
+    return () => { cancelled = true; };
+  }, []);
   const galleryStarted = React.useRef(false);
   React.useEffect(() => {
     if (!hydrated || galleryStarted.current) return;
@@ -869,31 +882,58 @@ function Home() {
               </section>
             )}
             <section className="mt-10" aria-label={t("home.inspiration")}>
-              <h2 className="mb-3 text-title3 font-semibold tracking-tight">
-                {t("home.inspiration")}
-              </h2>
+              <div className="mb-3 flex items-baseline justify-between gap-4">
+                <h2 className="text-title3 font-semibold tracking-tight">
+                  {t("home.inspiration")}
+                </h2>
+                <Link href="/gallery" className="inline-flex shrink-0 items-center gap-1 text-footnote font-medium text-primary hover:underline">
+                  {t("home.gallerySeeAll")}
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                </Link>
+              </div>
               <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:-mx-8 sm:px-8">
-                {STUDIO_TEMPLATES.map((tpl) => (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => startTemplate(tpl)}
-                    className="lift-hover group w-[168px] shrink-0 snap-start overflow-hidden rounded-lg border border-border/80 bg-card text-left shadow-card"
-                  >
-                    <img
-                      src={tpl.thumb}
-                      alt=""
-                      loading="lazy"
-                      className="aspect-[9/19] w-full object-cover"
-                    />
-                    <span className="block px-3 py-2.5">
-                      <span className="block truncate text-footnote font-medium">{tpl.name}</span>
-                      <span className="block truncate text-caption text-muted-foreground">
-                        {t("home.slideCount", { count: tpl.slides })}
+                {galleryPosts && galleryPosts.length > 0
+                  ? galleryPosts.map((post) => (
+                    <Link
+                      key={post.id}
+                      href={`/gallery/${post.id}`}
+                      className="lift-hover group w-[168px] shrink-0 snap-start overflow-hidden rounded-lg border border-border/80 bg-card text-left shadow-card"
+                    >
+                      <img
+                        src={`/gallery/${post.id}/preview/0`}
+                        alt=""
+                        loading="lazy"
+                        className="aspect-[9/19] w-full bg-muted object-cover object-top"
+                      />
+                      <span className="block px-3 py-2.5">
+                        <span className="block truncate text-footnote font-medium">{post.title}</span>
+                        <span className="block truncate text-caption text-muted-foreground">
+                          {t("home.slideCount", { count: post.screenCount })}
+                        </span>
                       </span>
-                    </span>
-                  </button>
-                ))}
+                    </Link>
+                  ))
+                  : STUDIO_TEMPLATES.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => startTemplate(tpl)}
+                      className="lift-hover group w-[168px] shrink-0 snap-start overflow-hidden rounded-lg border border-border/80 bg-card text-left shadow-card"
+                    >
+                      <img
+                        src={tpl.thumb}
+                        alt=""
+                        loading="lazy"
+                        className="aspect-[9/19] w-full object-cover"
+                      />
+                      <span className="block px-3 py-2.5">
+                        <span className="block truncate text-footnote font-medium">{tpl.name}</span>
+                        <span className="block truncate text-caption text-muted-foreground">
+                          {t("home.slideCount", { count: tpl.slides })}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
               </div>
             </section>
           </div>

@@ -63,6 +63,7 @@ export const de: Record<TranslationKey, string> = {
   "publish.close": "Fertig",
   "publish.empty": "Füge vor dem Veröffentlichen mindestens einen Bildschirm hinzu.",
   "home.gallery": "Galerie",
+  "home.gallerySeeAll": "Alle in der Galerie",
   "home.galleryProject": "Galerie-Vorlage",
   "home.galleryOpenFailed": "Diese Galerie-Vorlage ließ sich nicht öffnen. Sie wurde vielleicht zurückgezogen.",
   "toolbar.exporting": "Exportiere {progress}",

@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { POST } from "./route";
+import { GET as list, POST } from "./route";
 import { DELETE, GET, PATCH } from "./[id]/route";
 import { GET as preview } from "@/app/gallery/[id]/preview/[n]/route";
 import { listGalleryPosts } from "@/lib/gallery-store";
@@ -38,6 +38,9 @@ describe("gallery routes (local mode)", () => {
     expect(created.status).toBe(201);
     const { id } = await created.json();
     expect((await listGalleryPosts()).map((post) => post.title)).toEqual(["Calm deck"]);
+    const listed = await (await list(request("GET"))).json();
+    expect(listed.posts.map((post: { id: string }) => post.id)).toEqual([id]);
+    expect(JSON.stringify(listed)).not.toMatch(/template|previews"|owner/);
 
     const image = await preview(new Request("http://127.0.0.1"), { params: Promise.resolve({ id, n: "0" }) });
     expect(image.headers.get("content-type")).toBe("image/jpeg");

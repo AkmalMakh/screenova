@@ -63,6 +63,7 @@ export const es: Record<TranslationKey, string> = {
   "publish.close": "Listo",
   "publish.empty": "Añade al menos una pantalla antes de publicar.",
   "home.gallery": "Galería",
+  "home.gallerySeeAll": "Ver todo en la galería",
   "home.galleryProject": "Plantilla de la galería",
   "home.galleryOpenFailed": "No se pudo abrir esa plantilla. Puede que la hayan retirado.",
   "toolbar.exporting": "Exportando {progress}",

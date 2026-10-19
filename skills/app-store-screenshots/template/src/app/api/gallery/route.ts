@@ -1,12 +1,23 @@
 import { NextResponse } from "next/server";
 import { galleryPublishSchema } from "@/lib/gallery";
-import { publishGalleryPost } from "@/lib/gallery-store";
+import { listGalleryPosts, publishGalleryPost } from "@/lib/gallery-store";
 import { report, requestIdOf } from "@/lib/ops";
 import { authorizeRequest, privateHeaders } from "@/lib/supabase/access";
 
 export const dynamic = "force-dynamic";
 
 const MAX_BODY = 3_800_000; // under Vercel's 4.5 MB request limit
+
+// Newest public posts, for the Studio's gallery row. Public card data only.
+export async function GET(req: Request) {
+  try {
+    const posts = await listGalleryPosts();
+    return NextResponse.json({ ok: true, posts }, { headers: { "cache-control": "no-store" } });
+  } catch (error) {
+    report("gallery_list", error, { requestId: requestIdOf(req) });
+    return NextResponse.json({ ok: false, error: "The gallery is unavailable right now." }, { status: 503, headers: privateHeaders });
+  }
+}
 
 // Publish the caller's deck design to the public gallery. Counts against the
 // daily upload budget (previews are images), so one account can't flood it.
