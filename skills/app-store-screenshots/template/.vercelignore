@@ -15,6 +15,7 @@ out/
 *.tsbuildinfo
 .DS_Store
 app-store-screenshots.json
+gallery.json
 app-store-screenshots*.json
 public/screenshots/
 e2e/
