@@ -685,3 +685,19 @@ test("mobile editor keeps zoom reachable and opens one panel at a time", async (
   await expect(page.locator("#screen-settings-panel")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test("Android can take the iPhone design in one click and undo it", async ({ page, request }) => {
+  await openEditor(page);
+  await page.getByRole("button", { name: "Show screen settings" }).click();
+  await page.getByRole("textbox", { name: "Headline", exact: true }).fill("Shared across stores");
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Shared across stores");
+  await page.getByRole("tab", { name: "Android", exact: true }).click();
+  await expect(page.getByText("1080×1920")).toBeVisible();
+  await page.getByRole("button", { name: "Use iPhone design", exact: true }).click();
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.android[0].headline.en).toBe("Shared across stores");
+  const copied = await activeProject(request);
+  expect(copied.device).toBe("android");
+  expect(copied.slidesByDevice.android[0].id).not.toBe(copied.slidesByDevice.iphone[0].id);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.android[0].headline.en).toBe("Your day, organized");
+});

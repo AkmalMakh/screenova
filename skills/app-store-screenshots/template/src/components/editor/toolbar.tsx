@@ -14,6 +14,7 @@ import {
   RotateCcw,
   UnfoldHorizontal,
   Upload,
+  CopyPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -66,6 +67,9 @@ type Props = {
   onBulkCopy: (input: string) => { applied: number; total: number };
   onResetAll: () => void;
   onResetDevice: () => void;
+  /** Device whose design can be copied onto the current one (iPhone ↔ Android, iPad ↔ Android tablets). */
+  counterpart?: Device | null;
+  onUseCounterpartDesign?: () => void;
   exporting: string | null;
   savedAt: number | null;
   saveError: string | null;
@@ -195,7 +199,7 @@ export function Toolbar(props: Props) {
         onValueChange={(v) => props.setDevice(v as Device)}
         disabled={props.busy}
       >
-        <SelectTrigger className="h-8 w-44 text-xs">
+        <SelectTrigger className="h-8 w-[136px] text-xs">
           <SelectValue placeholder={t("toolbar.devicePlaceholder")}>{deviceName}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -216,6 +220,21 @@ export function Toolbar(props: Props) {
           )}
         </SelectContent>
       </Select>
+
+      {props.counterpart && props.onUseCounterpartDesign && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          onClick={props.onUseCounterpartDesign}
+          disabled={props.busy}
+          aria-label={t("toolbar.useCounterpartDesign", { device: deviceLabel(props.counterpart, t) })}
+          title={t("toolbar.useCounterpartDesign", { device: deviceLabel(props.counterpart, t) })}
+        >
+          <CopyPlus className="h-4 w-4" />
+        </Button>
+      )}
 
       {hasLandscape && (
         <Select
