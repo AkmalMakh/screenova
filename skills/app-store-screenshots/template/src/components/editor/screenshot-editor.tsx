@@ -30,6 +30,7 @@ import {
   themeById,
 } from "@/lib/constants";
 import { detectPlatform, nid } from "@/lib/defaults";
+import { counterpartDevice, switchDevice, withCounterpartDesign } from "@/lib/platform-design";
 import {
   applyDesignProposal,
   cloneProject,
@@ -1217,7 +1218,29 @@ function Editor() {
         setLocale={(v) => setState((p) => ({ ...p, locale: v }))}
         locales={state.locales}
         device={state.device}
-        setDevice={(v) => setState((p) => ({ ...p, device: v }))}
+        setDevice={(v) => {
+          setState((p) => switchDevice(p, v));
+          setActiveSlideId(null);
+        }}
+        counterpart={counterpartDevice(state.device, state.orientation)}
+        onUseCounterpartDesign={() => {
+          const from = counterpartDevice(state.device, state.orientation);
+          if (!from) return;
+          const dev = state.device;
+          const before = { slides: state.slidesByDevice[dev], theme: state.customThemesByDevice?.[dev] };
+          setState((p) => withCounterpartDesign(p, dev));
+          setActiveSlideId(null);
+          toast.success(t("toasts.usedCounterpartDesign", { from: deviceLabel(from, t), to: deviceLabel(dev, t) }), {
+            action: {
+              label: t("toasts.undo"),
+              onClick: () => setState((p) => ({
+                ...p,
+                slidesByDevice: { ...p.slidesByDevice, [dev]: before.slides },
+                customThemesByDevice: { ...p.customThemesByDevice, [dev]: before.theme },
+              })),
+            },
+          });
+        }}
         orientation={state.orientation}
         setOrientation={(v) => setState((p) => ({ ...p, orientation: v }))}
         onExport={exportAll}
