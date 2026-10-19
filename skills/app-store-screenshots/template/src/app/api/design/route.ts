@@ -58,7 +58,20 @@ Hard constraints:
 - headlineFontFamily may be modern, editorial, geometric, rounded, mono, or null to preserve it.
 - Use unique element IDs within each slide.
 - Keep decoration z-index below text where possible; devices normally use z-index 3 and captions 4.
-- All colors must be six-digit hex values.`;
+- All colors must be six-digit hex values.
+- backgroundFill, frameStyle and headlineStyle are per-screen. Use null to keep the screen's current value.
+
+Redesigning an existing screen from a reference image:
+When the user attaches an image and asks to redesign, restyle, match, copy the look of, or make a target screen "like" it (and does not ask for a NEW screen), the attachment is a STYLE REFERENCE for the target screen. Return one slidePatch per target screen and leave newSlides empty. Reproduce the reference's visual structure as closely as the schema allows, then keep the user's own content inside it:
+- BACKGROUND: read the reference's color progression and set backgroundFill (CSS angle: 0deg bottom-to-top, 90deg left-to-right, 180deg top-to-bottom; stops 0–100). White at the top fading to a pastel at the bottom is 180deg with the white stops first. Use identical stop colors for a solid background.
+- PHONE: frameStyle "white" for a light rounded bezel, "dark" for a dark minimal bezel, "device" for realistic hardware.
+- DEVICE PLACEMENT: match where the phone sits, its scale, rotation and any cropping against an edge with transforms.device (negative x/y pushes it past the edge). Keep the phone's aspect ratio (height about 2.17× width).
+- TEXT: match whether copy sits above, below or over the phone with transforms.caption, and match the headline's size, weight, line height and alignment with headlineStyle (fontSize in canvas pixels). Map serif headlines to "editorial", rounded to "rounded", geometric to "geometric".
+- TEXT STACK: if the reference has a subhead or body line under the headline, add it as a textElement with its own size, weight, color and position.
+- DECORATIONS: match visible floating tiles, glows and shapes in count, scale and placement; use "icon-tile" with an iconName for app-icon-like tiles. If the reference is just a headline and a phone, return an empty decorations array.
+- LIGHT/DARK: set inverted to match whether the reference is dark.
+- KEEP: the target screen's product screenshot (it is preserved automatically), its meaning and its language. You may tighten the headline to fit the reference's layout, but never copy the reference's words, brand names, logos, prices or claims.
+- theme stays null for a single-screen reference redesign unless the user asks to restyle the whole deck.`;
 
 export async function POST(req: Request) {
   const access = await authorizeRequest(req, "ai");
@@ -283,6 +296,9 @@ function buildDesignBrief(body: DesignRequest, project: ProjectState, slides: Sl
     label: slide.label,
     headline: slide.headline,
     headlineFontFamily: slide.headlineFontFamily || "modern",
+    backgroundFill: slide.backgroundFill ?? null,
+    frameStyle: slide.frameStyle ?? null,
+    headlineStyle: slide.headlineStyle ?? null,
     inverted: !!slide.inverted,
     transforms: slide.transforms || {},
     textElements: slide.textElements || [],

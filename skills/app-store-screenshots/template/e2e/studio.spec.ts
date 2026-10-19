@@ -271,6 +271,34 @@ test("upload a fresh image in production and export correctly sized PNGs", async
   await page.screenshot({ path: testInfo.outputPath("exported-editor.png") });
 });
 
+test("Match reference restyles the current screen from an attached image", async ({ page, request }) => {
+  await openEditor(page);
+  const screenshotBefore = (await activeProject(request)).slidesByDevice.iphone[0].screenshot;
+  const fill = { angle: 180, stops: [{ color: "#ffffff", position: 0 }, { color: "#f6c9e4", position: 100 }] };
+  const headlineStyle = { fontSize: 112, fontWeight: 800, lineHeight: 1.1, align: "left" };
+  let sent: { prompt: string; references: { name: string; dataUrl: string }[]; scope: { slideIds: string[] } } | undefined;
+  await page.route("**/api/design", async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({ json: { ok: true, proposal: {
+      summary: "Matched the reference", targetSlideIds: ["screen-iphone"],
+      slidePatches: [{ slideId: "screen-iphone", backgroundFill: fill, frameStyle: "white", headlineStyle, decorations: [] }],
+    }, generatedVisualAssets: [] } });
+  });
+  const match = page.getByRole("button", { name: "Match reference", exact: true });
+  await expect(match).toHaveCount(0);
+  const reference = await sharp({ create: { width: 120, height: 260, channels: 3, background: "#F6C9E4" } }).png().toBuffer();
+  await page.locator("input[data-design-attachments]").setInputFiles({ name: "reference.png", mimeType: "image/png", buffer: reference });
+  await page.getByRole("textbox", { name: /Redesign screens/ }).fill("Make it feel calm");
+  await match.click();
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  expect(sent?.prompt).toMatch(/^Redesign the target screen to match the attached reference/);
+  expect(sent?.prompt).toMatch(/Make it feel calm$/);
+  expect(sent?.references.map((item) => item.name)).toEqual(["reference.png"]);
+  expect(sent?.scope.slideIds).toEqual(["screen-iphone"]);
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0]).toMatchObject({ backgroundFill: fill, frameStyle: "white", headlineStyle });
+  expect((await activeProject(request)).slidesByDevice.iphone[0].screenshot).toBe(screenshotBefore);
+});
+
 test("AI preview disables export, supports discard and applies one undoable edit", async ({ page, request }) => {
   await openEditor(page);
   let release = () => {};

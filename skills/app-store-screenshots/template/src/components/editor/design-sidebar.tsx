@@ -5,6 +5,7 @@ import {
   Loader2,
   Paperclip,
   Send,
+  Wand2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -112,8 +113,8 @@ export function DesignComposer({
   const [attachmentError, setAttachmentError] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
-  async function submit() {
-    const value = prompt.trim();
+  async function submit(text = prompt) {
+    const value = text.trim();
     if (!value || generating || disabled || (targetCount === 0 && references.length === 0)) return;
     setPrompt("");
     const attached = references;
@@ -121,7 +122,15 @@ export function DesignComposer({
     await onSubmit(value, attached);
   }
 
-  async function addFiles(files: FileList | null) {
+  // One click: restyle the target screen(s) like the attached image. Any text
+  // the user already typed is kept as extra direction after the instruction.
+  const canMatchReference = references.length > 0 && targetCount > 0 && !generating && !disabled;
+  function matchReference() {
+    const extra = prompt.trim();
+    void submit(`${t("designSidebar.matchReferencePrompt")}${extra ? `\n\n${extra}` : ""}`);
+  }
+
+  async function addFiles(files: FileList | File[] | null) {
     if (!files) return;
     setAttachmentError(null);
     const room = Math.max(0, 3 - references.length);
@@ -167,6 +176,19 @@ export function DesignComposer({
               </button>
             </div>
           ))}
+          {targetCount > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              className="ml-1 h-9 shrink-0 gap-1.5 self-center rounded-sm px-3 text-footnote"
+              onClick={matchReference}
+              disabled={!canMatchReference}
+              title={t("designSidebar.matchReferenceHint")}
+            >
+              <Wand2 className="h-4 w-4" aria-hidden />
+              {t("designSidebar.matchReference")}
+            </Button>
+          )}
         </div>
       )}
 
@@ -178,6 +200,12 @@ export function DesignComposer({
             event.preventDefault();
             void submit();
           }
+        }}
+        onPaste={(event) => {
+          const images = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
+          if (images.length === 0) return;
+          event.preventDefault();
+          void addFiles(images);
         }}
         rows={2}
         className="min-h-12 resize-none border-0 p-2 text-subhead shadow-none focus-visible:ring-0"
@@ -208,6 +236,7 @@ export function DesignComposer({
           accept="image/png,image/jpeg,image/webp"
           multiple
           hidden
+          data-design-attachments
           onChange={(event) => void addFiles(event.target.files)}
         />
 
