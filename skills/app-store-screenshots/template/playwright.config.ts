@@ -51,7 +51,7 @@ function local() {
       url: "http://127.0.0.1:3100",
       reuseExistingServer: false,
       timeout: 30_000,
-      env: { APP_STORAGE_MODE: "local", APP_STORE_PROJECT_FILE: path.join(dataDir, "projects.json") },
+      env: { APP_STORAGE_MODE: "local", APP_STORE_PROJECT_FILE: path.join(dataDir, "projects.json"), APP_GALLERY_FILE: path.join(dataDir, "gallery.json") },
     },
   });
 }

@@ -191,3 +191,5 @@ a package; individual pixel values were not separately reviewed.
 | 2026-10-16 | Make this root document canonical | Replace competing UI guidance with one source of truth. |
 | 2026-10-16 | Keep chrome separate from exported artwork | App branding must not restrict users' screenshot styles. |
 | 2026-10-16 | Apply the direction to the live app | Shared light/dark appearance, Studio creation and recent projects, separated editor panels, and output-led landing. |
+| 2026-10-19 | Public template gallery (`/gallery`) | Owner-approved. Users publish a deck's design; others reuse it as a template with their own screenshots. Publishing is opt-in and explicit about what becomes public; it is sharing, not team collaboration. |
+| 2026-10-19 | Studio home follows the owner's reference layout | Owner-approved exception to the pill and decoration rules for `/studio` only: floating projects/gallery panel, quiet dot grid, large welcome title, rounded-pill actions and chips, and a gallery-fed "Need inspiration?" carousel. Built-in starter templates removed. Colors and type stay on the tokens above. |

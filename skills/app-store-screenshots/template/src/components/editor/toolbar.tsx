@@ -8,6 +8,7 @@ import {
   Command,
   Download,
   FileText,
+  Globe,
   Home,
   Languages,
   RotateCcw,
@@ -61,6 +62,7 @@ type Props = {
   orientation: Orientation;
   setOrientation: (v: Orientation) => void;
   onExport: () => void;
+  onPublish: () => void;
   onBulkCopy: (input: string) => { applied: number; total: number };
   onResetAll: () => void;
   onResetDevice: () => void;
@@ -298,6 +300,18 @@ export function Toolbar(props: Props) {
           disabled={props.busy}
         >
           <RotateCcw className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 px-2 2xl:px-3"
+          onClick={props.onPublish}
+          disabled={props.busy}
+          title={t("toolbar.publishHint")}
+          aria-label={t("toolbar.publish")}
+        >
+          <Globe className="h-4 w-4" />
+          <span className="hidden 2xl:inline">{t("toolbar.publish")}</span>
         </Button>
         <Button
           onClick={props.onExport}

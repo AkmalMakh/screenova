@@ -166,23 +166,12 @@ test("create a multilingual project and persist it through navigation", async ({
   await page.getByRole("textbox", { name: "App name", exact: true }).fill("My launch app");
   await page.getByRole("button", { name: "Home", exact: true }).click();
   await expect(page).toHaveURL(/\/studio$/);
-  await page.getByRole("main").getByRole("button", { name: /Launch campaign/ }).click();
+  await page.getByRole("navigation", { name: "Recent projects" }).getByRole("button", { name: /Launch campaign/ }).click();
   await expect(page.getByRole("textbox", { name: "App name", exact: true })).toHaveValue("My launch app");
   await expect.poll(async () => (await activeProject(request)).locales).toEqual(["en", "de"]);
   await page.reload();
   await expect(page.getByRole("textbox", { name: "App name", exact: true })).toHaveValue("My launch app");
 });
-
-for (const [name, count, theme] of [["Feature tour", 9, "clean-light"], ["Minimal three", 3, "clean-light"], ["Bold contrast", 3, "dark-bold"]] as const) {
-  test(`preset ${name} creates ${count} editable screens`, async ({ page, request }) => {
-    await page.goto("/studio");
-    await page.getByRole("button", { name: `${name} ${count} slides`, exact: true }).first().click();
-    await expect(page).toHaveURL(/\/editor$/);
-    await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
-    await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone.length).toBe(count);
-    expect((await activeProject(request)).themeId).toBe(theme);
-  });
-}
 
 test("edits survive an immediate refresh before the autosave debounce", async ({ page, request }) => {
   await openEditor(page);
@@ -421,7 +410,7 @@ test("Studio remains usable on a phone viewport", async ({ page }) => {
   await page.goto("/studio");
   await expect(page.getByPlaceholder(/Describe your app/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole("button", { name: "Start blank", exact: true }).click();
+  await page.getByRole("button", { name: "Blank project", exact: true }).click();
   await expect(page.getByRole("button", { name: "Export bundle" })).toBeVisible();
 });
 
