@@ -151,3 +151,41 @@ describe("AI routes page operators only for real failures", () => {
     expect(mocks.report).toHaveBeenCalledWith(stage, expect.any(Error), { requestId: "iad1::req9" });
   });
 });
+
+describe("inspiration attachments are style references, never screens", () => {
+  const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+  const body = (purpose?: string) => ({
+    prompt: "Redesign the target screen to match the attached reference",
+    project: { device: "iphone", locale: "en", orientation: "portrait", slidesByDevice: { iphone: [{ id: "s1" }] } },
+    scope: { type: "current", slideIds: ["s1"] },
+    renderedPreviews: [{ slideId: "s1", dataUrl: PNG }],
+    references: [{ id: "ref-1", name: "look.png", mimeType: "image/png", dataUrl: PNG, ...(purpose ? { purpose } : {}) }],
+  });
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.provider.mockImplementation(function () {
+      return { responses: { parse: mocks.parse }, images: { generate: mocks.generate } };
+    });
+    mocks.parse.mockResolvedValue({ output_parsed: {} });
+  });
+  it("labels the image as inspiration for the model and applies a restyle", async () => {
+    // Value: protects=the model is told an inspiration image is style-only; fails_when=it is sent as a plain attachment and gets turned into a new screen
+    mocks.normalize.mockReturnValue({ summary: "Matched", targetSlideIds: ["s1"], slidePatches: [{ slideId: "s1", frameStyle: "white" }], newSlides: [] });
+    const response = await redesign(request(JSON.stringify(body("inspiration"))));
+    expect(response.status).toBe(200);
+    const content = mocks.parse.mock.calls[0][0].input[0].content as Array<{ type: string; text?: string }>;
+    expect(content.some((part) => part.text?.startsWith("INSPIRATION (style reference only, never a screenshot) — sourceReferenceId: ref-1"))).toBe(true);
+    expect(content[0].text).toContain('"purpose": "inspiration"');
+  });
+  it("refuses a proposal that turns an inspiration image into a new screen", async () => {
+    // Value: protects=server-side guarantee behind the Inspiration button; fails_when=the model ignores the label and the reference app's screenshot lands in the user's deck
+    mocks.normalize.mockReturnValue({ summary: "Added", targetSlideIds: [], slidePatches: [], newSlides: [{ sourceReferenceId: "ref-1" }] });
+    const response = await redesign(request(JSON.stringify(body("inspiration"))));
+    expect(response.status).not.toBe(200);
+    expect((await response.json()).ok).toBe(false);
+  });
+  it("rejects an unknown attachment purpose before calling the provider", async () => {
+    expect((await redesign(request(JSON.stringify(body("screenshot"))))).status).toBe(400);
+    expect(mocks.provider).not.toHaveBeenCalled();
+  });
+});

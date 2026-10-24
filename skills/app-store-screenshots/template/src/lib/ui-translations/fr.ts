@@ -243,6 +243,12 @@ export const fr: Record<TranslationKey, string> = {
   "designSidebar.targets": "{count} cible existante | {count} cibles existantes",
   "designSidebar.attachments": " · {count} pièce jointe |  · {count} pièces jointes",
   "designSidebar.generateRedesign": "Générer la refonte",
+  "designSidebar.matchReference": "Reprendre la référence",
+  "designSidebar.matchReferenceHint": "Refaire l'écran ciblé comme l'image jointe",
+  "designSidebar.matchReferencePrompt": "Refais l'écran ciblé comme la référence jointe : mise en page, fond, cadre du téléphone, style du titre et décorations. Garde ma capture et le message de l'écran.",
+  "designSidebar.addInspiration": "Inspiration",
+  "designSidebar.addInspirationHint": "Ajouter une image d'inspiration pour refaire l'écran ciblé dans ce style",
+  "designSidebar.inspirationTag": "Inspiration",
   "designSidebar.footnote":
     "Les prompts, aperçus cibles et références sont envoyés à OpenAI. Les visuels demandés utilisent GPT Image 2 et peuvent prendre jusqu'à deux minutes. Votre clé API reste sur le serveur.",
   "designSidebar.cancel": "Annuler",

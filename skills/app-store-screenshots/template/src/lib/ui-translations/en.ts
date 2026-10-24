@@ -256,6 +256,12 @@ export const en = {
   "designSidebar.targets": "{count} existing target | {count} existing targets",
   "designSidebar.attachments": " · {count} attachment |  · {count} attachments",
   "designSidebar.generateRedesign": "Generate redesign",
+  "designSidebar.matchReference": "Match reference",
+  "designSidebar.matchReferenceHint": "Redesign the target screen to look like the attached image",
+  "designSidebar.matchReferencePrompt": "Redesign the target screen to match the attached reference: its layout, background, phone frame, headline style and decorations. Keep my screenshot and what the screen says.",
+  "designSidebar.addInspiration": "Inspiration",
+  "designSidebar.addInspirationHint": "Add an inspiration image to restyle the target screen like it",
+  "designSidebar.inspirationTag": "Inspiration",
   "designSidebar.footnote":
     "Prompts, target previews, and references are sent to OpenAI. Requested visual artwork uses GPT Image 2 and can take up to two minutes. Your API key stays on the server.",
   "designSidebar.cancel": "Cancel",

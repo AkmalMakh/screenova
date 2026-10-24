@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import {
+  ImagePlus,
   Loader2,
   Paperclip,
   Send,
+  Wand2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -113,9 +115,12 @@ export function DesignComposer({
   const [references, setReferences] = React.useState<DesignReference[]>([]);
   const [attachmentError, setAttachmentError] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const inspirationRef = React.useRef<HTMLInputElement>(null);
+  const hasInspiration = references.some((reference) => reference.purpose === "inspiration");
 
-  async function submit() {
-    const value = prompt.trim();
+  async function submit(text = prompt) {
+    // An inspiration image says what to do on its own: send needs no typing.
+    const value = text.trim() || (hasInspiration ? t("designSidebar.matchReferencePrompt") : "");
     if (!value || generating || disabled || (targetCount === 0 && references.length === 0)) return;
     setPrompt("");
     const attached = references;
@@ -123,7 +128,15 @@ export function DesignComposer({
     await onSubmit(value, attached);
   }
 
-  async function addFiles(files: FileList | null) {
+  // One click: restyle the target screen(s) like the attached image. Any text
+  // the user already typed is kept as extra direction after the instruction.
+  const canMatchReference = references.length > 0 && targetCount > 0 && !generating && !disabled;
+  function matchReference() {
+    const extra = prompt.trim();
+    void submit(`${t("designSidebar.matchReferencePrompt")}${extra ? `\n\n${extra}` : ""}`);
+  }
+
+  async function addFiles(files: FileList | File[] | null, purpose?: DesignReference["purpose"]) {
     if (!files) return;
     setAttachmentError(null);
     const room = Math.max(0, 3 - references.length);
@@ -143,10 +156,12 @@ export function DesignComposer({
         name: file.name,
         mimeType: file.type as DesignReference["mimeType"],
         dataUrl: await fileToDataUrl(file, t),
+        ...(purpose ? { purpose } : {}),
       });
     }
     setReferences((current) => [...current, ...next].slice(0, 3));
     if (fileRef.current) fileRef.current.value = "";
+    if (inspirationRef.current) inspirationRef.current.value = "";
   }
 
   return (
@@ -159,6 +174,16 @@ export function DesignComposer({
               className="group relative h-12 w-12 shrink-0 overflow-hidden rounded-sm border border-border/70"
             >
               <img src={reference.dataUrl} alt={reference.name} className="h-full w-full object-cover" />
+              {reference.purpose === "inspiration" && (
+                <span
+                  role="img"
+                  aria-label={t("designSidebar.inspirationTag")}
+                  title={t("designSidebar.inspirationTag")}
+                  className="absolute bottom-0.5 left-0.5 grid h-4 w-4 place-items-center rounded-xs bg-primary text-primary-foreground shadow-sm"
+                >
+                  <ImagePlus className="h-2.5 w-2.5" aria-hidden />
+                </span>
+              )}
               <button
                 type="button"
                 className="absolute right-0 top-0 rounded-bl-sm bg-black/70 p-0.5 text-white"
@@ -169,6 +194,19 @@ export function DesignComposer({
               </button>
             </div>
           ))}
+          {targetCount > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              className="ml-1 h-9 shrink-0 gap-1.5 self-center rounded-sm px-3 text-footnote"
+              onClick={matchReference}
+              disabled={!canMatchReference}
+              title={t("designSidebar.matchReferenceHint")}
+            >
+              <Wand2 className="h-4 w-4" aria-hidden />
+              {t("designSidebar.matchReference")}
+            </Button>
+          )}
         </div>
       )}
 
@@ -180,6 +218,12 @@ export function DesignComposer({
             event.preventDefault();
             void submit();
           }
+        }}
+        onPaste={(event) => {
+          const images = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
+          if (images.length === 0) return;
+          event.preventDefault();
+          void addFiles(images);
         }}
         rows={2}
         className="min-h-12 resize-none border-0 p-2 text-subhead shadow-none focus-visible:ring-0"
@@ -210,7 +254,28 @@ export function DesignComposer({
           accept="image/png,image/jpeg,image/webp"
           multiple
           hidden
+          data-design-attachments
           onChange={(event) => void addFiles(event.target.files)}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 shrink-0 gap-1.5 rounded-sm px-2.5 text-footnote"
+          onClick={() => inspirationRef.current?.click()}
+          disabled={generating || disabled || references.length >= 3 || targetCount === 0}
+          title={t("designSidebar.addInspirationHint")}
+          aria-label={t("designSidebar.addInspirationHint")}
+        >
+          <ImagePlus className="h-4 w-4" aria-hidden />
+          <span className="hidden sm:inline">{t("designSidebar.addInspiration")}</span>
+        </Button>
+        <input
+          ref={inspirationRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          hidden
+          data-design-inspiration
+          onChange={(event) => void addFiles(event.target.files, "inspiration")}
         />
 
         <div
@@ -241,7 +306,7 @@ export function DesignComposer({
           ))}
         </div>
 
-        <span className="hidden text-caption text-muted-foreground md:inline">
+        <span className={cn("hidden text-caption text-muted-foreground", references.length === 0 && "md:inline")}>
           {t("designSidebar.targets", { count: targetCount })}
           {references.length > 0
             ? t("designSidebar.attachments", { count: references.length })
@@ -263,7 +328,7 @@ export function DesignComposer({
             size="icon"
             className="ml-auto h-9 w-9 shrink-0 rounded-full"
             onClick={() => void submit()}
-            disabled={!prompt.trim() || (targetCount === 0 && references.length === 0) || disabled}
+            disabled={(!prompt.trim() && !hasInspiration) || (targetCount === 0 && references.length === 0) || disabled}
             aria-label={t("designSidebar.generateRedesign")}
           >
             <Send className="h-4 w-4" />
