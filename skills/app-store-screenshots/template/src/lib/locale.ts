@@ -10,6 +10,7 @@ export const CONTENT_LANGUAGES: readonly { code: string; name: string }[] = [
   { code: "de", name: "Deutsch" },
   { code: "es", name: "Español" },
   { code: "fr", name: "Français" },
+  { code: "ru", name: "Русский" },
   { code: "zh", name: "中文" },
   { code: "ja", name: "日本語" },
   { code: "ko", name: "한국어" },
