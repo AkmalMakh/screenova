@@ -110,6 +110,8 @@ export const en = {
   "toolbar.savedMinutes": "saved {minutes}m ago",
   "toolbar.savedHours": "saved {hours}h ago",
   "toolbar.interfaceLanguage": "Interface language",
+  "credits.left": "{count} credit left | {count} credits left",
+  "credits.perDesign": "{cost} per design",
 
   // ---- sidebar ----
   "sidebar.screens": "Screens",

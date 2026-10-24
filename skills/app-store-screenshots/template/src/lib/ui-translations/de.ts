@@ -96,6 +96,8 @@ export const de: Record<TranslationKey, string> = {
   "toolbar.savedMinutes": "vor {minutes} Min. gespeichert",
   "toolbar.savedHours": "vor {hours} Std. gespeichert",
   "toolbar.interfaceLanguage": "Sprache der Oberfläche",
+  "credits.left": "{count} Credit übrig | {count} Credits übrig",
+  "credits.perDesign": "{cost} pro Design",
 
   // ---- sidebar ----
   "sidebar.screens": "Bildschirme",

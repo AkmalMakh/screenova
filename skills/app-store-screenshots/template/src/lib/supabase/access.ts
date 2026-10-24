@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { report, requestIdOf } from "@/lib/ops";
 import { isAuthOutage, outageLevel } from "./auth-outage";
 import { storageMode } from "./config";
-import { ACCESS_UNAVAILABLE, ACTION_UNAVAILABLE, LIMIT_REACHED, WORKSPACE_UNAVAILABLE } from "./messages";
+import { ACCESS_UNAVAILABLE, ACTION_UNAVAILABLE, CREDITS_EXHAUSTED, LIMIT_REACHED, WORKSPACE_UNAVAILABLE } from "./messages";
 import { serverSupabase } from "./server";
 
 export type CloudAccess = { userId: string; client: Awaited<ReturnType<typeof serverSupabase>> };
@@ -10,7 +10,7 @@ export type Access = CloudAccess | { userId: null; client: null };
 export type Budget = "ai" | "upload" | "import";
 export const privateHeaders = { "cache-control": "private, no-store", "vary": "Cookie" };
 
-const VERDICTS = new Set(["ok", "user", "global", "denied"]);
+const VERDICTS = new Set(["ok", "user", "global", "credits", "denied"]);
 
 async function checkBudget(access: CloudAccess, budget: Budget, requestId: string | null): Promise<NextResponse | null> {
   const { data, error } = await access.client.rpc("consume_beta_budget_v2", { kind: budget });
@@ -25,6 +25,9 @@ async function checkBudget(access: CloudAccess, budget: Budget, requestId: strin
     // an access problem, not a quota, so never tell the user to wait a day.
     console.warn("screenova_budget_denied", { kind: budget });
     return NextResponse.json({ ok: false, error: ACTION_UNAVAILABLE }, { status: 403, headers: privateHeaders });
+  } else if (verdict === "credits") {
+    // Lifetime beta credits are spent: not a daily cap, so never say "tomorrow".
+    return NextResponse.json({ ok: false, error: CREDITS_EXHAUSTED }, { status: 429, headers: privateHeaders });
   } else if (verdict === null) {
     // A missing or changed function is our outage: fail closed, page, and say so.
     report("budget_contract", undefined, { kind: budget, requestId }, "error");

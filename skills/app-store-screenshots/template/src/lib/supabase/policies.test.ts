@@ -133,6 +133,37 @@ describe("Supabase migration policies", () => {
     await asUser(outsider);
     expect(await verdict("ai")).toBe("denied");
   });
+  it("spends 10 lifetime credits per AI call, refuses at zero, and never charges uploads or imports", async () => {
+    const verdict = async (kind: string) =>
+      (await db.query<{ verdict: string }>("select public.consume_beta_budget_v2($1) as verdict", [kind])).rows[0].verdict;
+    const credits = async () => (await db.query<{ credits: number }>("select credits from public.beta_members")).rows[0].credits;
+    await asUser(alice);
+    expect(await credits()).toBe(300);
+    expect(await verdict("ai")).toBe("ok");
+    expect(await credits()).toBe(290);
+    expect(await verdict("upload")).toBe("ok");
+    expect(await verdict("import")).toBe("ok");
+    expect(await credits()).toBe(290);
+    // Members read their own balance but cannot top it up or reset it.
+    await expect(db.query("update public.beta_members set credits = 300")).rejects.toThrow(/permission denied/i);
+    await asUser(bob); expect((await db.query("select credits from public.beta_members")).rows).toHaveLength(1);
+    // Down to the last call: 15 credits allows one more, then 'credits', and the
+    // daily caps are reported first so a cap is never misread as "out of credits".
+    await db.exec("reset role;");
+    await db.query("update public.beta_members set credits = 15 where user_id = $1", [alice]);
+    await asUser(alice);
+    expect(await verdict("ai")).toBe("ok");
+    expect(await credits()).toBe(5);
+    expect(await verdict("ai")).toBe("credits");
+    expect(await credits()).toBe(5);
+    expect(await verdict("upload")).toBe("ok");
+    await db.exec("reset role;");
+    await db.query("update public.beta_members set credits = 300 where user_id = $1", [alice]);
+    await db.query("insert into public.beta_usage(user_id, day, kind, attempts) values($1, (now() at time zone 'utc')::date, 'ai', 20) on conflict on constraint beta_usage_pkey do update set attempts = 20", [alice]);
+    await asUser(alice);
+    expect(await verdict("ai")).toBe("user");
+    expect(await credits()).toBe(300);
+  });
   it("refuses to drop v2 while the v1 wrapper depends on it", async () => {
     await db.exec("reset role;");
     await expect(db.exec("drop function public.consume_beta_budget_v2(text)")).rejects.toThrow(/depend/i);
