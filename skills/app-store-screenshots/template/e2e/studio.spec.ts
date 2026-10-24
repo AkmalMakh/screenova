@@ -39,21 +39,22 @@ test.beforeEach(async ({ page, request }) => {
 });
 
 test("workspace appearance persists across routes without changing artwork and fits phones", async ({ page, request }, testInfo) => {
-  await page.goto("/");
+  await page.goto("/studio");
   await expect(page.locator("html")).not.toHaveClass(/screenova-dark/);
   await page.getByRole("button", { name: "Switch to dark theme" }).click();
-  for (const route of ["/", "/studio", "/editor"]) {
+  for (const route of ["/studio", "/editor"]) {
     await page.goto(route);
     await expect(page.getByRole("button", { name: "Switch to light theme" })).toBeVisible();
     await expect(page.locator("html")).toHaveClass(/screenova-dark/);
-    await page.screenshot({ path: testInfo.outputPath(`${route.slice(1) || "landing"}-dark.png`) });
+    await page.screenshot({ path: testInfo.outputPath(`${route.slice(1)}-dark.png`) });
   }
   expect((await activeProject(request)).themeId).toBe("clean-light");
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   for (const route of ["/", "/studio", "/editor"]) {
     await page.goto(route);
-    await expect(page.getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
+    // The landing is always dark and has no appearance toggle.
+    if (route !== "/") await expect(page.getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
     await expect(page.locator("html")).not.toHaveClass(/screenova-dark/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (route === "/editor") {
@@ -69,10 +70,12 @@ test("workspace appearance persists across routes without changing artwork and f
 
 test("landing AI opens the real composer with the supplied prompt", async ({ page }) => {
   await page.goto("/");
-  await page.getByPlaceholder("Describe a design direction…").fill("A calm calendar app for busy parents");
+  await page.getByPlaceholder("What app shall we make screenshots for?").fill("A calm calendar app for busy parents");
+  await page.getByRole("group", { name: "Device" }).getByRole("button", { name: "iPad", exact: true }).click();
   await page.getByRole("button", { name: "Design with AI", exact: true }).click();
   await expect(page).toHaveURL(/\/studio$/);
   await expect(page.getByPlaceholder(/Describe your app/)).toHaveValue("A calm calendar app for busy parents");
+  await expect(page.getByRole("group", { name: "Device" }).getByRole("button", { name: "iPad", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("pasted description links auto-attach and Send waits for App Store screenshots", async ({ page, context }) => {
@@ -166,23 +169,12 @@ test("create a multilingual project and persist it through navigation", async ({
   await page.getByRole("textbox", { name: "App name", exact: true }).fill("My launch app");
   await page.getByRole("button", { name: "Home", exact: true }).click();
   await expect(page).toHaveURL(/\/studio$/);
-  await page.getByRole("main").getByRole("button", { name: /Launch campaign/ }).click();
+  await page.getByRole("navigation", { name: "Recent projects" }).getByRole("button", { name: /Launch campaign/ }).click();
   await expect(page.getByRole("textbox", { name: "App name", exact: true })).toHaveValue("My launch app");
   await expect.poll(async () => (await activeProject(request)).locales).toEqual(["en", "de"]);
   await page.reload();
   await expect(page.getByRole("textbox", { name: "App name", exact: true })).toHaveValue("My launch app");
 });
-
-for (const [name, count, theme] of [["Feature tour", 9, "clean-light"], ["Minimal three", 3, "clean-light"], ["Bold contrast", 3, "dark-bold"]] as const) {
-  test(`preset ${name} creates ${count} editable screens`, async ({ page, request }) => {
-    await page.goto("/studio");
-    await page.getByRole("button", { name: `${name} ${count} slides`, exact: true }).first().click();
-    await expect(page).toHaveURL(/\/editor$/);
-    await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
-    await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone.length).toBe(count);
-    expect((await activeProject(request)).themeId).toBe(theme);
-  });
-}
 
 test("edits survive an immediate refresh before the autosave debounce", async ({ page, request }) => {
   await openEditor(page);
@@ -425,7 +417,7 @@ test("Studio remains usable on a phone viewport", async ({ page }) => {
   await page.goto("/studio");
   await expect(page.getByPlaceholder(/Describe your app/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole("button", { name: "Start blank", exact: true }).click();
+  await page.getByRole("button", { name: "Blank project", exact: true }).click();
   await expect(page.getByRole("button", { name: "Export bundle" })).toBeVisible();
 });
 
@@ -696,4 +688,20 @@ test("mobile editor keeps zoom reachable and opens one panel at a time", async (
   await expect(page.locator("#screens-panel")).toBeHidden();
   await expect(page.locator("#screen-settings-panel")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("Android can take the iPhone design in one click and undo it", async ({ page, request }) => {
+  await openEditor(page);
+  await page.getByRole("button", { name: "Show screen settings" }).click();
+  await page.getByRole("textbox", { name: "Headline", exact: true }).fill("Shared across stores");
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Shared across stores");
+  await page.getByRole("tab", { name: "Android", exact: true }).click();
+  await expect(page.getByText("1080×1920")).toBeVisible();
+  await page.getByRole("button", { name: "Use iPhone design", exact: true }).click();
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.android[0].headline.en).toBe("Shared across stores");
+  const copied = await activeProject(request);
+  expect(copied.device).toBe("android");
+  expect(copied.slidesByDevice.android[0].id).not.toBe(copied.slidesByDevice.iphone[0].id);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.android[0].headline.en).toBe("Your day, organized");
 });

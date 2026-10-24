@@ -8,12 +8,14 @@ import {
   Command,
   Download,
   FileText,
+  Globe,
   Home,
   Languages,
   MoreHorizontal,
   RotateCcw,
   UnfoldHorizontal,
   Upload,
+  CopyPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -76,11 +78,15 @@ type Props = {
   orientation: Orientation;
   setOrientation: (v: Orientation) => void;
   onExport: () => void;
+  onPublish: () => void;
   /** The deck's current copy, one "Headline | Subheader" row per screen. */
   bulkCopyText: string;
   onBulkCopy: (input: string) => { applied: number; total: number };
   onResetAll: () => void;
   onResetDevice: () => void;
+  /** Device whose design can be copied onto the current one (iPhone ↔ Android, iPad ↔ Android tablets). */
+  counterpart?: Device | null;
+  onUseCounterpartDesign?: () => void;
   exporting: string | null;
   savedAt: number | null;
   saveError: string | null;
@@ -219,6 +225,21 @@ export function Toolbar(props: Props) {
           </SelectContent>
         </Select>
 
+        {props.counterpart && props.onUseCounterpartDesign && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={props.onUseCounterpartDesign}
+            disabled={props.busy}
+            aria-label={t("toolbar.useCounterpartDesign", { device: deviceLabel(props.counterpart, t) })}
+            title={t("toolbar.useCounterpartDesign", { device: deviceLabel(props.counterpart, t) })}
+          >
+            <CopyPlus className="h-4 w-4" />
+          </Button>
+        )}
+
         {hasLandscape && (
           <Select
             value={props.orientation}
@@ -327,6 +348,18 @@ export function Toolbar(props: Props) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 px-2 min-[1360px]:px-2.5"
+          onClick={props.onPublish}
+          disabled={props.busy}
+          title={t("toolbar.publishHint")}
+          aria-label={t("toolbar.publish")}
+        >
+          <Globe className="h-4 w-4" />
+          <span className="hidden min-[1360px]:inline">{t("toolbar.publish")}</span>
+        </Button>
         <Button
           onClick={props.onExport}
           disabled={props.busy}

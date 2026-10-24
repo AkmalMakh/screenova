@@ -1,5 +1,11 @@
 # Screenova Vercel deployment preparation
 
+## Public gallery — 2026-10-19
+
+- Apply `supabase/migrations/202610190001_gallery.sql` in the SQL Editor before merging the code that uses it. Without it, `/gallery` shows "unavailable" and publishing returns 503; nothing else is affected.
+- Visitors can read a visible post's title, description, device, screen count, preview images and date. They cannot read its owner or template. Signed-in members publish only as themselves, owners unpublish, and moderators hide (RUNBOOK.md, "Gallery moderation"). Workspaces, RLS and private Storage are unchanged.
+- Templates are allowlisted on publish: no screenshots, app icon, generated images or private asset paths.
+
 ## Launch-readiness code — 2026-10-18 (not yet deployed)
 
 Implements the reviewed public-beta plan (`.gstack/plans/2026-10-17-public-beta-launch-readiness.md`). Status: local verification only; nothing below is deployed or hosted-verified yet.

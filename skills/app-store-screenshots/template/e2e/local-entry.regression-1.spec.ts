@@ -8,11 +8,8 @@ test("local workspace entry explains no account is needed and opens Studio", asy
   await expect(page.getByRole("heading", { name: "Loved by iOS & Android creators" })).toHaveCount(0);
   await expect(page.getByText(/increased our download conversions by 28%/)).toHaveCount(0);
   await expect(page.getByText(/Use local Studio without an account/)).toBeVisible();
-  await page.getByRole("button", { name: "Your workspace", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText("Local mode needs no account or email verification.");
   await page.screenshot({ path: info.outputPath("local-workspace-entry.png") });
-  await dialog.getByRole("button", { name: "Open Studio", exact: true }).click();
+  await page.getByRole("button", { name: "Try now", exact: true }).click();
   await expect(page).toHaveURL(/\/studio$/);
   await expect(page.getByPlaceholder(/Describe your app/)).toBeVisible();
 });

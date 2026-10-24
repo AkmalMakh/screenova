@@ -30,6 +30,7 @@ import {
   themeById,
 } from "@/lib/constants";
 import { detectPlatform, nid } from "@/lib/defaults";
+import { counterpartDevice, switchDevice, withCounterpartDesign } from "@/lib/platform-design";
 import {
   applyDesignProposal,
   cloneProject,
@@ -61,6 +62,8 @@ import type {
 } from "@/lib/types";
 import { Inspector } from "./inspector";
 import { DesignChatLog, DesignComposer } from "./design-sidebar";
+import { PublishDialog } from "./publish-dialog";
+import { GALLERY_MAX_PREVIEWS, toGalleryTemplate } from "@/lib/gallery";
 import { NewProjectDialog } from "./new-project-dialog";
 import { CommandPalette, type PaletteGroup } from "./command-palette";
 import { PreviewStage, type CanvasTool } from "./preview-stage";
@@ -120,6 +123,7 @@ function Editor() {
     deleteProject,
   } = useProject();
   const [activeSlideId, setActiveSlideId] = React.useState<string | null>(null);
+  const [publishOpen, setPublishOpen] = React.useState(false);
   const [selectedElement, setSelectedElement] = React.useState<SelectedElement | null>(null);
   const [exporting, setExporting] = React.useState<string | null>(null);
   const [ready, setReady] = React.useState(false);
@@ -677,6 +681,38 @@ function Editor() {
     return previews;
   }
 
+  // Public gallery previews: the first screens, small JPEGs (well under the
+  // per-preview limit). They show the user's real screenshots on purpose; the
+  // publish dialog says so before anything is sent.
+  async function captureGalleryPreviews() {
+    const { cW: canvasWidth, cH: canvasHeight } = getCanvas(state.device, state.orientation);
+    await preloadImages(assetPaths, { retryFailed: true });
+    await waitForPaint();
+    const previews: string[] = [];
+    for (const [index] of currentSlides.slice(0, GALLERY_MAX_PREVIEWS).entries()) {
+      setExportSlideIndex(index);
+      await waitForPaint();
+      const element = exportRef.current;
+      if (!element) throw new Error(t("toasts.renderTargetMissing"));
+      previews.push(await captureSlideForModel(element, canvasWidth, canvasHeight, 720, 0.8));
+    }
+    return previews;
+  }
+
+  async function publishToGallery(title: string, description: string): Promise<string> {
+    if (!currentSlides.length) throw new Error(t("publish.empty"));
+    const template = toGalleryTemplate(state);
+    const previews = await captureGalleryPreviews();
+    const response = await apiFetch("/api/gallery", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title, description, template, previews }),
+    });
+    const json = (await response.json().catch(() => ({}))) as { ok?: boolean; id?: string; error?: string };
+    if (!response.ok || !json.ok || !json.id) throw new Error(json.error || t("publish.failed"));
+    return json.id;
+  }
+
   function applyPendingDesign() {
     if (!pendingDesign) return;
     setState(pendingDesign.state, { coalesce: false });
@@ -1194,11 +1230,34 @@ function Editor() {
         setLocale={(v) => setState((p) => ({ ...p, locale: v }))}
         locales={state.locales}
         device={state.device}
-        setDevice={(v) => setState((p) => ({ ...p, device: v }))}
+        setDevice={(v) => {
+          setState((p) => switchDevice(p, v));
+          setActiveSlideId(null);
+        }}
+        counterpart={counterpartDevice(state.device, state.orientation)}
+        onUseCounterpartDesign={() => {
+          const from = counterpartDevice(state.device, state.orientation);
+          if (!from) return;
+          const dev = state.device;
+          const before = { slides: state.slidesByDevice[dev], theme: state.customThemesByDevice?.[dev] };
+          setState((p) => withCounterpartDesign(p, dev));
+          setActiveSlideId(null);
+          toast.success(t("toasts.usedCounterpartDesign", { from: deviceLabel(from, t), to: deviceLabel(dev, t) }), {
+            action: {
+              label: t("toasts.undo"),
+              onClick: () => setState((p) => ({
+                ...p,
+                slidesByDevice: { ...p.slidesByDevice, [dev]: before.slides },
+                customThemesByDevice: { ...p.customThemesByDevice, [dev]: before.theme },
+              })),
+            },
+          });
+        }}
         orientation={state.orientation}
         setOrientation={(v) => setState((p) => ({ ...p, orientation: v }))}
         onExport={exportAll}
         bulkCopyText={bulkCopyText}
+        onPublish={() => setPublishOpen(true)}
         onBulkCopy={applyBulkCopy}
         onResetAll={() => {
           reset();
@@ -1214,6 +1273,14 @@ function Editor() {
         savedAt={savedAt}
         saveError={saveError}
         busy={busy}
+      />
+
+      <PublishDialog
+        open={publishOpen}
+        onOpenChange={setPublishOpen}
+        defaultTitle={state.appName.trim() || state.name || ""}
+        screenCount={Math.min(currentSlides.length, 20)}
+        onPublish={publishToGallery}
       />
 
       <NewProjectDialog
@@ -1667,8 +1734,8 @@ function slugify(s: string) {
   );
 }
 
-async function captureSlideForModel(el: HTMLElement, sourceW: number, sourceH: number) {
-  const scale = Math.min(1, 1024 / Math.max(sourceW, sourceH));
+async function captureSlideForModel(el: HTMLElement, sourceW: number, sourceH: number, maxSide = 1024, quality = 0.82) {
+  const scale = Math.min(1, maxSide / Math.max(sourceW, sourceH));
   const outputW = Math.max(1, Math.round(sourceW * scale));
   const outputH = Math.max(1, Math.round(sourceH * scale));
   const prev = {
@@ -1692,7 +1759,7 @@ async function captureSlideForModel(el: HTMLElement, sourceW: number, sourceH: n
       canvasWidth: outputW,
       canvasHeight: outputH,
       pixelRatio: 1,
-      quality: 0.82,
+      quality,
       cacheBust: false,
       skipFonts: true,
       backgroundColor: "#ffffff",

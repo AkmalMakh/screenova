@@ -206,3 +206,85 @@ describe("public signup enrollment", () => {
     expect((await db.query<{ allowed: boolean }>("select has_function_privilege('anon','public.enroll_confirmed_user()','execute') as allowed")).rows[0].allowed).toBe(false);
   });
 });
+
+describe("public gallery policies", () => {
+  const template = JSON.stringify({ version: 1, device: "iphone", slides: [{ id: "s1" }] });
+  const preview = "data:image/jpeg;base64,/9j/";
+  async function publish(title = "Calm deck") {
+    return db.query<{ id: string }>(
+      "insert into public.gallery_posts(title, device, screen_count, template, previews) values ($1, 'iphone', 1, $2::jsonb, array[$3]) returning id",
+      [title, template, preview],
+    );
+  }
+  async function asAnon() {
+    await db.exec("reset role; set role anon;");
+    await db.query("select set_config('request.jwt.claim.sub', '', false)");
+  }
+
+  it("lets a member publish only as themselves and shows visitors the card, never the owner or template", async () => {
+    // Value: protects=the public surface exposes card+previews only; fails_when=anon can read owner_id/template or a member can post as someone else
+    await asUser(alice);
+    const id = (await publish()).rows[0].id;
+    expect((await db.query<{ owner_id: string }>("select owner_id from public.gallery_posts where id = $1", [id])).rows[0].owner_id).toBe(alice);
+    await expect(db.query(
+      "insert into public.gallery_posts(owner_id, title, device, screen_count, template, previews) values ($1, 'Spoof', 'iphone', 1, $2::jsonb, array[$3])",
+      [bob, template, preview],
+    )).rejects.toThrow(/permission denied/i);
+    await expect(db.query(
+      "insert into public.gallery_posts(title, device, screen_count, template, previews, hidden) values ('Sneaky', 'iphone', 1, $1::jsonb, array[$2], true)",
+      [template, preview],
+    )).rejects.toThrow(/permission denied/i);
+
+    await asAnon();
+    const card = await db.query<{ id: string; title: string }>("select id, title, description, device, screen_count, previews, created_at from public.gallery_posts");
+    expect(card.rows.map((row) => row.title)).toEqual(["Calm deck"]);
+    await expect(db.query("select owner_id from public.gallery_posts")).rejects.toThrow(/permission denied/i);
+    await expect(db.query("select template from public.gallery_posts")).rejects.toThrow(/permission denied/i);
+    await expect(db.query("insert into public.gallery_posts(title, device, screen_count, template, previews) values ('Anon', 'iphone', 1, $1::jsonb, array[$2])", [template, preview])).rejects.toThrow(/permission denied/i);
+  });
+
+  it("refuses publishing for signed-in accounts that are not beta members", async () => {
+    await asUser(outsider);
+    await expect(publish("Outsider")).rejects.toThrow(/row-level security/i);
+  });
+
+  it("lets only the owner unpublish, and only moderators hide", async () => {
+    // Value: protects=owner unpublish + moderator-only hide; fails_when=another member deletes or hides someone else's post
+    await asUser(alice);
+    const id = (await publish()).rows[0].id;
+    await asUser(bob);
+    expect((await db.query("delete from public.gallery_posts where id = $1 returning id", [id])).rows).toHaveLength(0);
+    await expect(db.query("select public.hide_gallery_post($1)", [id])).rejects.toThrow(/Not a gallery moderator/);
+    expect((await db.query<{ ok: boolean }>("select public.is_gallery_moderator() as ok")).rows[0].ok).toBe(false);
+
+    await db.exec("reset role;");
+    await db.query("insert into public.gallery_moderators(user_id) values ($1)", [bob]);
+    await asUser(bob);
+    expect((await db.query<{ ok: boolean }>("select public.hide_gallery_post($1) as ok", [id])).rows[0].ok).toBe(true);
+    await asAnon();
+    expect((await db.query("select id from public.gallery_posts")).rows).toHaveLength(0);
+    // The owner still sees their hidden post and can remove it.
+    await asUser(alice);
+    expect((await db.query("select id from public.gallery_posts where id = $1", [id])).rows).toHaveLength(1);
+    expect((await db.query("delete from public.gallery_posts where id = $1 returning id", [id])).rows).toHaveLength(1);
+  });
+
+  it("keeps moderator data and functions away from visitors", async () => {
+    await asAnon();
+    await expect(db.query("select * from public.gallery_moderators")).rejects.toThrow(/permission denied/i);
+    for (const fn of ["public.is_gallery_moderator()", "public.hide_gallery_post(uuid)"]) {
+      expect((await db.query<{ allowed: boolean }>(`select has_function_privilege('anon','${fn}','execute') as allowed`)).rows[0].allowed).toBe(false);
+    }
+    await asUser(alice);
+    await expect(db.query("select * from public.gallery_moderators")).rejects.toThrow(/permission denied/i);
+  });
+
+  it("bounds post size: at most six previews and a sane title", async () => {
+    await asUser(alice);
+    await expect(db.query(
+      "insert into public.gallery_posts(title, device, screen_count, template, previews) values ('Too many', 'iphone', 1, $1::jsonb, array[$2,$2,$2,$2,$2,$2,$2])",
+      [template, preview],
+    )).rejects.toThrow(/check constraint/i);
+    await expect(publish("   ")).rejects.toThrow(/check constraint/i);
+  });
+});
