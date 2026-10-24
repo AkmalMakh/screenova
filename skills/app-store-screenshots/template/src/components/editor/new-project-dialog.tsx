@@ -132,7 +132,7 @@ export function NewProjectDialog({ open, onOpenChange, importing, onSubmit }: Pr
                     type="button"
                     size="sm"
                     variant={selected ? "default" : "outline"}
-                    className="h-7 rounded-full px-2.5 text-[10px]"
+                    className="h-8 rounded-xs px-2.5 text-caption"
                     aria-pressed={selected}
                     disabled={busy}
                     onClick={() => {
@@ -151,7 +151,7 @@ export function NewProjectDialog({ open, onOpenChange, importing, onSubmit }: Pr
                 );
               })}
             </div>
-            <p className="text-[10px] text-muted-foreground">{t("newProject.languagesHint")}</p>
+            <p className="text-caption text-muted-foreground">{t("newProject.languagesHint")}</p>
           </div>
 
           <button
@@ -197,7 +197,7 @@ export function NewProjectDialog({ open, onOpenChange, importing, onSubmit }: Pr
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-0.5 top-0.5 h-6 w-6 rounded bg-background/80 opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
+                    className="absolute right-0.5 top-0.5 h-6 w-6 rounded-xs bg-background/80 opacity-0 transition-opacity duration-micro hover:bg-background group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                     onClick={() => removeFile(index)}
                     disabled={busy}
                     title={t("newProject.removeFile", { name: file.name })}
@@ -210,7 +210,7 @@ export function NewProjectDialog({ open, onOpenChange, importing, onSubmit }: Pr
             </div>
           )}
 
-          {error && <p className="text-[11px] text-destructive">{error}</p>}
+          {error && <p className="text-caption text-destructive">{error}</p>}
         </div>
 
         <div className="flex justify-end gap-2 pt-1">

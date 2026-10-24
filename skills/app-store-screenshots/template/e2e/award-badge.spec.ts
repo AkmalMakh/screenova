@@ -24,7 +24,8 @@ test.beforeEach(async ({ request }) => {
 
 test("award badge edits, duplicates, reloads and renders into exported PNGs", async ({ page, request }, info) => {
   await page.goto("/editor");
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   await page.getByRole("button", { name: "Add award badge", exact: true }).click();
   await page.getByLabel("Year or caption", { exact: true }).fill("2024");
   await page.getByLabel("Award title", { exact: true }).fill("App Store");
@@ -63,7 +64,8 @@ test("award badge edits, duplicates, reloads and renders into exported PNGs", as
 
 test("prebuilt badge styles insert finished artwork and preserve edited copy when restyled", async ({ page, request }, info) => {
   await page.goto("/editor");
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   await page.getByRole("button", { name: "Award badge — White", exact: true }).click();
   await expect(page.getByLabel("Award title", { exact: true })).toHaveValue("App Store");
   const canvasBadge = page.locator('.rnd-editable [data-award-badge="true"]').first();
@@ -77,7 +79,8 @@ test("prebuilt badge styles insert finished artwork and preserve edited copy whe
   await expect.poll(async () => (await project(request)).slidesByDevice.iphone[0].decorations?.[0]?.badge.textColor).toBe("#F4CE78");
   await page.reload();
   await expect(canvasBadge).toContainText("Editors’ Choice");
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add award badge", exact: true })).toBeVisible();
   expect(await page.locator("body").innerText()).not.toMatch(/badge\.(add|name|hint|eyebrow)/);
   await page.screenshot({ path: info.outputPath("prebuilt-badge-styles.png") });
@@ -104,7 +107,8 @@ test("badge controls fit mobile and support empty caption, zero stars and Undo",
 test("award badges are available on Play Store feature graphics", async ({ page, request }) => {
   await request.post("/api/project", { data: fixture("feature-graphic") });
   await page.goto("/editor");
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   await page.getByRole("button", { name: "Add award badge", exact: true }).click();
   await expect.poll(async () => (await project(request)).slidesByDevice["feature-graphic"][0].decorations?.[0]?.kind).toBe("award-badge");
   await expect(page.locator('.rnd-editable [data-award-badge="true"]').first()).toBeVisible();
@@ -112,7 +116,8 @@ test("award badges are available on Play Store feature graphics", async ({ page,
 
 test("badge copy is localized and the canvas supports dragging and proportional resizing", async ({ page, request }) => {
   await page.goto("/editor");
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   await page.getByRole("button", { name: "Add award badge", exact: true }).click();
   await page.getByLabel("Award title", { exact: true }).fill("App of the day");
   await page.getByRole("combobox").filter({ hasText: /^EN$/ }).click();
@@ -128,7 +133,10 @@ test("badge copy is localized and the canvas supports dragging and proportional 
   const initial = (await project(request)).slidesByDevice.iphone[0].decorations[0].transform;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 35, box.y + box.height / 2 + 30, { steps: 8 });
+  // The canvas frames the screen inside the free area (manual-first layout),
+  // so at 1280×720 a screen px is ~7 canvas px: drag a short way so the badge
+  // stays clear of the slide edge for the resize below.
+  await page.mouse.move(box.x + box.width / 2 + 15, box.y + box.height / 2 + 12, { steps: 8 });
   await page.mouse.up();
   await expect.poll(async () => (await project(request)).slidesByDevice.iphone[0].decorations[0].transform.x).toBeGreaterThan(initial.x + 10);
   const moved = (await svg.boundingBox())!;

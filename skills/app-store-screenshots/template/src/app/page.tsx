@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { LandingPage } from "@/components/landing/landing-page";
 import { storageMode } from "@/lib/supabase/config";
+import { listGalleryPosts } from "@/lib/gallery-store";
+import type { GalleryPostSummary } from "@/lib/gallery";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Page() {
-  return <LandingPage cloud={storageMode() === "supabase"} />;
+export default async function Page() {
+  // The landing's template row shows real public designs; examples stand in
+  // when the gallery is empty or unreachable.
+  let posts: GalleryPostSummary[] = [];
+  try {
+    posts = (await listGalleryPosts()).slice(0, 12);
+  } catch {
+    posts = [];
+  }
+  return <LandingPage cloud={storageMode() === "supabase"} posts={posts} />;
 }

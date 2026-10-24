@@ -13,6 +13,10 @@
     --popover-foreground: 240 8% 8%;
     --primary: 211 100% 45%;
     --primary-foreground: 0 0% 100%;
+    /* Interaction deepens the blue (DESIGN.md pressed #0058B8); never washes
+       it out — white text must stay at or above 4.5:1 in every state. */
+    --primary-hover: 211 100% 40%;
+    --primary-active: 211 100% 36%;
     --secondary: 240 10% 94%;
     --secondary-foreground: 240 8% 12%;
     --muted: 240 10% 94%;
@@ -27,10 +31,16 @@
     --ring: 211 100% 50%;
     --radius: 0.75rem;
 
-    /* Custom easings — built-in CSS curves are too weak for UI (emil-design-eng). */
+    /* Motion vocabulary from DESIGN.md: enter, exit, move — and four durations.
+       Components use the Tailwind names (ease-out/ease-in/ease-move,
+       duration-micro/short/medium/sheet), never ad-hoc curves. */
     --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
     --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --dur-micro: 120ms;
+    --dur-short: 200ms;
+    --dur-medium: 300ms;
+    --dur-sheet: 400ms;
   }
 
   .dark,
@@ -43,6 +53,9 @@
     --popover-foreground: 240 12% 96%;
     --primary: 211 100% 63%;
     --primary-foreground: 240 12% 5%;
+    /* Dark text on a light blue: hover brightens, press settles back. */
+    --primary-hover: 211 100% 70%;
+    --primary-active: 211 100% 59%;
     --secondary: 240 8% 16%;
     --secondary-foreground: 240 12% 96%;
     --muted: 240 8% 14%;
@@ -149,15 +162,22 @@
 
   /* Gentle entrance, used with staggered inline animation-delay. */
   .fade-up {
-    animation: fade-up 0.45s var(--ease-out) both;
+    animation: fade-up var(--dur-medium) var(--ease-out) both;
+  }
+
+  /* The landing's one authored moment (DESIGN.md decision, 2026-10-18): the
+     real output deck rises into place once on load. Staggered with inline
+     animation-delay; off under reduced motion. */
+  .hero-rise {
+    animation: hero-rise var(--dur-medium) var(--ease-out) both;
   }
 
   /* Card hover lift — gated behind real hover-capable pointers. */
   .lift-hover {
     transition:
-      transform 200ms var(--ease-out),
-      box-shadow 200ms var(--ease-out),
-      border-color 200ms var(--ease-out);
+      transform var(--dur-short) var(--ease-out),
+      box-shadow var(--dur-short) var(--ease-out),
+      border-color var(--dur-short) var(--ease-out);
   }
 
   /* Canvas stage backdrop: soft radial wash + faint dot grid for depth. */
@@ -165,6 +185,17 @@
     background-color: #eaeaec;
   }
 
+}
+
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes fade-up {
@@ -204,7 +235,8 @@
   }
 
   /* Movement specifically — these carry transforms rather than durations. */
-  .fade-up {
+  .fade-up,
+  .hero-rise {
     animation: none !important;
   }
   .lift-hover,
@@ -228,20 +260,46 @@
   cursor: grab;
 }
 
-/* react-rnd editable element hint: subtle outline + visible resize handles on hover */
+/* Canvas selection chrome. Everything is sized in SCREEN pixels by
+   multiplying with --canvas-inv (1 / zoom, published by the stage), so a
+   selection reads the same at 20% and at 300%, like Figma or Sketch.
+   Colors come from --primary so dark mode follows. */
 .rnd-editable {
   cursor: move;
-  outline: 2px dashed transparent;
-  outline-offset: 4px;
-  transition: outline-color 120ms ease;
+  outline: calc(1.5px * var(--canvas-inv, 1)) solid transparent;
+  outline-offset: 0;
+  transition: outline-color var(--dur-micro) var(--ease-out);
 }
 .rnd-editable:hover {
-  outline-color: rgba(0, 113, 227, 0.55);
+  outline-color: hsl(var(--primary) / 0.5);
 }
 .rnd-editable:focus-within,
 .rnd-editable.rnd-selected {
-  outline-color: rgba(0, 113, 227, 0.9);
-  outline-style: solid;
+  outline-color: hsl(var(--primary));
+}
+
+/* Corner handles: a white square with a blue hairline, shown on selection. */
+.rnd-handle-corner::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(8px * var(--canvas-inv, 1));
+  height: calc(8px * var(--canvas-inv, 1));
+  transform: translate(-50%, -50%) scale(0.6);
+  border: calc(1px * var(--canvas-inv, 1)) solid hsl(var(--primary));
+  border-radius: calc(2px * var(--canvas-inv, 1));
+  background: hsl(var(--card));
+  box-shadow: 0 calc(1px * var(--canvas-inv, 1)) calc(2px * var(--canvas-inv, 1)) hsl(240 10% 8% / 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-micro) var(--ease-out),
+    transform var(--dur-short) var(--ease-out);
+}
+.rnd-editable.rnd-selected .rnd-handle-corner::before {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .rnd-rotate-handle {
@@ -255,15 +313,15 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid rgba(0, 113, 227, 0.65);
-  background: rgba(255, 255, 255, 0.92);
-  color: rgba(30, 41, 59, 0.92);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.2);
+  border: calc(1px * var(--canvas-inv, 1)) solid hsl(var(--primary) / 0.65);
+  background: hsl(var(--card) / 0.95);
+  color: hsl(var(--foreground) / 0.9);
+  box-shadow: 0 calc(6px * var(--canvas-inv, 1)) calc(18px * var(--canvas-inv, 1)) hsl(240 10% 8% / 0.2);
   cursor: grab;
   opacity: 0;
   transition:
-    opacity 120ms ease,
-    transform 120ms ease;
+    opacity var(--dur-micro) var(--ease-out),
+    transform var(--dur-micro) var(--ease-out);
 }
 
 .rnd-editable:hover .rnd-rotate-handle,
@@ -274,17 +332,17 @@
 
 .rnd-rotate-handle:hover,
 .rnd-rotate-handle:focus-visible {
-  transform: scale(1.05);
+  transform: scale(1.08);
 }
 
 .rnd-rotate-handle:active {
   cursor: grabbing;
 }
 
-/* Show a visible cursor outline on contenteditable text inside Rnd while focused. */
+/* Text being edited in place gets a visible caret field. */
 .rnd-editable [contenteditable]:focus {
-  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.45);
-  border-radius: 2px;
+  box-shadow: 0 0 0 calc(2px * var(--canvas-inv, 1)) hsl(var(--primary) / 0.45);
+  border-radius: calc(2px * var(--canvas-inv, 1));
 }
 
 /* ---------------------------------------------------------------------------
@@ -350,9 +408,73 @@
 
 :root.screenova-dark .dot-grid { background-color: #141416; }
 
-/* Interface sizing never targets rendered screenshot artwork. */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea {
+/* Interface sizing never targets rendered screenshot artwork. DESIGN.md:
+   inputs and textareas are at least 16px. The :not() keeps this rule ahead
+   of single-class size utilities (text-sm/text-xs) on textareas too. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea:not([data-artwork]) {
   font-size: 16px;
 }
 /* Touch-target size comes from the pointer: coarse hit-area rule near the top
    of this file, so compact desktop controls keep their designed size. */
+
+/* Studio home: quiet dot grid behind the floating panel and composer. */
+.studio-dots {
+  background-image: radial-gradient(hsl(var(--foreground) / 0.09) 1px, transparent 1.2px);
+  background-size: 20px 20px;
+}
+.studio-composer {
+  background-image: linear-gradient(115deg, hsl(var(--card) / 0.9) 30%, hsl(var(--primary) / 0.07) 100%);
+}
+
+/* Landing: always-dark, prompt-first page (owner-approved reference layout). */
+.screenova-landing.landing-dark { background: #000; color: #fff; color-scheme: dark; }
+.landing-dots {
+  background-image: radial-gradient(rgb(255 255 255 / 0.16) 1px, transparent 1.3px);
+  background-size: 14px 14px;
+  mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 80%);
+}
+.landing-dots-large {
+  background-image: radial-gradient(rgb(255 255 255 / 0.12) 7px, transparent 8px);
+  background-size: 120px 120px;
+}
+/* A glowing horizon arc behind the hero composer. */
+.landing-aurora {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: max(1600px, 140vw);
+  aspect-ratio: 2.4 / 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #000;
+  box-shadow:
+    0 -2px 0 0 rgb(170 160 255 / 0.65),
+    0 -30px 90px 10px rgb(120 90 255 / 0.55),
+    0 -60px 160px 40px rgb(64 156 255 / 0.35),
+    inset 0 40px 90px -20px rgb(120 90 255 / 0.35);
+  pointer-events: none;
+}
+.landing-aurora-low { top: 78%; }
+@media (max-width: 640px) {
+  .landing-aurora { top: 62%; width: 260vw; }
+}
+.landing-composer {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgb(255 255 255 / 0.10), transparent 55%),
+    linear-gradient(120deg, rgb(40 40 60 / 0.75), rgb(52 44 88 / 0.65) 60%, rgb(30 60 90 / 0.6));
+}
+.landing-gradient-text {
+  background: linear-gradient(90deg, #6ea8ff 0%, #59c3e6 50%, #8f8cff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.landing-feature-icon {
+  background: radial-gradient(circle at 30% 30%, rgb(143 140 255 / 0.45), rgb(64 156 255 / 0.15) 70%);
+  box-shadow: 0 0 40px rgb(110 168 255 / 0.25);
+}
+.landing-eyes { box-shadow: 0 0 60px 10px rgb(89 195 230 / 0.35); }
+.landing-step { display: inline-block; animation: landing-step 0.4s var(--ease-out); }
+@keyframes landing-step { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .landing-step { animation: none; } }

@@ -26,11 +26,14 @@ type Props = {
   onDelete: () => void;
   onDuplicate: () => void;
   selectedForDesign?: boolean;
+  /** The AI composer is targeting "Selected screens": offer the mark box. */
+  showDesignSelection?: boolean;
   onToggleDesignSelection?: () => void;
 };
 
-// Thumb tile target width (pixels). Height is derived from device aspect.
-const THUMB_W = 60;
+// Thumb tile width (pixels). Height follows the device aspect, clamped so a
+// phone reads as a phone and a feature graphic stays a strip.
+const THUMB_W = 52;
 
 export function SlideThumb({
   slide,
@@ -48,6 +51,7 @@ export function SlideThumb({
   onDelete,
   onDuplicate,
   selectedForDesign,
+  showDesignSelection,
   onToggleDesignSelection,
 }: Props) {
   const { t } = useT();
@@ -55,11 +59,13 @@ export function SlideThumb({
   const label = pickText(slide.label, locale);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: slide.id,
+    // Neighbours make room on the DESIGN.md move curve.
+    transition: { duration: 200, easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
   });
 
   const { cW, cH } = getCanvas(device, orientation);
   const aspect = cW / cH;
-  const tileH = Math.max(34, Math.min(120, Math.round(THUMB_W / aspect)));
+  const tileH = Math.max(28, Math.min(120, Math.round(THUMB_W / aspect)));
   const scale = THUMB_W / cW;
   const start = connectedCanvas ? Math.max(0, index - 1) : index;
   const visibleSlides = connectedCanvas ? slides.slice(start, Math.min(slides.length, index + 2)) : [slide];
@@ -68,7 +74,6 @@ export function SlideThumb({
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
   };
 
   return (
@@ -76,50 +81,27 @@ export function SlideThumb({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group relative grid grid-cols-2 items-stretch gap-1 rounded-lg border bg-card p-2 transition-colors hover:border-foreground/30 hover:bg-accent",
-        active && "border-primary ring-1 ring-primary shadow-card",
+        "group relative flex items-start gap-2.5 rounded-lg border border-transparent p-1.5 transition-[background-color,border-color,box-shadow] duration-micro ease-out hover:bg-accent/70",
+        active && "border-primary/40 bg-primary/[0.06] hover:bg-primary/[0.08]",
+        isDragging && "z-10 bg-card shadow-pop ring-1 ring-primary/30",
       )}
     >
-      {onToggleDesignSelection && (
-        <button
-          type="button"
-          className={cn(
-            "flex h-11 w-11 items-center justify-center rounded-xs border bg-background transition-colors",
-            selectedForDesign && "border-primary bg-primary text-primary-foreground",
-          )}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleDesignSelection();
-          }}
-          aria-label={
-            selectedForDesign ? t("thumb.removeFromAi") : t("thumb.addToAi")
-          }
-          title={selectedForDesign ? t("thumb.selectedForAi") : t("thumb.selectForAi")}
-        >
-          {selectedForDesign && <Check className="h-3 w-3" />}
-        </button>
-      )}
-      <button
-        type="button"
-        className="flex h-11 w-11 justify-self-end cursor-grab items-center justify-center text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing"
-        {...attributes}
-        {...listeners}
-        aria-label={t("thumb.reorderA11y", { index: index + 1 })}
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
-
       <button
         type="button"
         onClick={onSelect}
-        className="col-span-2 flex min-w-0 flex-col items-start gap-2 overflow-hidden text-left"
+        aria-current={active ? "true" : undefined}
+        className="flex min-w-0 flex-1 items-start gap-2.5 rounded-sm text-left"
       >
-        <div
+        <span
           aria-hidden
-          className="relative shrink-0 overflow-hidden rounded border bg-muted"
+          className={cn(
+            "relative shrink-0 overflow-hidden rounded-xs border bg-muted shadow-sm transition-shadow duration-micro",
+            active ? "border-primary ring-1 ring-primary" : "border-border",
+          )}
           style={{ width: THUMB_W, height: tileH }}
         >
-          <div
+          <span
+            className="block"
             style={{
               width: cW * visibleSlides.length,
               height: cH,
@@ -155,32 +137,61 @@ export function SlideThumb({
                 editable={false}
               />
             )}
-          </div>
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-caption text-muted-foreground">
+          </span>
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5 pt-0.5">
+          <span className="truncate text-caption tabular-nums text-muted-foreground">
             {t("thumb.screenN", { index: index + 1, layout: layoutLabel(slide.layout, t) })}
           </span>
-          <span className="truncate text-sm font-medium leading-tight">
-            {headline.split("\n")[0] || (
+          <span className="line-clamp-2 text-footnote font-medium leading-snug text-foreground">
+            {headline.replace(/\n+/g, " ") || (
               <em className="font-normal text-muted-foreground">{t("thumb.untitled")}</em>
             )}
           </span>
           {label ? (
-            <span className="truncate text-caption text-muted-foreground">
-              {label}
-            </span>
+            <span className="truncate text-caption text-muted-foreground">{label}</span>
           ) : null}
-        </div>
+        </span>
       </button>
 
-      {/* Always visible on touch (no hover); fades in on hover on desktop. */}
-      <div className="col-span-2 flex items-center justify-end gap-1 border-t border-border pt-1">
+      {/* Marking screens for an AI pass: only offered while the composer is
+          set to "Selected screens" (or once a screen is already marked). */}
+      {onToggleDesignSelection && (showDesignSelection || selectedForDesign) && (
+        <button
+          type="button"
+          className={cn(
+            "absolute left-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-xs border bg-card/95 shadow-sm transition-colors duration-micro",
+            selectedForDesign && "border-primary bg-primary text-primary-foreground",
+          )}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleDesignSelection();
+          }}
+          aria-pressed={!!selectedForDesign}
+          aria-label={selectedForDesign ? t("thumb.removeFromAi") : t("thumb.addToAi")}
+          title={selectedForDesign ? t("thumb.selectedForAi") : t("thumb.selectForAi")}
+        >
+          {selectedForDesign && <Check className="h-3 w-3" />}
+        </button>
+      )}
+
+      {/* Row actions appear with intent (hover, keyboard focus, the active
+          screen) and are always present on touch screens. */}
+      <div className="absolute bottom-1 right-1 flex items-center rounded-sm bg-card/95 opacity-0 shadow-sm ring-1 ring-border/70 transition-opacity duration-micro ease-out focus-within:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+        <button
+          type="button"
+          className="flex h-7 w-6 cursor-grab items-center justify-center rounded-l-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+          aria-label={t("thumb.reorderA11y", { index: index + 1 })}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
         <Button
           type="button"
           size="icon"
           variant="ghost"
-          className="h-6 w-6"
+          className="h-7 w-7 rounded-none"
           onClick={onDuplicate}
           aria-label={t("thumb.duplicateA11y", { index: index + 1 })}
           title={t("thumb.duplicate")}
@@ -191,7 +202,7 @@ export function SlideThumb({
           type="button"
           size="icon"
           variant="ghost"
-          className="h-6 w-6 hover:text-destructive"
+          className="h-7 w-7 rounded-l-none rounded-r-sm hover:text-destructive"
           onClick={onDelete}
           aria-label={t("thumb.deleteA11y", { index: index + 1 })}
           title={t("thumb.delete")}

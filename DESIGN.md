@@ -127,6 +127,20 @@ for large text and essential non-text indicators. Color never carries state alon
 - **Editor:** Screen navigation, central canvas, contextual inspector. Initial
   desktop panel targets: 184px navigation and 250px inspector, responsive to
   available width. Preserve canvas pan, zoom, and connected-deck behavior.
+  - Opens manual-first: screens list and inspector open from 1024px, screens
+    only on tablets, nothing on phones; the layout is remembered per browser.
+    The left slot holds the screens list or the design chat, never both.
+  - Panels, the AI composer and canvas HUDs float over a full-bleed canvas
+    and are laid out from one geometry, so none overlaps another. Below
+    1024px only one side panel opens at a time.
+  - The canvas frames the active screen inside the area no chrome covers.
+    Toggling a panel moves the canvas only when the new chrome would cover
+    the screen being edited; a user's zoom is never reset by a panel or a
+    window resize.
+  - Selection chrome (outlines, handles, screen numbers) is sized in screen
+    pixels at every zoom. A selection leads the inspector.
+  - The toolbar is one row that never wraps on tablet and desktop; phones get
+    a deliberate second row for design controls.
 - **Small screens:** Put navigation and settings into accessible reflowed
   panels or sheets; do not squeeze desktop sidebars into a phone viewport.
 - **Landing:** Show a real finished deck alongside the main message. One
@@ -142,6 +156,15 @@ for large text and essential non-text indicators. Color never carries state alon
 - **Easing:** Enter `cubic-bezier(0.2, 0.8, 0.2, 1)`; exit
   `cubic-bezier(0.4, 0, 1, 1)`; move `cubic-bezier(0.4, 0, 0.2, 1)`.
 - **Duration:** Micro 120ms; short 200ms; medium 300ms; sheet/modal up to 400ms.
+- **Tokens:** `--ease-out`, `--ease-in`, `--ease-in-out` and `--dur-micro/short/
+  medium/sheet` in `globals.css`, exposed as Tailwind `ease-out`, `ease-in`,
+  `ease-move` and `duration-micro/short/medium/sheet`. Use the names, not
+  ad-hoc values. Exits are shorter than entrances.
+- **Functional motion in the app:** panels slide in from their own edge,
+  menus scale from their trigger, segmented controls glide to the new
+  choice, zoom and reframing glide, the save check pops once per real save.
+- **One approved exception:** the landing hero's real output deck rises into
+  place once on load (300ms, staggered). No other decorative motion.
 - Prefer transform and opacity for spatial motion. Never `transition: all`.
 - Honor reduced-motion preferences throughout.
 - Do not put persistent `will-change: transform` or filters on the full-size
@@ -191,3 +214,9 @@ a package; individual pixel values were not separately reviewed.
 | 2026-10-16 | Make this root document canonical | Replace competing UI guidance with one source of truth. |
 | 2026-10-16 | Keep chrome separate from exported artwork | App branding must not restrict users' screenshot styles. |
 | 2026-10-16 | Apply the direction to the live app | Shared light/dark appearance, Studio creation and recent projects, separated editor panels, and output-led landing. |
+| 2026-10-18 | Editor opens manual-first and remembers its layout | "Never hide manual editing"; the AI composer stays visible between the panels. |
+| 2026-10-18 | Name the motion tokens; allow one landing entrance | Polish the user asked for, with one recorded exception to "no decorative motion". |
+| 2026-10-18 | Canvas moves only when chrome would cover the screen | Minimal motion: a panel toggle must not drag the deck out from under the cursor. |
+| 2026-10-19 | Public template gallery (`/gallery`) | Owner-approved. Users publish a deck's design; others reuse it as a template with their own screenshots. Publishing is opt-in and explicit about what becomes public; it is sharing, not team collaboration. |
+| 2026-10-19 | Studio home follows the owner's reference layout | Owner-approved exception to the pill and decoration rules for `/studio` only: floating projects/gallery panel, quiet dot grid, large welcome title, rounded-pill actions and chips, and a gallery-fed "Need inspiration?" carousel. Built-in starter templates removed. Colors and type stay on the tokens above. |
+| 2026-10-19 | Landing follows the owner's reference (stitch.google.com) | Owner-approved exception for `/` only: always-dark page with dot grid, a blue-violet horizon glow, centered hero composer that hands prompt and device to Studio, demo card, gallery-fed template carousel, feature cards, closing CTA, FAQ and minimal footer. Pricing, comparison and other legacy marketing sections removed; no appearance toggle on the landing. |
