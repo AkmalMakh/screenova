@@ -19,6 +19,8 @@ const config: Config = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
+          active: "hsl(var(--primary-active))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -62,9 +64,11 @@ const config: Config = {
       // Explicit radius hierarchy. The old scale derived md/sm from --radius,
       // which made `rounded-lg` and Tailwind's stock `rounded-xl` both resolve
       // to 12px — two names, one size, and no way to read intent from the code.
-      // DESIGN.md scale only: chips 6, inputs/buttons 8, panels/cards 12,
-      // large surfaces/sheets 18. `md` and `xl` are deliberately not defined
-      // here; device-frame artwork uses explicit pixel radii instead.
+      // DESIGN.md scale for app chrome: chips 6 (xs), inputs/buttons 8 (sm),
+      // panels/cards 12 (lg), large surfaces/sheets 18 (2xl), pills (full)
+      // only for status tags and segmented thumbs. Tailwind's own DEFAULT/md/
+      // xl names still exist (this is `extend`) for illustrative artwork such
+      // as the landing phone mockup; chrome must not use them.
       borderRadius: {
         xs: "6px",
         sm: "8px",
@@ -76,6 +80,21 @@ const config: Config = {
         card: "0 1px 2px hsl(240 10% 8% / 0.05), 0 8px 24px -4px hsl(240 10% 8% / 0.08)",
         pop: "0 2px 6px hsl(240 10% 8% / 0.06), 0 16px 40px -8px hsl(240 10% 8% / 0.16)",
       },
+      // DESIGN.md motion: enter / exit / move curves and four named durations.
+      transitionTimingFunction: {
+        out: "var(--ease-out)",
+        in: "var(--ease-in)",
+        move: "var(--ease-in-out)",
+      },
+      transitionDuration: {
+        micro: "var(--dur-micro)",
+        short: "var(--dur-short)",
+        medium: "var(--dur-medium)",
+        sheet: "var(--dur-sheet)",
+      },
+      // tailwindcss-animate's animate-in/out set this default with a
+      // state-variant selector, so it must be the token, not 150ms.
+      animationDuration: { DEFAULT: "var(--dur-short)" },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

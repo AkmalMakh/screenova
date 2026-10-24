@@ -186,10 +186,11 @@ test("edits survive an immediate refresh before the autosave debounce", async ({
 
 test("edit copy, duplicate, delete, undo and switch device decks", async ({ page, request }) => {
   await openEditor(page);
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   await page.getByRole("textbox", { name: "Headline", exact: true }).fill("Everything in one calm place");
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Everything in one calm place");
-  await page.getByRole("button", { name: "Show screens", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Hide screens", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Duplicate screen 1", exact: true }).click();
   await expect(page.getByRole("button", { name: "Delete screen 2", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Delete screen 2", exact: true }).click();
@@ -208,7 +209,8 @@ test("escaped newline copy is cleaned on load, typing and AI Apply", async ({ pa
   bundle.projects.qa.slidesByDevice.iphone[0].headline.en = String.raw`Notice the days\\nthat shape you`;
   await request.post("/api/project", { data: bundle });
   await openEditor(page);
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   const headline = page.getByRole("textbox", { name: "Headline", exact: true });
   await expect(headline).toHaveValue("Notice the days that shape you");
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Notice the days that shape you");
@@ -224,13 +226,15 @@ test("escaped newline copy is cleaned on load, typing and AI Apply", async ({ pa
   await expect(headline).toHaveValue("Keep your rhythm in reach");
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Keep your rhythm in reach");
   await page.reload();
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   await expect(headline).toHaveValue("Keep your rhythm in reach");
 });
 
 test("upload a fresh image in production and export correctly sized PNGs", async ({ page, request }, testInfo) => {
   await openEditor(page);
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   const pixels = await sharp({ create: { width: 240, height: 520, channels: 3, background: "#E45137" } }).png().toBuffer();
   await page.locator('input[type="file"][aria-label]').setInputFiles({ name: "qa-screen.png", mimeType: "image/png", buffer: pixels });
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].screenshot).toMatch(/^\/screenshots\/uploaded\//);

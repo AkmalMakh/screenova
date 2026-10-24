@@ -836,6 +836,8 @@ export function useProject() {
     undo,
     redo,
     projects,
+    /** Full project states by id, for previews (Studio recent projects). */
+    projectStates: bundle.projects,
     activeProjectId: bundle.activeId,
     createProject,
     switchProject,

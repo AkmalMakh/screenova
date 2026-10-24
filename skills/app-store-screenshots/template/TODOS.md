@@ -6,8 +6,18 @@ Deferred work with context. Added by gstack reviews; keep entries dated.
 
 All fifteen design findings are fixed on `feat/reference-layout-cloning` (Fixed by /design-review follow-up, 2026-10-17): login styling `cea9b79`, dead footer links `46f3ef4`, single hero CTA `7e3e1d9`, dark pricing CTA `3804ff9`, landing color tokens `007d3b8`, radius scale `47664de`, dead files `d88c2cd`, type ramp `62e9455`, CTA labels `c8a54ac`, stats row `52b21ae`, touch targets `564463d`, motion `4a2352b`, outline/copy/images/icons `ac993f4`. Report: `~/.gstack/projects/ParthJadhav-app-store-screenshots/designs/design-audit-20261017/`.
 
-- **[flag] Hydration warning** on `<input id="hero-direction">` (`style={{}}`) seen in a headless run. The server HTML and `hero-section.tsx` carry no `style`, so a browser extension or instrumentation is the likely source. Verify in a clean browser profile before changing code.
-- **[polish] Bare `rounded` (4px).** About 40 call sites use Tailwind's default 4px radius, which is not on the DESIGN.md scale (6/8/12/18). Low visual impact; migrate when touching those files.
+- **[flag] Hydration warning** on `<input id="hero-direction">` (`style={{}}`) seen in a headless run. The server HTML and `hero-section.tsx` carry no `style`, so a browser extension or instrumentation is the likely source. Verify in a clean browser profile before changing code. Not reproduced on 2026-10-18 (fresh tabs on `/`, `/studio`, `/editor`: no console errors).
+- **[polish] Bare `rounded` (4px).** Fixed in app chrome by /design-review on feat/reference-layout-cloning, 2026-10-18 (FINDING-125); the remaining uses are inside the landing's phone-mockup artwork, which DESIGN.md exempts.
+
+## 2026-10-18 — deferred from /design-review (editor-first pass)
+
+Twenty-five findings fixed on `feat/reference-layout-cloning`; report: `~/.gstack/projects/ParthJadhav-app-store-screenshots/designs/design-audit-20261018/`.
+
+- **[ux] Export preflight.** "Export includes placeholder screenshots" arrives as a toast after the export has already started. Consider a one-line confirm before exporting when screens have empty devices (Export anyway / Add screenshots).
+- **[a11y/i18n] Hosted sign-out.** `AccountButton` uses `window.confirm` and hard-coded English ("Sign out?"); move to the app Dialog with translated copy. Hosted mode only.
+- **[feature idea] Layers list.** The inspector shows the selected element; a Figma-style layers list (rename, hide, reorder by drag) would make dense screens easier to edit.
+- **[polish] Studio sidebar thumbnails.** Recent cards now show real decks; the sidebar rows still use letter tiles. `ProjectPreview` (`src/components/home/project-preview.tsx`) can render a 24px first screen there.
+- **[tooling] Codex outside voice.** The design review's Codex voice is unavailable: `~/.codex/config.toml` sets `gpt-6-astra`, which ChatGPT-account Codex rejects. Point it at a supported model to get a second reviewer.
 
 ## 2026-10-17 — deferred from /plan-ceo-review (public beta launch readiness)
 
