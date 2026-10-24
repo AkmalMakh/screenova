@@ -99,6 +99,8 @@ export const ru: Record<TranslationKey, string> = {
   "toolbar.savedMinutes": "сохранено {minutes} мин назад",
   "toolbar.savedHours": "сохранено {hours} ч назад",
   "toolbar.interfaceLanguage": "Язык интерфейса",
+  "credits.left": "{count} кредит осталось | Кредитов осталось: {count}",
+  "credits.perDesign": "{cost} за дизайн",
 
   // ---- sidebar ----
   "sidebar.screens": "Экраны",

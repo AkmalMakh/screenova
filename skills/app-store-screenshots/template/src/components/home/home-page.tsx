@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { AccountButton } from "@/components/auth/account-button";
+import { announceCreditsChanged, CreditsBadge } from "@/components/auth/credits-badge";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Input } from "@/components/ui/input";
@@ -229,6 +230,7 @@ function Home() {
           screenshots: result.screenshots,
         }),
       });
+      announceCreditsChanged();
       const analysis = (await analysisResponse.json()) as {
         ok?: boolean;
         slides?: SlideAnalysis[];
@@ -456,6 +458,7 @@ function Home() {
             : undefined,
         }),
       });
+      announceCreditsChanged();
       const json = (await response.json()) as { ok?: boolean; deck?: DeckSuggestion; error?: string };
       if (!response.ok || !json.ok || !json.deck?.slides?.length) {
         throw new Error(json.error || t("home.chatFailed"));
@@ -623,6 +626,7 @@ function Home() {
           <span className="rounded-full border border-foreground/70 px-2 py-0.5 text-caption font-medium uppercase tracking-wide">
             {t("home.beta")}
           </span>
+          <CreditsBadge className="hidden sm:inline-flex" />
         </div>
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">

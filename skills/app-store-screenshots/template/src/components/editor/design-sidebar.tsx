@@ -16,6 +16,7 @@ import type {
   DesignReference,
   DesignScope,
 } from "@/lib/design";
+import { CreditsBadge } from "@/components/auth/credits-badge";
 import { useT } from "@/lib/ui-i18n";
 import type { TranslationKey } from "@/lib/ui-translations/en";
 import { cn } from "@/lib/utils";
@@ -312,6 +313,7 @@ export function DesignComposer({
             ? t("designSidebar.attachments", { count: references.length })
             : ""}
         </span>
+        <CreditsBadge className="hidden md:inline-flex" />
 
         {generating ? (
           <Button

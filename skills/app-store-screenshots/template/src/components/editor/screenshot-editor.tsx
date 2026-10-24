@@ -1,6 +1,7 @@
 "use client";
 import { accountScope, apiFetch } from "@/lib/account-scope";
 import { cloudPayloadTooLarge } from "@/lib/cloud-payload";
+import { announceCreditsChanged } from "@/components/auth/credits-badge";
 import { cn } from "@/lib/utils";
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -658,6 +659,7 @@ function Editor() {
     } finally {
       if (designAbortRef.current === controller) designAbortRef.current = null;
       setGeneratingDesign(false);
+      announceCreditsChanged();
     }
   }
 

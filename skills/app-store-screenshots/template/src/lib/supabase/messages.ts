@@ -3,6 +3,7 @@
 import { SUPPORT_EMAIL } from "../support";
 
 export const LIMIT_REACHED = "Daily beta limit reached. Please try again tomorrow.";
+export const CREDITS_EXHAUSTED = `You have used all your beta design credits. Email ${SUPPORT_EMAIL} if you need more.`;
 export const WORKSPACE_UNAVAILABLE = "Cloud workspace is unavailable. No local data was accessed.";
 export const ACCESS_UNAVAILABLE = "Workspace access is unavailable. Confirm your email or contact support.";
 // The database refused an already signed-in member (not a quota): no email advice.

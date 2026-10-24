@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import type * as AccessModule from "./access";
-import { ACTION_UNAVAILABLE, LIMIT_REACHED, WORKSPACE_UNAVAILABLE } from "./messages";
+import { ACTION_UNAVAILABLE, CREDITS_EXHAUSTED, LIMIT_REACHED, WORKSPACE_UNAVAILABLE } from "./messages";
 import type * as ProjectRoute from "@/app/api/project/route";
 
 // Fresh modules per test keep route and access state independent.
@@ -69,6 +69,12 @@ describe("cloud request authorization", () => {
       expect(await status(result)).toBe(429);
       if ("response" in result) expect((await result.response.json()).error).toBe(LIMIT_REACHED);
     }
+    // Spent lifetime credits are a 429 with their own wording: not a daily cap.
+    mocks.rpc.mockResolvedValue({ data: "credits", error: null });
+    const spent = await authorizeRequest(request(), "ai");
+    expect(await status(spent)).toBe(429);
+    if ("response" in spent) expect((await spent.response.json()).error).toBe(CREDITS_EXHAUSTED);
+    expect(CREDITS_EXHAUSTED).not.toContain("tomorrow");
     // The database refusing the account is an access problem, never "wait until tomorrow".
     mocks.rpc.mockResolvedValue({ data: "denied", error: null });
     const denied = await authorizeRequest(request(), "ai");
