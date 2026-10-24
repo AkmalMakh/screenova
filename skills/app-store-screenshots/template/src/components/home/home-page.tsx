@@ -7,6 +7,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  Check,
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
@@ -1004,44 +1005,66 @@ function DeckPreview({
         ))}
       </div>
 
-      <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-card">
-        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-          <div className="min-w-48 flex-1 space-y-1.5">
-            <Label className="text-xs">{t("home.appNameLabel")}</Label>
+      <section
+        aria-label={t("home.openEditor")}
+        className="overflow-hidden rounded-lg border border-border bg-card shadow-card"
+      >
+        <div className="grid gap-5 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6">
+          <div className="space-y-2">
+            <Label htmlFor="deck-app-name" className="block text-footnote font-medium">
+              {t("home.appNameLabel")}
+            </Label>
             <Input
+              id="deck-app-name"
               value={appName}
               onChange={(event) => onAppNameChange(event.target.value)}
               maxLength={60}
-              className="h-8 text-sm"
-              aria-label={t("home.appNameLabel")}
+              className="h-10 rounded-sm text-base"
               disabled={loading}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">{t("home.device")}</Label>
+          <div className="space-y-2">
+            <span id="deck-device-label" className="block text-footnote font-medium">
+              {t("home.device")}
+            </span>
             <DevicePicker
               value={device}
               options={CHAT_DEVICES}
               onChange={onDeviceChange}
               disabled={loading}
+              labelledBy="deck-device-label"
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">{t("home.languages")}</Label>
-            <LocalePicker selected={locales} onToggle={onToggleLocale} disabled={loading} />
+          <div className="space-y-2 sm:col-span-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <span id="deck-languages-label" className="block text-footnote font-medium">
+                {t("home.languages")}
+              </span>
+              <span className="text-caption tabular-nums text-muted-foreground">
+                {locales.length}/{CONTENT_LANGUAGES.length}
+              </span>
+            </div>
+            <LocalePicker
+              selected={locales}
+              onToggle={onToggleLocale}
+              disabled={loading}
+              labelledBy="deck-languages-label"
+            />
           </div>
+        </div>
+        <div className="flex flex-col gap-3 border-t border-border bg-background/60 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-caption text-muted-foreground">{t("home.languagesHint")}</p>
           <Button
             type="button"
-            className="h-9 px-4"
+            className="h-10 shrink-0 gap-2 rounded-sm px-5"
             onClick={onOpenEditor}
             disabled={loading || !appName.trim()}
           >
             {t("home.openEditor")}
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ArrowRight className="h-4 w-4" aria-hidden />
           </Button>
         </div>
-        <p className="mt-2 text-caption text-muted-foreground">{t("home.languagesHint")}</p>
-      </div>
+      </section>
     </div>
   );
 }
@@ -1224,30 +1247,45 @@ function DevicePicker({
   options,
   onChange,
   disabled,
+  labelledBy,
 }: {
   value: Device;
   options: Device[];
   onChange: (device: Device) => void;
   disabled?: boolean;
+  labelledBy?: string;
 }) {
   const { t } = useT();
+  // One choice from a few: a segmented control, not a row of primary buttons
+  // (DESIGN.md: one blue primary action per surface).
   return (
-    <span className="inline-flex flex-wrap gap-1 align-middle">
-      {options.map((device) => (
-        <Button
-          key={device}
-          type="button"
-          size="sm"
-          variant={value === device ? "default" : "outline"}
-          className="h-8 rounded-sm px-3 text-footnote"
-          aria-pressed={value === device}
-          disabled={disabled}
-          onClick={() => onChange(device)}
-        >
-          {deviceLabel(device, t)}
-        </Button>
-      ))}
-    </span>
+    <div
+      role="radiogroup"
+      aria-labelledby={labelledBy}
+      className="inline-flex h-10 items-center gap-0.5 rounded-sm bg-muted p-0.5"
+    >
+      {options.map((device) => {
+        const on = value === device;
+        return (
+          <button
+            key={device}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            disabled={disabled}
+            onClick={() => onChange(device)}
+            className={cn(
+              "h-full whitespace-nowrap rounded-xs px-3.5 text-footnote font-medium transition-[background-color,color,box-shadow] duration-micro ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+              on
+                ? "bg-card text-foreground shadow-[0_1px_2px_hsl(240_10%_8%/0.12)]"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {deviceLabel(device, t)}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1255,31 +1293,39 @@ function LocalePicker({
   selected,
   onToggle,
   disabled,
+  labelledBy,
 }: {
   selected: string[];
   onToggle: (code: string) => void;
   disabled?: boolean;
+  labelledBy?: string;
 }) {
+  // Several choices: toggle chips on the soft selected surface, with a check
+  // so the state never rests on color alone.
   return (
-    <span className="inline-flex flex-wrap gap-1 align-middle">
+    <div role="group" aria-labelledby={labelledBy} className="flex flex-wrap gap-2">
       {CONTENT_LANGUAGES.map((language) => {
         const on = selected.includes(language.code);
         return (
-          <Button
+          <button
             key={language.code}
             type="button"
-            size="sm"
-            variant={on ? "default" : "outline"}
-            className="h-8 rounded-sm px-3 text-footnote"
             aria-pressed={on}
             disabled={disabled}
             onClick={() => onToggle(language.code)}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-xs border px-3 text-footnote font-medium transition-[background-color,border-color,color] duration-micro ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+              on
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-border bg-card text-foreground hover:border-foreground/25",
+            )}
           >
+            {on && <Check className="h-3.5 w-3.5" aria-hidden />}
             {language.name}
-          </Button>
+          </button>
         );
       })}
-    </span>
+    </div>
   );
 }
 
