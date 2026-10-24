@@ -2,7 +2,8 @@
 // Conventions:
 // - "{name}" placeholders are substituted at render time.
 // - A "|" separates the singular (count === 1) and plural forms when a
-//   numeric {count} var is present: "one | many". Valid for en/de/es/fr.
+//   numeric {count} var is present: "one | many". Valid for en/de/es/fr; ru
+//   phrases its many-form noun-first so it reads for 2–4 and 5+ alike.
 // - Keys are flat, hierarchical by dot: toolbar.*, sidebar.*, toasts.*, ...
 // - User data (app names, slide copy, chat, project names, file paths,
 //   raw error text) is deliberately NOT in the dictionary — see exclusions

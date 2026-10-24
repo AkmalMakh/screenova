@@ -4,8 +4,9 @@ import { de } from "./ui-translations/de";
 import { en, type TranslationKey } from "./ui-translations/en";
 import { es } from "./ui-translations/es";
 import { fr } from "./ui-translations/fr";
+import { ru } from "./ui-translations/ru";
 
-const languages = { de, es, fr } as const;
+const languages = { de, es, fr, ru } as const;
 
 function placeholders(text: string): string[] {
   return Array.from(text.matchAll(/\{(\w+)\}/g), (m) => m[1]);
@@ -82,6 +83,7 @@ describe("resolveUiLang", () => {
 
   it("matches the browser language prefix", () => {
     expect(resolveUiLang(null, "de-AT")).toBe("de");
+    expect(resolveUiLang(null, "ru-RU")).toBe("ru");
     expect(resolveUiLang(null, "en-US")).toBe("en");
     expect(resolveUiLang(null, "pt-BR")).toBe("en");
     expect(resolveUiLang(null, "")).toBe("en");
@@ -97,7 +99,7 @@ describe("plural", () => {
 });
 
 describe("DICTIONARIES", () => {
-  it("exposes all four languages", () => {
-    expect(Object.keys(DICTIONARIES).sort()).toEqual(["de", "en", "es", "fr"]);
+  it("exposes all five languages", () => {
+    expect(Object.keys(DICTIONARIES).sort()).toEqual(["de", "en", "es", "fr", "ru"]);
   });
 });

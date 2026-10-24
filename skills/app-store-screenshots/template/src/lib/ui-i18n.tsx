@@ -5,8 +5,9 @@ import { en, type TranslationKey } from "./ui-translations/en";
 import { de } from "./ui-translations/de";
 import { es } from "./ui-translations/es";
 import { fr } from "./ui-translations/fr";
+import { ru } from "./ui-translations/ru";
 
-export type UiLang = "en" | "de" | "es" | "fr";
+export type UiLang = "en" | "de" | "es" | "fr" | "ru";
 
 export const UI_STORAGE_KEY = "app-store-screenshots:ui-lang:v1";
 
@@ -15,9 +16,10 @@ export const UI_LANGUAGES: readonly { code: UiLang; name: string }[] = [
   { code: "de", name: "Deutsch" },
   { code: "es", name: "Español" },
   { code: "fr", name: "Français" },
+  { code: "ru", name: "Русский" },
 ];
 
-export const DICTIONARIES: Record<UiLang, Record<TranslationKey, string>> = { en, de, es, fr };
+export const DICTIONARIES: Record<UiLang, Record<TranslationKey, string>> = { en, de, es, fr, ru };
 
 export type InterpVars = Record<string, string | number>;
 
@@ -28,7 +30,7 @@ export function plural(count: number, one: string, many: string): string {
 /**
  * Render a dictionary entry: pick the plural form via `|` when a numeric
  * `count` var is present (count === 1 → first form, else second — valid for
- * en/de/es/fr), then substitute {name} placeholders. Unknown placeholders are
+ * en/de/es/fr; ru phrases its many-form so it reads for every count), then substitute {name} placeholders. Unknown placeholders are
  * left intact; unknown keys render as the key itself (defensive).
  */
 export function render(

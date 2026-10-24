@@ -14,6 +14,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "认识你的应用",
     ja: "アプリを知る",
     ko: "앱을 만나보세요",
+    ru: "ПОЗНАКОМЬТЕСЬ С ПРИЛОЖЕНИЕМ",
   },
   "Sell one\nidea per slide.": {
     de: "Eine Idee\npro Bildschirm.",
@@ -22,6 +23,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "每页只讲\n一个想法。",
     ja: "1画面に\n1つのアイデア。",
     ko: "한 화면에\n하나의 아이디어.",
+    ru: "Одна идея\nна слайд.",
   },
   "FEATURE 01": {
     de: "FUNKTION 01",
@@ -30,6 +32,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "功能 01",
     ja: "機能 01",
     ko: "기능 01",
+    ru: "ФУНКЦИЯ 01",
   },
   "FEATURE 02": {
     de: "FUNKTION 02",
@@ -38,6 +41,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "功能 02",
     ja: "機能 02",
     ko: "기능 02",
+    ru: "ФУНКЦИЯ 02",
   },
   "FEATURE 03": {
     de: "FUNKTION 03",
@@ -46,6 +50,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "功能 03",
     ja: "機能 03",
     ko: "기능 03",
+    ru: "ФУНКЦИЯ 03",
   },
   "Your headline\nlives here.": {
     de: "Deine Headline\nsteht hier.",
@@ -54,6 +59,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "你的标题\n写在这里。",
     ja: "見出しは\nここに。",
     ko: "헤드라인이\n여기 있어요.",
+    ru: "Ваш заголовок\nживёт здесь.",
   },
   "Show two\nscreens at once.": {
     de: "Zeige zwei\nBildschirme gleichzeitig.",
@@ -62,6 +68,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "同时展示\n两个画面。",
     ja: "2つの画面を\n同時に見せる。",
     ko: "두 화면을\n한 번에 보여주세요.",
+    ru: "Покажите два\nэкрана сразу.",
   },
   "Flip the contrast\nfor visual rhythm.": {
     de: "Wechsle den Kontrast\nfür visuellen Rhythmus.",
@@ -70,6 +77,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "反转对比\n营造视觉节奏。",
     ja: "コントラストを反転して\n視覚的なリズムを。",
     ko: "대비를 뒤집어\n시각적 리듬을 만들어보세요.",
+    ru: "Переверните контраст\nради визуального ритма.",
   },
   "MORE": {
     de: "MEHR",
@@ -78,6 +86,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "更多",
     ja: "もっと",
     ko: "더보기",
+    ru: "ЕЩЁ",
   },
   "And so\nmuch more.": {
     de: "Und noch\nviel mehr.",
@@ -86,6 +95,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "还有\n更多。",
     ja: "さらに\n多くの機能。",
     ko: "그리고\n훨씬 더.",
+    ru: "И многое\nдругое.",
   },
   "Made for\nthe big screen.": {
     de: "Gemacht für\nden großen Bildschirm.",
@@ -94,6 +104,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "为\n大屏而生。",
     ja: "大画面の\nために。",
     ko: "큰 화면을\n위해 만들어졌어요.",
+    ru: "Создано для\nбольшого экрана.",
   },
   "Built for\nfocus.": {
     de: "Gebaut für\nFokus.",
@@ -102,6 +113,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "为专注\n而生。",
     ja: "集中の\nために。",
     ko: "집중을 위해\n만들어졌어요.",
+    ru: "Создано для\nфокуса.",
   },
   "Always within reach.": {
     de: "Immer in\nReichweite.",
@@ -110,6 +122,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "始终\n触手可及。",
     ja: "いつでも\n手の届くところに。",
     ko: "언제나\n손이 닿는 곳에.",
+    ru: "Всегда\nпод рукой.",
   },
   "Pocket-sized\npower.": {
     de: "Kraft im\nTaschenformat.",
@@ -118,6 +131,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "口袋大小\n的强大能力。",
     ja: "ポケットサイズの\nパワー。",
     ko: "주머니 속\n강력함.",
+    ru: "Мощь\nв кармане.",
   },
   "Wide canvas,\nbigger ideas.": {
     de: "Breite Leinwand,\ngrößere Ideen.",
@@ -126,6 +140,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "宽阔画布\n更大创意。",
     ja: "広いキャンバスに\n大きなアイデア。",
     ko: "넓은 캔버스,\n더 큰 아이디어.",
+    ru: "Широкий холст,\nбольшие идеи.",
   },
   "Your tagline goes here.": {
     de: "Dein Slogan steht hier.",
@@ -134,6 +149,7 @@ export const STARTER_COPY: Record<string, Record<string, string>> = {
     zh: "你的宣传语写在这里。",
     ja: "キャッチコピーはここに。",
     ko: "슬로건이 여기에 들어갑니다.",
+    ru: "Здесь будет ваш слоган.",
   },
 };
 

@@ -3,9 +3,9 @@ import { coerceLocalized, pickText } from "./locale";
 import type { AwardBadge, DecorationElement, LocalizedText } from "./types";
 
 export const AWARD_BADGE_PRESETS = [
-  { id: "classic", name: { en: "Classic", de: "Klassisch", es: "Clásico", fr: "Classique" }, color: "#131316", background: "#FCE3A6" },
-  { id: "white", name: { en: "White", de: "Weiß", es: "Blanco", fr: "Blanc" }, color: "#FFFFFF", background: "#442572" },
-  { id: "gold", name: { en: "Gold", de: "Gold", es: "Dorado", fr: "Doré" }, color: "#F4CE78", background: "#1C1C1E" },
+  { id: "classic", name: { en: "Classic", de: "Klassisch", es: "Clásico", fr: "Classique", ru: "Классический" }, color: "#131316", background: "#FCE3A6" },
+  { id: "white", name: { en: "White", de: "Weiß", es: "Blanco", fr: "Blanc", ru: "Белый" }, color: "#FFFFFF", background: "#442572" },
+  { id: "gold", name: { en: "Gold", de: "Gold", es: "Dorado", fr: "Doré", ru: "Золотой" }, color: "#F4CE78", background: "#1C1C1E" },
 ] as const;
 export type AwardBadgePreset = typeof AWARD_BADGE_PRESETS[number];
 
