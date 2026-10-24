@@ -1,5 +1,7 @@
 # Supabase public-signup beta
 
+Update (2026-10-24): production now also answers on `https://www.outrank.kr` (apex redirects to www). Supabase Site URL should be `https://www.outrank.kr`, and the redirect allow-list needs the exact `https://www.outrank.kr/auth/callback` alongside the Vercel and localhost callbacks. When a callback URL is not allow-listed, Supabase silently returns the browser to the Site URL root with `?code=`; the landing page forwards that code to `/auth/callback` so sign-in still completes, but the allow-list is the real fix.
+
 Current configuration (2026-10-16): Google and GitHub sign-in are enabled and were tested locally by the user; the user also confirmed second-account separation locally. Supabase Site URL is `https://screenova-sigma.vercel.app`, with exact redirect `https://screenova-sigma.vercel.app/auth/callback`; `http://localhost:3001/auth/callback` remains allowed for development. Email UI stays disabled, so SMTP is not a launch dependency. Hosted authenticated persistence/upload/export and two-account QA remain separate checks. See [DEPLOYMENT.md](DEPLOYMENT.md) for the latest hosted release status. Historical setup notes below describe earlier stages and do not override this status.
 
 ## GitHub-first launch (approved 2026-10-16)
