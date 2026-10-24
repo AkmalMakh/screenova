@@ -119,6 +119,9 @@ describe("design proposal validation", () => {
             label: null,
             headline: "Neue Überschrift",
             headlineFontFamily: "rounded",
+            backgroundFill: null,
+            frameStyle: null,
+            headlineStyle: null,
             transforms: null,
             textElements: null,
             decorations: null,
@@ -137,6 +140,47 @@ describe("design proposal validation", () => {
     expect(normalized.slidePatches[0].headlineFontFamily).toBe("rounded");
   });
 
+  it("restyles one screen from a reference: background, phone frame and headline style, screenshot kept", () => {
+    // Value: protects=a reference redesign can set the per-screen background gradient, bezel and headline scale; fails_when=the patch drops them and a "match this reference" result keeps the old look
+    const fill = { angle: 180, stops: [{ color: "#ffffff", position: 0 }, { color: "#ffffff", position: 45 }, { color: "#f6c9e4", position: 100 }] };
+    const headlineStyle = { fontSize: 112, fontWeight: 800, lineHeight: 1.1, align: "left" as const };
+    const proposal = normalizeDesignResponse(
+      {
+        summary: "Matched the reference.",
+        targetSlideIds: ["one"],
+        theme: null,
+        slidePatches: [
+          {
+            slideId: "one",
+            layout: null,
+            inverted: false,
+            label: null,
+            headline: null,
+            headlineFontFamily: "geometric",
+            backgroundFill: fill,
+            frameStyle: "white",
+            headlineStyle,
+            transforms: null,
+            textElements: null,
+            decorations: [],
+            visualAssetPrompt: null,
+            visualAssetOpacity: null,
+          },
+        ],
+        newSlides: [],
+      },
+      "en",
+    );
+    const before = project();
+    const after = applyDesignProposal(before, proposal, ["one"]);
+    const slide = after.slidesByDevice[after.device].find((item) => item.id === "one")!;
+    const original = before.slidesByDevice[before.device].find((item) => item.id === "one")!;
+    expect(slide).toMatchObject({ backgroundFill: fill, frameStyle: "white", headlineStyle, headlineFontFamily: "geometric", decorations: [] });
+    expect(slide.screenshot).toBe(original.screenshot);
+    expect(slide.headline).toEqual(original.headline);
+    expect(after.customThemesByDevice?.[after.device]).toEqual(before.customThemesByDevice?.[before.device]);
+  });
+
   it("normalizes a new screen that uses an attached image", () => {
     const normalized = normalizeDesignResponse(
       {
@@ -153,6 +197,9 @@ describe("design proposal validation", () => {
             label: "WORKOUTS",
             headline: "Train with intention",
             headlineFontFamily: "modern",
+            backgroundFill: null,
+            frameStyle: null,
+            headlineStyle: null,
             transforms: null,
             textElements: [],
             decorations: [],

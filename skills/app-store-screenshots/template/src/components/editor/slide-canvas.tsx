@@ -941,13 +941,16 @@ function ScreenGuide({
   active: boolean;
   selected?: boolean;
 }) {
-  // Workspace accent = systemBlue (--primary), matching the app chrome.
+  // Workspace accent = --primary, so the guide follows light/dark chrome.
+  // Widths and the number chip are in SCREEN pixels: the stage publishes
+  // --canvas-inv (1 / zoom), so they stay crisp at 20% and at 300%.
   const emphasized = active || selected;
   const ring = active
-    ? "rgba(0, 113, 230, 0.95)"
+    ? "hsl(var(--primary))"
     : selected
-      ? "rgba(0, 113, 230, 0.7)"
-      : "rgba(15, 23, 42, 0.22)";
+      ? "hsl(var(--primary) / 0.7)"
+      : "hsl(240 10% 8% / 0.18)";
+  const width = emphasized ? "calc(2px * var(--canvas-inv, 1))" : "calc(1px * var(--canvas-inv, 1))";
   return (
     <div
       aria-hidden
@@ -955,13 +958,14 @@ function ScreenGuide({
         position: "absolute",
         inset: 0,
         pointerEvents: "none",
-        outline: `${emphasized ? Math.max(4, cW * 0.003) : Math.max(2, cW * 0.0015)}px solid ${ring}`,
-        outlineOffset: emphasized ? -Math.max(4, cW * 0.003) : -Math.max(2, cW * 0.0015),
+        outline: `${width} solid ${ring}`,
+        outlineOffset: `calc(-1 * ${width})`,
         boxShadow: active
-          ? "inset 0 0 0 9999px rgba(0, 113, 230, 0.03)"
+          ? "inset 0 0 0 9999px hsl(var(--primary) / 0.03)"
           : selected
-            ? "inset 0 0 0 9999px rgba(0, 113, 230, 0.06)"
+            ? "inset 0 0 0 9999px hsl(var(--primary) / 0.06)"
             : "inset 0 0 0 1px rgba(255, 255, 255, 0.22)",
+        transition: "outline-color var(--dur-short) var(--ease-out), box-shadow var(--dur-short) var(--ease-out)",
       }}
     >
     </div>
@@ -1568,7 +1572,8 @@ function Movable({
         onChange({ ...next, rotation, zIndex });
       }}
       style={{ zIndex }}
-      resizeHandleStyles={handleStyle}
+      resizeHandleStyles={handleStyles(controlScale)}
+      resizeHandleClasses={HANDLE_CLASSES}
       className={selected ? "rnd-editable rnd-selected" : "rnd-editable"}
     >
       {rotated}
@@ -1602,15 +1607,27 @@ function normalizeRotation(degrees: number) {
   return Math.round(next);
 }
 
-// Subtle resize handles (visible only on hover via globals.css).
-const handleSize = 14;
-const handleStyle: Record<string, React.CSSProperties> = {
-  top: { height: handleSize },
-  right: { width: handleSize },
-  bottom: { height: handleSize },
-  left: { width: handleSize },
-  topRight: { width: handleSize, height: handleSize },
-  bottomRight: { width: handleSize, height: handleSize },
-  bottomLeft: { width: handleSize, height: handleSize },
-  topLeft: { width: handleSize, height: handleSize },
+// Resize handles. Hit areas are 16 screen px whatever the zoom (14 canvas px
+// was a 3px target at 25%); corners draw a Figma-style square via
+// globals.css (.rnd-handle-corner) once the element is selected.
+const HANDLE_HIT = 16;
+function handleStyles(scale: number): Record<string, React.CSSProperties> {
+  const s = HANDLE_HIT / scale;
+  const half = -s / 2;
+  return {
+    top: { height: s, top: half },
+    right: { width: s, right: half },
+    bottom: { height: s, bottom: half },
+    left: { width: s, left: half },
+    topRight: { width: s, height: s, right: half, top: half },
+    bottomRight: { width: s, height: s, right: half, bottom: half },
+    bottomLeft: { width: s, height: s, left: half, bottom: half },
+    topLeft: { width: s, height: s, left: half, top: half },
+  };
+}
+const HANDLE_CLASSES = {
+  topRight: "rnd-handle-corner",
+  bottomRight: "rnd-handle-corner",
+  bottomLeft: "rnd-handle-corner",
+  topLeft: "rnd-handle-corner",
 };

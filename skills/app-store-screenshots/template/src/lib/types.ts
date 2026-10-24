@@ -171,4 +171,8 @@ export type ProjectMeta = {
   id: string;
   name: string;
   updatedAt: number;
+  /** The project's current device, for the Studio list's device glyph. */
+  device?: Device;
+  /** First screenshot on that device, for the Studio list thumbnail. */
+  thumb?: string;
 };

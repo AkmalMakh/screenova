@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { backgroundFillSchema, frameStyleSchema, headlineStyleSchema } from "./slide-appearance";
 import { awardBadgeSchema } from "./award-badge";
 import { DECORATION_ICON_NAMES } from "./decoration-icon-names";
 import type {
@@ -132,6 +133,9 @@ const responseSlidePatchSchema = z.object({
   label: z.string().max(240).nullable(),
   headline: z.string().max(240).nullable(),
   headlineFontFamily: headlineFontFamilySchema.nullable(),
+  backgroundFill: backgroundFillSchema.nullable(),
+  frameStyle: frameStyleSchema.nullable(),
+  headlineStyle: headlineStyleSchema.nullable(),
   transforms: responseBuiltInTransformsSchema.nullable(),
   textElements: z.array(responseTextElementSchema).max(12).nullable(),
   decorations: z.array(responseDecorationElementSchema).max(20).nullable(),
@@ -155,6 +159,9 @@ const responseNewSlideSchema = z.object({
   label: z.string().max(240),
   headline: z.string().max(240),
   headlineFontFamily: headlineFontFamilySchema,
+  backgroundFill: backgroundFillSchema.nullable(),
+  frameStyle: frameStyleSchema.nullable(),
+  headlineStyle: headlineStyleSchema.nullable(),
   transforms: responseBuiltInTransformsSchema.nullable(),
   textElements: z.array(responseTextElementSchema).max(12),
   decorations: z.array(responseDecorationElementSchema).max(20),
@@ -193,6 +200,9 @@ const slidePatchSchema = z.object({
   label: localizedTextSchema.optional(),
   headline: localizedTextSchema.optional(),
   headlineFontFamily: headlineFontFamilySchema.optional(),
+  backgroundFill: backgroundFillSchema.optional(),
+  frameStyle: frameStyleSchema.optional(),
+  headlineStyle: headlineStyleSchema.optional(),
   transforms: builtInTransformsSchema.optional(),
   textElements: z.array(textElementSchema).max(12).optional(),
   decorations: z.array(decorationElementSchema).max(20).optional(),
@@ -216,6 +226,9 @@ const newSlideSchema = z.object({
   label: localizedTextSchema,
   headline: localizedTextSchema,
   headlineFontFamily: headlineFontFamilySchema,
+  backgroundFill: backgroundFillSchema.optional(),
+  frameStyle: frameStyleSchema.optional(),
+  headlineStyle: headlineStyleSchema.optional(),
   transforms: builtInTransformsSchema.optional(),
   textElements: z.array(textElementSchema).max(12),
   decorations: z.array(decorationElementSchema).max(20),
@@ -299,6 +312,8 @@ export type DesignReference = {
   name: string;
   mimeType: "image/png" | "image/jpeg" | "image/webp";
   dataUrl: string;
+  /** "inspiration": a style reference only, never a new screen's screenshot. */
+  purpose?: "inspiration";
 };
 
 export type DesignRequest = {
@@ -307,7 +322,7 @@ export type DesignRequest = {
   project: ProjectState;
   // dataUrl carries an inline image locally, or a private /api/assets/ path in cloud mode.
   renderedPreviews: Array<{ slideId: string; dataUrl: string }>;
-  references: Array<{ id: string; name: string; mimeType: string; dataUrl: string }>;
+  references: Array<{ id: string; name: string; mimeType: string; dataUrl: string; purpose?: string }>;
   conversation: Array<{ role: "user" | "assistant"; text: string }>;
 };
 
@@ -331,6 +346,9 @@ export function normalizeDesignResponse(input: unknown, locale: string): DesignP
       ...(patch.headlineFontFamily !== null
         ? { headlineFontFamily: patch.headlineFontFamily }
         : {}),
+      ...(patch.backgroundFill !== null ? { backgroundFill: patch.backgroundFill } : {}),
+      ...(patch.frameStyle !== null ? { frameStyle: patch.frameStyle } : {}),
+      ...(patch.headlineStyle !== null ? { headlineStyle: patch.headlineStyle } : {}),
       ...(patch.transforms !== null
         ? { transforms: normalizeResponseTransforms(patch.transforms) }
         : {}),
@@ -361,6 +379,9 @@ export function normalizeDesignResponse(input: unknown, locale: string): DesignP
       label: { [localeKey]: slide.label },
       headline: { [localeKey]: slide.headline },
       headlineFontFamily: slide.headlineFontFamily,
+      ...(slide.backgroundFill !== null ? { backgroundFill: slide.backgroundFill } : {}),
+      ...(slide.frameStyle !== null ? { frameStyle: slide.frameStyle } : {}),
+      ...(slide.headlineStyle !== null ? { headlineStyle: slide.headlineStyle } : {}),
       ...(slide.transforms !== null
         ? { transforms: normalizeResponseTransforms(slide.transforms) }
         : {}),
@@ -514,6 +535,9 @@ export function applyDesignProposal(
       label: spec.label,
       headline: spec.headline,
       headlineFontFamily: spec.headlineFontFamily,
+      ...(spec.backgroundFill ? { backgroundFill: spec.backgroundFill } : {}),
+      ...(spec.frameStyle ? { frameStyle: spec.frameStyle } : {}),
+      ...(spec.headlineStyle ? { headlineStyle: spec.headlineStyle } : {}),
       screenshot: asset.screenshot,
       inverted: spec.inverted,
       ...(spec.transforms ? { transforms: spec.transforms } : {}),
@@ -585,6 +609,9 @@ function applySlidePatch(
     ...(patch.headlineFontFamily
       ? { headlineFontFamily: patch.headlineFontFamily }
       : {}),
+    ...(patch.backgroundFill ? { backgroundFill: patch.backgroundFill } : {}),
+    ...(patch.frameStyle ? { frameStyle: patch.frameStyle } : {}),
+    ...(patch.headlineStyle ? { headlineStyle: patch.headlineStyle } : {}),
     ...(patch.transforms ? { transforms: patch.transforms as Slide["transforms"] } : {}),
     ...(patch.textElements
       ? {

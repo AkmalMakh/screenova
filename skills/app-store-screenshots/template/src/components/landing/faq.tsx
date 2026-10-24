@@ -1,11 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import { Reveal, RevealGroup, fadeUp } from './reveal';
-import { Kicker } from './kicker';
-import { SectionHeading } from './section-heading';
-import { motion } from 'motion/react';
-import { ease } from './theme';
+import { Plus } from 'lucide-react';
 
 interface FaqItem {
   q: string;
@@ -48,7 +43,7 @@ const FAQS: FaqItem[] = [
 ];
 
 export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
   const faqs = FAQS.map((item) => {
     if (!cloud) return item;
     if (item.q === 'Do I need an account to use Screenova?') return {
@@ -64,51 +59,36 @@ export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
   });
 
   return (
-    <section className="border-t border-border bg-background py-24 text-foreground">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6">
-        <Reveal className="text-center">
-          <Kicker index="08" label="Frequently asked" tone="violet" />
-          <SectionHeading className="mx-auto mt-4 max-w-md">
-            Questions people actually ask
-          </SectionHeading>
-        </Reveal>
-
-        <RevealGroup className="mt-12 divide-y divide-border border-y border-border">
+    <section aria-labelledby="faq-title" className="px-5 py-16 sm:py-24">
+      <div className="mx-auto max-w-[760px]">
+        <h2 id="faq-title" className="text-center text-[32px] font-normal tracking-[-0.02em] sm:text-[44px]">
+          Frequently asked questions
+        </h2>
+        <div className="mt-10 space-y-2">
           {faqs.map((item, idx) => {
             const isOpen = openIndex === idx;
             return (
-              <motion.div key={idx} variants={fadeUp} className="py-1">
+              <div key={idx} className="rounded-[14px] bg-white/[0.07] transition-colors hover:bg-white/[0.1]">
                 <button
                   type="button"
                   onClick={() => setOpenIndex(isOpen ? null : idx)}
-                  className="btn-press flex w-full cursor-pointer items-center justify-between gap-4 py-4 text-left"
+                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
                   aria-expanded={isOpen}
                   aria-controls={`faq-answer-${idx}`}
                 >
-                  <span className="text-[14px] font-semibold text-foreground sm:text-[15px]">{item.q}</span>
-                  <ChevronDown aria-hidden="true"
-                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
-                      isOpen ? 'rotate-180' : ''
-                    }`}
+                  <span className="text-[16px] text-white">{item.q}</span>
+                  <Plus aria-hidden="true"
+                    className={`h-4 w-4 shrink-0 text-white/70 transition-transform duration-200 ${isOpen ? 'rotate-45' : ''}`}
                   />
                 </button>
-                {/* Answers stay in the DOM (crawlers, find-in-page) and fade in when
-                    opened; height snaps instead of animating so no layout runs per frame. */}
-                <motion.div
-                  id={`faq-answer-${idx}`}
-                  hidden={!isOpen}
-                  initial={false}
-                  animate={{ opacity: isOpen ? 1 : 0 }}
-                  transition={{ duration: 0.18, ease: ease.out }}
-                >
-                  <p className="pb-5 max-w-2xl text-footnote text-muted-foreground">
-                    {item.a}
-                  </p>
-                </motion.div>
-              </motion.div>
+                {/* Answers stay in the DOM (crawlers, find-in-page). */}
+                <div id={`faq-answer-${idx}`} hidden={!isOpen}>
+                  <p className="max-w-2xl px-5 pb-5 text-[15px] leading-relaxed text-white/70">{item.a}</p>
+                </div>
+              </div>
             );
           })}
-        </RevealGroup>
+        </div>
       </div>
     </section>
   );

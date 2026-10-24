@@ -82,6 +82,13 @@ export function useT(): T {
   return value;
 }
 
+// For shared primitives that also render outside the app shell (marketing
+// pages have no LanguageProvider): English there, the chosen language inside.
+const englishT: T["t"] = (key, vars) => render(DICTIONARIES.en, key, vars);
+export function useMaybeT(): T["t"] {
+  return React.useContext(LanguageContext)?.t ?? englishT;
+}
+
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   // "en" first so the first client render matches the server HTML.
   const [lang, setLangState] = React.useState<UiLang>("en");

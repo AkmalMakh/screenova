@@ -32,7 +32,8 @@ test("account A: large upload, localized replacement, reload and export on the r
 
   await page.goto("/editor");
   await expect(page.getByRole("textbox", { name: "App name", exact: true })).toHaveValue("Smoke App");
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor: the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   const fileInput = page.locator('input[type="file"][aria-label]').first();
 
   // 1. First upload goes straight to private Storage, then finalizes by path.
@@ -119,7 +120,7 @@ test("account B cannot see or fetch account A's data", async ({ accountA, accoun
   expect((await saveWorkspace(accountA.request, smokeBundle(PROJECT, "isolation"), start.revision, start.ownerId)).status()).toBe(200);
   await accountA.page.goto("/editor");
   await expect(accountA.page.getByRole("textbox", { name: "App name", exact: true })).toHaveValue("Smoke App");
-  await accountA.page.getByRole("button", { name: "Show screen settings" }).click();
+  await expect(accountA.page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   const uploaded = accountA.page.waitForResponse((r) => r.url().endsWith("/api/upload"), { timeout: 120_000 });
   const small = await sharp({ create: { width: 120, height: 260, channels: 3, background: "#118844" } }).png().toBuffer();
   await accountA.page.locator('input[type="file"][aria-label]').first().setInputFiles({ name: "isolation.png", mimeType: "image/png", buffer: small });

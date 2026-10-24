@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import type { ProjectMeta } from "@/lib/types";
+import { formatUpdatedAt } from "@/lib/relative-time";
 import { useT } from "@/lib/ui-i18n";
 
 type Props = {
@@ -58,6 +59,7 @@ export function ProjectSwitcher({
   const [renamingId, setRenamingId] = React.useState<string | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
 
   // Clear per-row modes if their project disappears (deleted elsewhere).
   React.useEffect(() => {
@@ -77,7 +79,18 @@ export function ProjectSwitcher({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu
+        onOpenChange={(open) => {
+          // Long lists: open with the current project in view, not row one.
+          if (open) {
+            requestAnimationFrame(() =>
+              listRef.current
+                ?.querySelector('[aria-checked="true"]')
+                ?.scrollIntoView({ block: "nearest" }),
+            );
+          }
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
@@ -92,21 +105,33 @@ export function ProjectSwitcher({
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
-          <DropdownMenuLabel>{t("projectSwitcher.projects")}</DropdownMenuLabel>
-          {projects.map((project) => (
-            <DropdownMenuCheckboxItem
-              key={project.id}
-              checked={project.id === activeId}
-              onSelect={(event) => {
-                event.preventDefault(); // keep the menu open so the check moves
-                if (project.id !== activeId && !disabled) onSwitch(project.id);
-              }}
-            >
-              <span className="truncate">{project.name}</span>
-            </DropdownMenuCheckboxItem>
-          ))}
-          <DropdownMenuSeparator />
+        {/* The list scrolls; New / Manage stay pinned so they are always one
+            click away, however many projects exist. */}
+        <DropdownMenuContent
+          align="start"
+          collisionPadding={12}
+          className="flex w-64 max-h-[min(32rem,var(--radix-dropdown-menu-content-available-height))] flex-col overflow-hidden"
+        >
+          <DropdownMenuLabel className="shrink-0">{t("projectSwitcher.projects")}</DropdownMenuLabel>
+          <div ref={listRef} className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
+            {projects.map((project) => (
+              <DropdownMenuCheckboxItem
+                key={project.id}
+                checked={project.id === activeId}
+                onSelect={(event) => {
+                  event.preventDefault(); // keep the menu open so the check moves
+                  if (project.id !== activeId && !disabled) onSwitch(project.id);
+                }}
+                className="gap-3"
+              >
+                <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
+                  {formatUpdatedAt(project.updatedAt, t)}
+                </span>
+              </DropdownMenuCheckboxItem>
+            ))}
+          </div>
+          <DropdownMenuSeparator className="shrink-0" />
           <DropdownMenuItem onSelect={() => onCreate()} disabled={disabled}>
             <Plus className="h-3.5 w-3.5" /> {t("projectSwitcher.newProject")}
           </DropdownMenuItem>

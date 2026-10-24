@@ -39,21 +39,22 @@ test.beforeEach(async ({ page, request }) => {
 });
 
 test("workspace appearance persists across routes without changing artwork and fits phones", async ({ page, request }, testInfo) => {
-  await page.goto("/");
+  await page.goto("/studio");
   await expect(page.locator("html")).not.toHaveClass(/screenova-dark/);
   await page.getByRole("button", { name: "Switch to dark theme" }).click();
-  for (const route of ["/", "/studio", "/editor"]) {
+  for (const route of ["/studio", "/editor"]) {
     await page.goto(route);
     await expect(page.getByRole("button", { name: "Switch to light theme" })).toBeVisible();
     await expect(page.locator("html")).toHaveClass(/screenova-dark/);
-    await page.screenshot({ path: testInfo.outputPath(`${route.slice(1) || "landing"}-dark.png`) });
+    await page.screenshot({ path: testInfo.outputPath(`${route.slice(1)}-dark.png`) });
   }
   expect((await activeProject(request)).themeId).toBe("clean-light");
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   for (const route of ["/", "/studio", "/editor"]) {
     await page.goto(route);
-    await expect(page.getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
+    // The landing is always dark and has no appearance toggle.
+    if (route !== "/") await expect(page.getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
     await expect(page.locator("html")).not.toHaveClass(/screenova-dark/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (route === "/editor") {
@@ -69,10 +70,12 @@ test("workspace appearance persists across routes without changing artwork and f
 
 test("landing AI opens the real composer with the supplied prompt", async ({ page }) => {
   await page.goto("/");
-  await page.getByPlaceholder("Describe a design direction…").fill("A calm calendar app for busy parents");
+  await page.getByPlaceholder("What app shall we make screenshots for?").fill("A calm calendar app for busy parents");
+  await page.getByRole("group", { name: "Device" }).getByRole("button", { name: "iPad", exact: true }).click();
   await page.getByRole("button", { name: "Design with AI", exact: true }).click();
   await expect(page).toHaveURL(/\/studio$/);
   await expect(page.getByPlaceholder(/Describe your app/)).toHaveValue("A calm calendar app for busy parents");
+  await expect(page.getByRole("group", { name: "Device" }).getByRole("button", { name: "iPad", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("pasted description links auto-attach and Send waits for App Store screenshots", async ({ page, context }) => {
@@ -166,23 +169,12 @@ test("create a multilingual project and persist it through navigation", async ({
   await page.getByRole("textbox", { name: "App name", exact: true }).fill("My launch app");
   await page.getByRole("button", { name: "Home", exact: true }).click();
   await expect(page).toHaveURL(/\/studio$/);
-  await page.getByRole("main").getByRole("button", { name: /Launch campaign/ }).click();
+  await page.getByRole("navigation", { name: "Recent projects" }).getByRole("button", { name: /Launch campaign/ }).click();
   await expect(page.getByRole("textbox", { name: "App name", exact: true })).toHaveValue("My launch app");
   await expect.poll(async () => (await activeProject(request)).locales).toEqual(["en", "de"]);
   await page.reload();
   await expect(page.getByRole("textbox", { name: "App name", exact: true })).toHaveValue("My launch app");
 });
-
-for (const [name, count, theme] of [["Feature tour", 9, "clean-light"], ["Minimal three", 3, "clean-light"], ["Bold contrast", 3, "dark-bold"]] as const) {
-  test(`preset ${name} creates ${count} editable screens`, async ({ page, request }) => {
-    await page.goto("/studio");
-    await page.getByRole("button", { name: `${name} ${count} slides`, exact: true }).first().click();
-    await expect(page).toHaveURL(/\/editor$/);
-    await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
-    await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone.length).toBe(count);
-    expect((await activeProject(request)).themeId).toBe(theme);
-  });
-}
 
 test("edits survive an immediate refresh before the autosave debounce", async ({ page, request }) => {
   await openEditor(page);
@@ -194,10 +186,11 @@ test("edits survive an immediate refresh before the autosave debounce", async ({
 
 test("edit copy, duplicate, delete, undo and switch device decks", async ({ page, request }) => {
   await openEditor(page);
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   await page.getByRole("textbox", { name: "Headline", exact: true }).fill("Everything in one calm place");
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Everything in one calm place");
-  await page.getByRole("button", { name: "Show screens", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Hide screens", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Duplicate screen 1", exact: true }).click();
   await expect(page.getByRole("button", { name: "Delete screen 2", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Delete screen 2", exact: true }).click();
@@ -216,7 +209,8 @@ test("escaped newline copy is cleaned on load, typing and AI Apply", async ({ pa
   bundle.projects.qa.slidesByDevice.iphone[0].headline.en = String.raw`Notice the days\\nthat shape you`;
   await request.post("/api/project", { data: bundle });
   await openEditor(page);
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   const headline = page.getByRole("textbox", { name: "Headline", exact: true });
   await expect(headline).toHaveValue("Notice the days that shape you");
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Notice the days that shape you");
@@ -232,13 +226,15 @@ test("escaped newline copy is cleaned on load, typing and AI Apply", async ({ pa
   await expect(headline).toHaveValue("Keep your rhythm in reach");
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Keep your rhythm in reach");
   await page.reload();
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   await expect(headline).toHaveValue("Keep your rhythm in reach");
 });
 
 test("upload a fresh image in production and export correctly sized PNGs", async ({ page, request }, testInfo) => {
   await openEditor(page);
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Manual-first editor (DESIGN.md): the inspector is open by default on desktop.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   const pixels = await sharp({ create: { width: 240, height: 520, channels: 3, background: "#E45137" } }).png().toBuffer();
   await page.locator('input[type="file"][aria-label]').setInputFiles({ name: "qa-screen.png", mimeType: "image/png", buffer: pixels });
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].screenshot).toMatch(/^\/screenshots\/uploaded\//);
@@ -269,6 +265,55 @@ test("upload a fresh image in production and export correctly sized PNGs", async
     expect(screenshotPixels).toBeGreaterThan(100); // The uploaded image is actually rendered, not a black placeholder.
   }
   await page.screenshot({ path: testInfo.outputPath("exported-editor.png") });
+});
+
+test("Match reference restyles the current screen from an attached image", async ({ page, request }) => {
+  await openEditor(page);
+  const screenshotBefore = (await activeProject(request)).slidesByDevice.iphone[0].screenshot;
+  const fill = { angle: 180, stops: [{ color: "#ffffff", position: 0 }, { color: "#f6c9e4", position: 100 }] };
+  const headlineStyle = { fontSize: 112, fontWeight: 800, lineHeight: 1.1, align: "left" };
+  let sent: { prompt: string; references: { name: string; dataUrl: string }[]; scope: { slideIds: string[] } } | undefined;
+  await page.route("**/api/design", async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({ json: { ok: true, proposal: {
+      summary: "Matched the reference", targetSlideIds: ["screen-iphone"],
+      slidePatches: [{ slideId: "screen-iphone", backgroundFill: fill, frameStyle: "white", headlineStyle, decorations: [] }],
+    }, generatedVisualAssets: [] } });
+  });
+  const match = page.getByRole("button", { name: "Match reference", exact: true });
+  await expect(match).toHaveCount(0);
+  const reference = await sharp({ create: { width: 120, height: 260, channels: 3, background: "#F6C9E4" } }).png().toBuffer();
+  await page.locator("input[data-design-attachments]").setInputFiles({ name: "reference.png", mimeType: "image/png", buffer: reference });
+  await page.getByRole("textbox", { name: /Redesign screens/ }).fill("Make it feel calm");
+  await match.click();
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  expect(sent?.prompt).toMatch(/^Redesign the target screen to match the attached reference/);
+  expect(sent?.prompt).toMatch(/Make it feel calm$/);
+  expect(sent?.references.map((item) => item.name)).toEqual(["reference.png"]);
+  expect(sent?.scope.slideIds).toEqual(["screen-iphone"]);
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0]).toMatchObject({ backgroundFill: fill, frameStyle: "white", headlineStyle });
+  expect((await activeProject(request)).slidesByDevice.iphone[0].screenshot).toBe(screenshotBefore);
+});
+
+test("Inspiration button attaches a style reference that sends without typing", async ({ page }) => {
+  await openEditor(page);
+  let sent: { prompt: string; references: { name: string; purpose?: string }[] } | undefined;
+  await page.route("**/api/design", async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({ json: { ok: true, proposal: {
+      summary: "Matched", targetSlideIds: ["screen-iphone"],
+      slidePatches: [{ slideId: "screen-iphone", frameStyle: "white" }],
+    }, generatedVisualAssets: [] } });
+  });
+  const image = await sharp({ create: { width: 120, height: 260, channels: 3, background: "#C9E4F6" } }).png().toBuffer();
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Add an inspiration image to restyle the target screen like it" }).click();
+  await (await chooser).setFiles({ name: "look.png", mimeType: "image/png", buffer: image });
+  await expect(page.getByRole("img", { name: "Inspiration", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Generate redesign" }).click();
+  await expect(page.getByRole("button", { name: "Apply", exact: true })).toBeVisible();
+  expect(sent?.references).toEqual([expect.objectContaining({ name: "look.png", purpose: "inspiration" })]);
+  expect(sent?.prompt).toMatch(/^Redesign the target screen to match the attached reference/);
 });
 
 test("AI preview disables export, supports discard and applies one undoable edit", async ({ page, request }) => {
@@ -421,7 +466,7 @@ test("Studio remains usable on a phone viewport", async ({ page }) => {
   await page.goto("/studio");
   await expect(page.getByPlaceholder(/Describe your app/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole("button", { name: "Start blank", exact: true }).click();
+  await page.getByRole("button", { name: "Blank project", exact: true }).click();
   await expect(page.getByRole("button", { name: "Export bundle" })).toBeVisible();
 });
 
@@ -692,4 +737,20 @@ test("mobile editor keeps zoom reachable and opens one panel at a time", async (
   await expect(page.locator("#screens-panel")).toBeHidden();
   await expect(page.locator("#screen-settings-panel")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("Android can take the iPhone design in one click and undo it", async ({ page, request }) => {
+  await openEditor(page);
+  await page.getByRole("button", { name: "Show screen settings" }).click();
+  await page.getByRole("textbox", { name: "Headline", exact: true }).fill("Shared across stores");
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Shared across stores");
+  await page.getByRole("tab", { name: "Android", exact: true }).click();
+  await expect(page.getByText("1080×1920")).toBeVisible();
+  await page.getByRole("button", { name: "Use iPhone design", exact: true }).click();
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.android[0].headline.en).toBe("Shared across stores");
+  const copied = await activeProject(request);
+  expect(copied.device).toBe("android");
+  expect(copied.slidesByDevice.android[0].id).not.toBe(copied.slidesByDevice.iphone[0].id);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.android[0].headline.en).toBe("Your day, organized");
 });
