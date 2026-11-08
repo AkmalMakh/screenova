@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
-import type { z } from "zod";
+import { z } from "zod";
 
 // One way for every design route to ask a model for a structured design.
 //
@@ -97,15 +97,90 @@ async function viaOpenAI<Schema extends z.ZodType>({ task, system, content, sche
   return (response.output_parsed as z.infer<Schema> | null) ?? null;
 }
 
-async function viaClaude<Schema extends z.ZodType>({ task, system, content, schema, signal }: {
-  task: DesignTask; system: string; content: DesignPart[]; schema: Schema; signal?: AbortSignal;
+// Claude's guaranteed-JSON mode compiles the schema into a grammar with a size
+// limit. The full deck schema (copy per language, transforms, decorations)
+// exceeds it, so those schemas fall back to plain JSON with the schema in the
+// prompt, validated by the same zod schema here. Remembered per schema name so
+// only the first request on an instance pays for the refused call.
+const PROMPTED_SCHEMAS = new Set<string>();
+const GRAMMAR_TOO_LARGE = /grammar is too large|schema is too (?:large|complex)/i;
+
+async function viaClaude<Schema extends z.ZodType>({ task, system, content, schema, name, signal }: {
+  task: DesignTask; system: string; content: DesignPart[]; schema: Schema; name: string; signal?: AbortSignal;
 }): Promise<z.infer<Schema> | null> {
-  const spec = CLAUDE[task];
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const blocks: Anthropic.ContentBlockParam[] = [];
   for (const part of content) {
     blocks.push(part.type === "text" ? { type: "text", text: part.text } : await claudeImage(part.url));
   }
+  if (!PROMPTED_SCHEMAS.has(name)) {
+    try {
+      const message = await callClaude(task, system, blocks, signal, zodOutputFormat(schema));
+      return (message.parsed_output as z.infer<Schema> | null) ?? null;
+    } catch (error) {
+      if (!(error instanceof Anthropic.APIError && error.status === 400 && GRAMMAR_TOO_LARGE.test(error.message))) throw error;
+      PROMPTED_SCHEMAS.add(name);
+    }
+  }
+  const instructions = `${system}
+
+RESPONSE FORMAT
+Reply with exactly one JSON object and nothing else: no prose, no code fences. Every property in the schema is required; use null where the schema allows it. It must validate against this JSON Schema:
+${JSON.stringify(z.toJSONSchema(schema))}`;
+  const message = await callClaude(task, instructions, blocks, signal);
+  const text = message.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end < start) throw new Error("The model returned no design.");
+  let value: unknown;
+  try {
+    value = JSON.parse(text.slice(start, end + 1));
+  } catch {
+    throw new Error("The model returned a design that isn't valid JSON.");
+  }
+  let parsed = schema.safeParse(value);
+  // A two-minute draft shouldn't be thrown away because a summary ran past
+  // its length limit: trim, clamp and cut what overran, then check again.
+  for (let round = 0; !parsed.success && round < 3 && repairOverruns(value, parsed.error.issues); round += 1) {
+    parsed = schema.safeParse(value);
+  }
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    throw new Error(`The model returned an invalid design${issue ? ` (${issue.path.join(".") || "root"}: ${issue.code}, ${issue.message})` : ""}.`);
+  }
+  return parsed.data;
+}
+
+/** Fixes length and range overruns in place; true when anything changed. */
+export function repairOverruns(value: unknown, issues: z.core.$ZodIssue[]): boolean {
+  let changed = false;
+  for (const issue of issues) {
+    if (issue.code !== "too_big" && issue.code !== "too_small") continue;
+    const key = issue.path[issue.path.length - 1];
+    let parent: unknown = value;
+    for (const step of issue.path.slice(0, -1)) parent = (parent as Record<PropertyKey, unknown> | null)?.[step as PropertyKey];
+    if (parent === null || typeof parent !== "object" || key === undefined) continue;
+    const container = parent as Record<PropertyKey, unknown>;
+    const current = container[key as PropertyKey];
+    const limit = Number(issue.code === "too_big" ? issue.maximum : issue.minimum);
+    if (!Number.isFinite(limit)) continue;
+    if (issue.code === "too_big" && typeof current === "string") container[key as PropertyKey] = current.slice(0, limit).trimEnd();
+    else if (issue.code === "too_big" && Array.isArray(current)) container[key as PropertyKey] = current.slice(0, limit);
+    else if (typeof current === "number") container[key as PropertyKey] = issue.code === "too_big" ? Math.min(current, limit) : Math.max(current, limit);
+    else continue;
+    changed = true;
+  }
+  return changed;
+}
+
+async function callClaude(
+  task: DesignTask,
+  system: string,
+  blocks: Anthropic.ContentBlockParam[],
+  signal: AbortSignal | undefined,
+  format?: ReturnType<typeof zodOutputFormat>,
+) {
+  const spec = CLAUDE[task];
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   // Streamed so a long, high-effort draft never trips the SDK's limit on
   // non-streaming calls; only the final message is used.
   const started = Date.now();
@@ -115,7 +190,7 @@ async function viaClaude<Schema extends z.ZodType>({ task, system, content, sche
       max_tokens: spec.maxTokens,
       system: [{ type: "text", text: system, ...(spec.cacheSystem ? { cache_control: { type: "ephemeral" as const } } : {}) }],
       messages: [{ role: "user", content: blocks }],
-      output_config: { effort: spec.effort, format: zodOutputFormat(schema) },
+      output_config: { effort: spec.effort, ...(format ? { format } : {}) },
     },
     { signal },
   );
@@ -124,6 +199,7 @@ async function viaClaude<Schema extends z.ZodType>({ task, system, content, sche
   console.info("screenova_ai_usage", {
     task,
     model: message.model,
+    mode: format ? "structured" : "prompted",
     ms: Date.now() - started,
     input: message.usage.input_tokens,
     cacheRead: message.usage.cache_read_input_tokens ?? 0,
@@ -134,7 +210,7 @@ async function viaClaude<Schema extends z.ZodType>({ task, system, content, sche
   });
   if (message.stop_reason === "max_tokens") throw new Error("The design ran too long and was cut off. Try fewer screens or languages.");
   if (message.stop_reason === "refusal") throw new Error("Claude declined to design this. Try different screenshots or wording.");
-  return (message.parsed_output as z.infer<Schema> | null) ?? null;
+  return message;
 }
 
 // Data URLs (uploads, previews) are shrunk and inlined; remote App Store

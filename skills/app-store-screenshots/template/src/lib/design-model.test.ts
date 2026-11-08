@@ -118,6 +118,57 @@ describe("drafting with Claude", () => {
   });
 });
 
+describe("schemas too large for Claude's guaranteed JSON", () => {
+  beforeEach(() => {
+    vi.stubEnv("DESIGN_PROVIDER", "anthropic");
+    vi.stubEnv("ANTHROPIC_API_KEY", "unit-test-never-used");
+  });
+  const tooLarge = () =>
+    Anthropic.APIError.generate(400, { type: "error", error: { type: "invalid_request_error", message: "The compiled grammar is too large, which would cause performance issues." } }, "The compiled grammar is too large", new Headers());
+  const text = (body: string) => ({ ...reply(null), content: [{ type: "text", text: body }] });
+
+  it("asks for plain JSON with the schema in the prompt, validates it, and remembers the schema", async () => {
+    mocks.finalMessage.mockRejectedValueOnce(tooLarge()).mockResolvedValueOnce(text('```json\n{"title":"Plan your day"}\n```'));
+    const request = { task: "draft" as const, system: "DECK RULES", content: [], schema, name: "big_deck" };
+
+    expect(await generateDesign(request)).toEqual({ title: "Plan your day" });
+    const [structured, prompted] = mocks.stream.mock.calls.map(([params]) => params as Anthropic.MessageCreateParams);
+    expect(structured.output_config?.format?.type).toBe("json_schema");
+    expect(prompted.output_config?.format).toBeUndefined();
+    expect(prompted.output_config?.effort).toBe("high");
+    const prompt = (prompted.system as Anthropic.TextBlockParam[])[0].text;
+    expect(prompt.startsWith("DECK RULES")).toBe(true);
+    expect(prompt).toContain('"title"');
+
+    // The next request with this schema skips the refused call.
+    mocks.finalMessage.mockResolvedValueOnce(text('{"title":"Second"}'));
+    expect(await generateDesign(request)).toEqual({ title: "Second" });
+    expect(mocks.stream).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects prose or a design that doesn't match the schema, so the route retries", async () => {
+    mocks.finalMessage.mockRejectedValueOnce(tooLarge());
+    mocks.finalMessage.mockResolvedValueOnce(text("Here is your deck!"));
+    await expect(generateDesign({ task: "draft", system: "s", content: [], schema, name: "prose_deck" })).rejects.toThrow("no design");
+    mocks.finalMessage.mockResolvedValueOnce(text('{"title": 7}'));
+    await expect(generateDesign({ task: "draft", system: "s", content: [], schema, name: "prose_deck" })).rejects.toThrow(/invalid design \(title/);
+  });
+
+  it("trims an overlong field instead of throwing away the whole draft", async () => {
+    const strict = z.object({ summary: z.string().max(10), scale: z.number().max(2), tags: z.array(z.string()).max(1) });
+    mocks.finalMessage.mockRejectedValueOnce(tooLarge());
+    mocks.finalMessage.mockResolvedValueOnce(text('{"summary":"A very long summary","scale":9,"tags":["a","b","c"]}'));
+    expect(await generateDesign({ task: "draft", system: "s", content: [], schema: strict, name: "overrun_deck" })).toEqual({ summary: "A very lon", scale: 2, tags: ["a"] });
+    expect(mocks.stream).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes other provider errors straight through", async () => {
+    mocks.finalMessage.mockRejectedValueOnce(Anthropic.APIError.generate(500, { type: "error", error: { type: "api_error", message: "down" } }, "down", new Headers()));
+    await expect(generateDesign({ task: "draft", system: "s", content: [], schema, name: "outage_deck" })).rejects.toBeInstanceOf(Anthropic.APIError);
+    expect(mocks.stream).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("fitting images for Claude", () => {
   it("leaves small supported images untouched", async () => {
     const small = await png(400, 800);
