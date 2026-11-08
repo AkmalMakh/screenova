@@ -68,6 +68,7 @@ async function viaOpenAI<Schema extends z.ZodType>({ task, system, content, sche
   task: DesignTask; system: string; content: DesignPart[]; schema: Schema; name: string; signal?: AbortSignal;
 }): Promise<z.infer<Schema> | null> {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const started = Date.now();
   const response = await client.responses.parse(
     {
       model: designModel(task),
@@ -84,6 +85,15 @@ async function viaOpenAI<Schema extends z.ZodType>({ task, system, content, sche
     },
     { signal },
   );
+  console.info("screenova_ai_usage", {
+    task,
+    model: response.model,
+    ms: Date.now() - started,
+    input: response.usage?.input_tokens ?? null,
+    cacheRead: response.usage?.input_tokens_details?.cached_tokens ?? 0,
+    output: response.usage?.output_tokens ?? null,
+    thinking: response.usage?.output_tokens_details?.reasoning_tokens ?? null,
+  });
   return (response.output_parsed as z.infer<Schema> | null) ?? null;
 }
 
@@ -98,6 +108,7 @@ async function viaClaude<Schema extends z.ZodType>({ task, system, content, sche
   }
   // Streamed so a long, high-effort draft never trips the SDK's limit on
   // non-streaming calls; only the final message is used.
+  const started = Date.now();
   const stream = client.messages.stream(
     {
       model: designModel(task),
@@ -109,6 +120,18 @@ async function viaClaude<Schema extends z.ZodType>({ task, system, content, sche
     { signal },
   );
   const message = await stream.finalMessage();
+  // One line per call in the server log: what each draft and edit really costs.
+  console.info("screenova_ai_usage", {
+    task,
+    model: message.model,
+    ms: Date.now() - started,
+    input: message.usage.input_tokens,
+    cacheRead: message.usage.cache_read_input_tokens ?? 0,
+    cacheWrite: message.usage.cache_creation_input_tokens ?? 0,
+    output: message.usage.output_tokens,
+    thinking: message.usage.output_tokens_details?.thinking_tokens ?? null,
+    stop: message.stop_reason,
+  });
   if (message.stop_reason === "max_tokens") throw new Error("The design ran too long and was cut off. Try fewer screens or languages.");
   if (message.stop_reason === "refusal") throw new Error("Claude declined to design this. Try different screenshots or wording.");
   return (message.parsed_output as z.infer<Schema> | null) ?? null;

@@ -18,12 +18,19 @@ import { CLAUDE_IMAGE_EDGE, designConfigError, designModel, fitForClaude, genera
 import { AI_PAUSED, claudeErrorResponse } from "./openai-errors";
 
 const schema = z.object({ title: z.string() });
+const reply = (parsed_output: unknown, stop_reason = "end_turn") => ({
+  model: "claude-test",
+  stop_reason,
+  parsed_output,
+  usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens_details: null },
+});
 const png = (width: number, height: number) =>
   sharp({ create: { width, height, channels: 4, background: { r: 30, g: 60, b: 200, alpha: 1 } } }).png().toBuffer();
 
 beforeEach(() => {
   vi.resetAllMocks();
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  vi.spyOn(console, "info").mockImplementation(() => undefined);
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -59,7 +66,7 @@ describe("drafting with Claude", () => {
   });
 
   it("sends a draft at high effort, with shrunk screenshots and remote references, and returns the parsed design", async () => {
-    mocks.finalMessage.mockResolvedValue({ stop_reason: "end_turn", parsed_output: { title: "Plan your day" } });
+    mocks.finalMessage.mockResolvedValue(reply({ title: "Plan your day" }));
     const screenshot = `data:image/png;base64,${(await png(1290, 2796)).toString("base64")}`;
 
     const result = await generateDesign({
@@ -92,7 +99,7 @@ describe("drafting with Claude", () => {
   });
 
   it("caches the fixed chat prompt and uses the faster model for edits", async () => {
-    mocks.finalMessage.mockResolvedValue({ stop_reason: "end_turn", parsed_output: { title: "x" } });
+    mocks.finalMessage.mockResolvedValue(reply({ title: "x" }));
     await generateDesign({ task: "edit", system: "CHAT RULES", content: [{ type: "text", text: "make it bolder" }], schema, name: "edit" });
     const [params] = mocks.stream.mock.calls[0] as [Anthropic.MessageCreateParams];
     expect(params.model).toBe("claude-sonnet-5-5");
@@ -102,7 +109,7 @@ describe("drafting with Claude", () => {
 
   it("treats a cut-off or refused design as a failed draft the route can retry", async () => {
     for (const stop_reason of ["max_tokens", "refusal"]) {
-      mocks.finalMessage.mockResolvedValueOnce({ stop_reason, parsed_output: null });
+      mocks.finalMessage.mockResolvedValueOnce(reply(null, stop_reason));
       const failure = generateDesign({ task: "draft", system: "s", content: [], schema, name: "deck" });
       await expect(failure).rejects.toThrow(Error);
     }
