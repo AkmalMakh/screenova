@@ -102,3 +102,18 @@ export function normalizeLookupResult(
     ipadScreenshotUrls,
   };
 }
+
+// The lookup API lists screenshots as small thumbnails (".../320x480bb.jpg",
+// about 240x520). Apple's CDN serves any bounding box up to the original, so
+// ask for the full size: sharp inside exported frames and readable for the AI.
+// JPEG keeps a full iPhone capture near 300 KB (the PNG is over 1.5 MB).
+export function fullSizeScreenshotUrl(url: string, box = 4000): string {
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.endsWith(".mzstatic.com")) return url;
+    parsed.pathname = parsed.pathname.replace(/\/\d+x\d+[a-z]*\.(?:jpe?g|png|webp)$/i, `/${box}x${box}bb.jpg`);
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}

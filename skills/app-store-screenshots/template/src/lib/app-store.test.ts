@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeLookupResult, parseAppStoreUrl } from "./app-store";
+import { fullSizeScreenshotUrl, normalizeLookupResult, parseAppStoreUrl } from "./app-store";
 
 describe("parseAppStoreUrl", () => {
   it("parses a standard apps.apple.com link with country and slug", () => {
@@ -139,5 +139,17 @@ describe("normalizeLookupResult", () => {
     expect(
       normalizeLookupResult({ results: [{ trackName: "App", screenshotUrls: [] }] }, link),
     ).toBeNull();
+  });
+});
+
+describe("fullSizeScreenshotUrl", () => {
+  const thumb = "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/87/98/eb/8798eb80/en_3.png/320x480bb.jpg";
+  it("asks Apple's CDN for the original size instead of the lookup thumbnail", () => {
+    expect(fullSizeScreenshotUrl(thumb)).toBe("https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/87/98/eb/8798eb80/en_3.png/4000x4000bb.jpg");
+    expect(fullSizeScreenshotUrl(thumb.replace("320x480bb.jpg", "392x696bb.png"), 1600)).toMatch(/\/1600x1600bb\.jpg$/);
+  });
+  it("leaves other hosts and unexpected URLs alone", () => {
+    expect(fullSizeScreenshotUrl("https://example.com/shot/320x480bb.jpg")).toBe("https://example.com/shot/320x480bb.jpg");
+    expect(fullSizeScreenshotUrl("not a url")).toBe("not a url");
   });
 });

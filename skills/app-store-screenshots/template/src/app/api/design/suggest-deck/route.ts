@@ -1,6 +1,7 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { designConfigError, generateDesign, isProviderError, type DesignPart } from "@/lib/design-model";
+import { fullSizeScreenshotUrl } from "@/lib/app-store";
 import { report, requestIdOf } from "@/lib/ops";
 import { aiErrorResponse } from "@/lib/openai-errors";
 import { authorizeRequest } from "@/lib/supabase/access";
@@ -178,7 +179,8 @@ export async function POST(req: Request) {
       text: `STYLE REFERENCE ${i + 1} of ${styleReferences.length} — ${reference.name} (${reference.url})${shots.length ? ` — ${shots.length} screens follow, in store order` : " — link only, no screenshots"}`,
     });
     for (const url of shots) {
-      userContent.push({ type: "image", url, detail: "high" });
+      // Large enough to read widget placement; the lookup's thumbnails are not.
+      userContent.push({ type: "image", url: fullSizeScreenshotUrl(url, 1600), detail: "high" });
     }
   }
 
