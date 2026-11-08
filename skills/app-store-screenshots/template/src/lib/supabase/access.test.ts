@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import type * as AccessModule from "./access";
-import { ACTION_UNAVAILABLE, CREDITS_EXHAUSTED, LIMIT_REACHED, WORKSPACE_UNAVAILABLE } from "./messages";
+import { ACTION_UNAVAILABLE, AI_WAITLIST, CREDITS_EXHAUSTED, LIMIT_REACHED, WORKSPACE_UNAVAILABLE } from "./messages";
 import type * as ProjectRoute from "@/app/api/project/route";
 
 // Fresh modules per test keep route and access state independent.
@@ -61,37 +61,46 @@ describe("cloud request authorization", () => {
   });
   it("enforces daily limits and denies requests if the quota service fails", async () => {
     mocks.rpc.mockResolvedValue({ data: "ok", error: null });
-    expect("response" in await authorizeRequest(request(), "ai")).toBe(false);
-    expect(mocks.rpc).toHaveBeenCalledWith("consume_beta_budget_v2", { kind: "ai" });
+    expect("response" in await authorizeRequest(request(), "ai_draft")).toBe(false);
+    expect(mocks.rpc).toHaveBeenCalledWith("consume_beta_budget_v3", { kind: "ai_draft" });
     for (const verdict of ["user", "global"]) {
       mocks.rpc.mockResolvedValue({ data: verdict, error: null });
-      const result = await authorizeRequest(request(), "ai");
+      const result = await authorizeRequest(request(), "ai_draft");
       expect(await status(result)).toBe(429);
       if ("response" in result) expect((await result.response.json()).error).toBe(LIMIT_REACHED);
     }
     // Spent lifetime credits are a 429 with their own wording: not a daily cap.
     mocks.rpc.mockResolvedValue({ data: "credits", error: null });
-    const spent = await authorizeRequest(request(), "ai");
+    const spent = await authorizeRequest(request(), "ai_draft");
     expect(await status(spent)).toBe(429);
     if ("response" in spent) expect((await spent.response.json()).error).toBe(CREDITS_EXHAUSTED);
     expect(CREDITS_EXHAUSTED).not.toContain("tomorrow");
+    // No AI seat: the editor still works, and the copy says so instead of "tomorrow".
+    mocks.rpc.mockResolvedValue({ data: "waitlist", error: null });
+    const reported = mocks.report.mock.calls.length;
+    const waitlisted = await authorizeRequest(request(), "ai_edit");
+    expect(await status(waitlisted)).toBe(403);
+    if ("response" in waitlisted) expect((await waitlisted.response.json()).error).toBe(AI_WAITLIST);
+    expect(AI_WAITLIST).not.toContain("tomorrow");
+    // Expected for late sign-ups: nobody gets paged.
+    expect(mocks.report.mock.calls.length).toBe(reported);
     // The database refusing the account is an access problem, never "wait until tomorrow".
     mocks.rpc.mockResolvedValue({ data: "denied", error: null });
-    const denied = await authorizeRequest(request(), "ai");
+    const denied = await authorizeRequest(request(), "ai_draft");
     expect(await status(denied)).toBe(403);
     if ("response" in denied) expect((await denied.response.json()).error).toBe(ACTION_UNAVAILABLE);
     if ("response" in denied) expect(ACTION_UNAVAILABLE).not.toContain("Confirm your email");
     mocks.rpc.mockResolvedValue({ data: null, error: Object.assign(new Error("Offline"), { code: "PGRST003" }) });
-    expect(await status(await authorizeRequest(request("POST", { "x-vercel-id": "iad1::req1" }), "ai"))).toBe(503);
-    expect(mocks.report).toHaveBeenLastCalledWith("access_unavailable", expect.any(Error), { kind: "ai", code: "PGRST003", requestId: "iad1::req1" }, "error");
+    expect(await status(await authorizeRequest(request("POST", { "x-vercel-id": "iad1::req1" }), "ai_draft"))).toBe(503);
+    expect(mocks.report).toHaveBeenLastCalledWith("access_unavailable", expect.any(Error), { kind: "ai_draft", code: "PGRST003", requestId: "iad1::req1" }, "error");
   });
   it("alerts on an empty shared pool with the daily window, never on per-user caps", async () => {
     mocks.rpc.mockResolvedValue({ data: "user", error: null });
-    await authorizeRequest(request(), "ai");
+    await authorizeRequest(request(), "ai_draft");
     expect(mocks.report).not.toHaveBeenCalled();
     mocks.rpc.mockResolvedValue({ data: "global", error: null });
-    await authorizeRequest(request(), "ai");
-    expect(mocks.report).toHaveBeenCalledWith("budget_global", undefined, { kind: "ai", requestId: null }, "warning", "day");
+    await authorizeRequest(request(), "ai_draft");
+    expect(mocks.report).toHaveBeenCalledWith("budget_global", undefined, { kind: "ai_draft", requestId: null }, "warning", "day");
   });
   it("fails closed and alerts when the budget function returns something unexpected", async () => {
     for (const data of [null, true, "maybe"]) {

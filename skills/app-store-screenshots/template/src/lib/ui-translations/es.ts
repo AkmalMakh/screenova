@@ -97,7 +97,10 @@ export const es: Record<TranslationKey, string> = {
   "toolbar.savedHours": "guardado hace {hours}h",
   "toolbar.interfaceLanguage": "Idioma de la interfaz",
   "credits.left": "{count} crédito restante | {count} créditos restantes",
-  "credits.perDesign": "{cost} por diseño",
+  "credits.costs": "Borrador {draft} · Edición {edit}",
+  "credits.draftCost": "Usa {cost} créditos",
+  "credits.waitlist": "Lista de espera de IA",
+  "credits.waitlistHint": "Todas las plazas de IA están ocupadas. Puedes seguir diseñando a mano, usar plantillas y exportar.",
 
   // ---- sidebar ----
   "sidebar.screens": "Pantallas",

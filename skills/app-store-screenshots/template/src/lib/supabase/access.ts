@@ -2,18 +2,19 @@ import { NextResponse } from "next/server";
 import { report, requestIdOf } from "@/lib/ops";
 import { isAuthOutage, outageLevel } from "./auth-outage";
 import { storageMode } from "./config";
-import { ACCESS_UNAVAILABLE, ACTION_UNAVAILABLE, CREDITS_EXHAUSTED, LIMIT_REACHED, WORKSPACE_UNAVAILABLE } from "./messages";
+import { ACCESS_UNAVAILABLE, ACTION_UNAVAILABLE, AI_WAITLIST, CREDITS_EXHAUSTED, LIMIT_REACHED, WORKSPACE_UNAVAILABLE } from "./messages";
 import { serverSupabase } from "./server";
 
 export type CloudAccess = { userId: string; client: Awaited<ReturnType<typeof serverSupabase>> };
 export type Access = CloudAccess | { userId: null; client: null };
-export type Budget = "ai" | "upload" | "import";
+// A first draft costs far more than a chat edit, so they are charged apart.
+export type Budget = "ai_draft" | "ai_edit" | "upload" | "import";
 export const privateHeaders = { "cache-control": "private, no-store", "vary": "Cookie" };
 
-const VERDICTS = new Set(["ok", "user", "global", "credits", "denied"]);
+const VERDICTS = new Set(["ok", "user", "global", "credits", "denied", "waitlist"]);
 
 async function checkBudget(access: CloudAccess, budget: Budget, requestId: string | null): Promise<NextResponse | null> {
-  const { data, error } = await access.client.rpc("consume_beta_budget_v2", { kind: budget });
+  const { data, error } = await access.client.rpc("consume_beta_budget_v3", { kind: budget });
   if (error) throw error;
   const verdict = typeof data === "string" && VERDICTS.has(data) ? data : null;
   if (verdict === "ok") return null;
@@ -25,6 +26,9 @@ async function checkBudget(access: CloudAccess, budget: Budget, requestId: strin
     // an access problem, not a quota, so never tell the user to wait a day.
     console.warn("screenova_budget_denied", { kind: budget });
     return NextResponse.json({ ok: false, error: ACTION_UNAVAILABLE }, { status: 403, headers: privateHeaders });
+  } else if (verdict === "waitlist") {
+    // Joined after the AI seats were taken: the editor still works, so say so.
+    return NextResponse.json({ ok: false, error: AI_WAITLIST }, { status: 403, headers: privateHeaders });
   } else if (verdict === "credits") {
     // Lifetime beta credits are spent: not a daily cap, so never say "tomorrow".
     return NextResponse.json({ ok: false, error: CREDITS_EXHAUSTED }, { status: 429, headers: privateHeaders });

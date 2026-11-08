@@ -77,7 +77,7 @@ When the user attaches an image and asks to redesign, restyle, match, copy the l
 - theme stays null for a single-screen reference redesign unless the user asks to restyle the whole deck.`;
 
 export async function POST(req: Request) {
-  const access = await authorizeRequest(req, "ai");
+  const access = await authorizeRequest(req, "ai_edit");
   if ("response" in access) return access.response;
   const configError = designConfigError();
   if (configError) return NextResponse.json({ ok: false, error: configError }, { status: 503 });
