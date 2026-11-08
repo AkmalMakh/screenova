@@ -157,6 +157,8 @@ export async function POST(req: Request) {
       } catch (error) {
         lastError = error;
         if (!isRetryableStructureError(error) || attempt === 1) throw error;
+        // The reply didn't fit the design rules; say why before the one retry.
+        console.warn("screenova_ai_retry", { requestId: requestIdOf(req), reason: error instanceof Error ? error.message : String(error) });
       }
     }
     throw lastError;

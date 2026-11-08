@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fullSizeScreenshotUrl, normalizeLookupResult, parseAppStoreUrl } from "./app-store";
+import { fullSizeScreenshotUrl, listingBrief, normalizeLookupResult, parseAppStoreUrl } from "./app-store";
 
 describe("parseAppStoreUrl", () => {
   it("parses a standard apps.apple.com link with country and slug", () => {
@@ -151,5 +151,18 @@ describe("fullSizeScreenshotUrl", () => {
   it("leaves other hosts and unexpected URLs alone", () => {
     expect(fullSizeScreenshotUrl("https://example.com/shot/320x480bb.jpg")).toBe("https://example.com/shot/320x480bb.jpg");
     expect(fullSizeScreenshotUrl("not a url")).toBe("not a url");
+  });
+});
+
+describe("listingBrief", () => {
+  it("briefs the deck with the app and its live description, within the route's message budget", () => {
+    const brief = listingBrief({ trackName: "PictoGrid", primaryGenreName: "Games", description: "Progress through stages from 5x5 to 20x20.\n" + "More. ".repeat(600) });
+    expect(brief.startsWith('Design App Store screenshots for "PictoGrid", a Games app')).toBe(true);
+    expect(brief).toContain("source of truth for features and numbers");
+    expect(brief).toContain("5x5 to 20x20");
+    expect(brief.length).toBeLessThanOrEqual(1_500);
+  });
+  it("still briefs an app without a description", () => {
+    expect(listingBrief({ trackName: "Mote", primaryGenreName: "", description: "" })).toBe('Design App Store screenshots for "Mote", using its current screenshots.');
   });
 });

@@ -19,9 +19,14 @@ export type AppStoreLookupResult = {
   trackViewUrl: string;
   artworkUrl100: string;
   artworkUrl512: string;
+  /** The current listing text: the source of truth for features and numbers. */
+  description: string;
   screenshotUrls: string[];
   ipadScreenshotUrls: string[];
 };
+
+// Long enough for an app's feature list; the deck prompt reads the start.
+const MAX_DESCRIPTION = 4_000;
 
 const HOST_SUFFIXES = ["apps.apple.com", "itunes.apple.com"];
 const APP_ID = /^\d{4,20}$/;
@@ -98,6 +103,7 @@ export function normalizeLookupResult(
     trackViewUrl: str(result.trackViewUrl),
     artworkUrl100: str(result.artworkUrl100),
     artworkUrl512: str(result.artworkUrl512) || str(result.artworkUrl100),
+    description: str(result.description).trim().slice(0, MAX_DESCRIPTION),
     screenshotUrls,
     ipadScreenshotUrls,
   };
@@ -116,4 +122,16 @@ export function fullSizeScreenshotUrl(url: string, box = 4000): string {
   } catch {
     return url;
   }
+}
+
+// The deck route reads at most this much of each message.
+const BRIEF_LIMIT = 1_500;
+
+/** An imported app's design brief: what it is, then its live listing text. */
+export function listingBrief(app: Pick<AppStoreLookupResult, "trackName" | "primaryGenreName" | "description">): string {
+  const intro = `Design App Store screenshots for "${app.trackName}"${app.primaryGenreName ? `, a ${app.primaryGenreName} app` : ""}, using its current screenshots.`;
+  const description = app.description.replace(/\s+\n/g, "\n").trim();
+  if (!description) return intro;
+  const heading = "\n\nIts current App Store description, the source of truth for features and numbers:\n";
+  return intro + heading + description.slice(0, Math.max(0, BRIEF_LIMIT - intro.length - heading.length));
 }

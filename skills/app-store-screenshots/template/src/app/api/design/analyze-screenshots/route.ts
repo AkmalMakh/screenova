@@ -1,6 +1,7 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { designConfigError, generateDesign, isProviderError, type DesignPart } from "@/lib/design-model";
+import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { report, requestIdOf } from "@/lib/ops";
 import { aiErrorResponse } from "@/lib/openai-errors";
 import { authorizeRequest } from "@/lib/supabase/access";
@@ -41,7 +42,7 @@ const localeCode = /^[a-z]{2,8}(-[A-Za-z]{2,8})?$/i;
 
 const analyzeScreenshotsRequestSchema = z.object({
   appName: z.string().trim().min(1).max(60),
-  locales: z.array(z.string().trim().regex(localeCode)).min(1).max(7),
+  locales: z.array(z.string().trim().regex(localeCode)).min(1).max(CONTENT_LANGUAGES.length),
   screenshots: z.array(screenshotInputSchema).min(1).max(MAX_SCREENSHOTS),
 });
 
@@ -83,7 +84,7 @@ function buildSystemPrompt(appName: string, locales: string[]) {
 
 For each supplied screenshot, write exactly one slide:
 - label: a short name for the feature or screen shown (≤40 characters). It renders as a small uppercase accent line.
-- headline: punchy, outcome-led copy (≤120 characters). It renders as the main text. Keep it readable at thumbnail size.
+- headline: punchy, outcome-led copy in 3 to 7 words (about 40 characters), so it fits in two lines above or below the phone. It renders as the main text and must stay readable at thumbnail size; a long headline runs into the device.
 - layout: the best-fit composition — "hero" for a launch or full-screen shot, "device-bottom" or "device-top" for feature screens, "two-devices" when the shot clearly shows two surfaces, "no-device" for close-ups or cropped detail shots. ${SCREENSHOT_LAYOUT_RULE}
 ${COPY_ACCURACY_RULES}
 
@@ -180,6 +181,8 @@ export async function POST(req: Request) {
       } catch (error) {
         lastError = error;
         if (!isRetryableStructureError(error) || attempt === 1) throw error;
+        // The reply didn't fit the design rules; say why before the one retry.
+        console.warn("screenova_ai_retry", { requestId: requestIdOf(req), reason: error instanceof Error ? error.message : String(error) });
       }
     }
     throw lastError;
