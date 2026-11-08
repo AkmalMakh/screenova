@@ -5,7 +5,7 @@ import {
   headlineFontFamilySchema,
   textElementSchema,
 } from "./design";
-import { backgroundFillSchema, frameStyleSchema, headlineStyleSchema } from "./slide-appearance";
+import { backgroundFillSchema, headlineStyleSchema, slideFrameStyleSchema } from "./slide-appearance";
 import type { Device, ProjectState, Slide, Theme } from "./types";
 
 // A gallery post shares a deck's DESIGN, never its owner's app: screenshots,
@@ -41,7 +41,7 @@ const slideSchema = z.object({
   headline: localizedText,
   headlineFontFamily: headlineFontFamilySchema.optional(),
   backgroundFill: backgroundFillSchema.optional(),
-  frameStyle: frameStyleSchema.optional(),
+  frameStyle: slideFrameStyleSchema.optional(),
   headlineStyle: headlineStyleSchema.optional(),
   inverted: z.boolean().optional(),
   backgroundStyle: z.literal("plain").optional(),

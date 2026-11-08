@@ -2,7 +2,7 @@
 import { accountScope, apiFetch, scopedKey } from "./account-scope";
 import { cloudPayloadTooLarge, WORKSPACE_TOO_LARGE } from "./cloud-payload";
 import { acknowledgeCloudSnapshot, cloudHydration, readCloudSnapshot, writeCloudSnapshot } from "./cloud-cache";
-import { backgroundFillSchema, frameStyleSchema, headlineStyleSchema } from "./slide-appearance";
+import { backgroundFillSchema, headlineStyleSchema, slideFrameStyleSchema } from "./slide-appearance";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { deleteDesignMessages, migrateLegacyDesignChat } from "./chat-storage";
 import {
@@ -210,7 +210,7 @@ function migrateSlide(slide: Slide): Slide {
     ...(textElements && textElements.length > 0 ? { textElements } : { textElements: undefined }),
     ...(decorations && decorations.length > 0 ? { decorations } : { decorations: undefined }),
     backgroundFill: backgroundFillSchema.safeParse(slide.backgroundFill).data,
-    frameStyle: frameStyleSchema.safeParse(slide.frameStyle).data,
+    frameStyle: slideFrameStyleSchema.safeParse(slide.frameStyle).data,
     headlineStyle: headlineStyleSchema.safeParse(slide.headlineStyle).data,
     backgroundStyle: slide.backgroundStyle === "plain" ? "plain" : undefined,
     visualAsset: cleanVisualAsset(slide.visualAsset),

@@ -7,7 +7,10 @@ export const backgroundFillSchema = z.object({
     position: z.number().finite().min(0).max(100),
   })).min(2).max(5),
 });
+// The bezels the AI may choose. A saved screen can also be "none": the
+// screenshot alone with its own corners, a choice only the editor offers.
 export const frameStyleSchema = z.enum(["device", "white", "dark"]);
+export const slideFrameStyleSchema = z.enum([...frameStyleSchema.options, "none"]);
 export const headlineStyleSchema = z.object({
   fontSize: z.number().finite().min(20).max(250),
   fontWeight: z.number().int().min(300).max(900),
@@ -15,7 +18,7 @@ export const headlineStyleSchema = z.object({
   align: z.enum(["left", "center", "right"]),
 });
 export type BackgroundFill = z.infer<typeof backgroundFillSchema>;
-export type FrameStyle = z.infer<typeof frameStyleSchema>;
+export type FrameStyle = z.infer<typeof slideFrameStyleSchema>;
 export type HeadlineStyle = z.infer<typeof headlineStyleSchema>;
 
 export function backgroundFillCss(fill: BackgroundFill): string {
