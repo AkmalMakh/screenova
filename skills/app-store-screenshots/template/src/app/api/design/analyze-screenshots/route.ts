@@ -1,21 +1,20 @@
 import path from "node:path";
-import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
+import { designConfigError, generateDesign, isProviderError, type DesignPart } from "@/lib/design-model";
 import { report, requestIdOf } from "@/lib/ops";
-import { openAIErrorResponse } from "@/lib/openai-errors";
+import { aiErrorResponse } from "@/lib/openai-errors";
 import { authorizeRequest } from "@/lib/supabase/access";
 import { readAsset } from "@/lib/supabase/assets";
 import { COPY_ACCURACY_RULES, SCREENSHOT_LAYOUT_RULE } from "@/lib/suggest-deck";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 180;
+export const maxDuration = 300;
 
 const MAX_SCREENSHOTS = 10;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 // Sanity cap for one request: 10 screenshots at the 8MB limit would be ~110MB
-// of base64 in the OpenAI payload, which is far beyond what is reasonable.
+// of base64 in the model payload, which is far beyond what is reasonable.
 const MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024;
 const MIME_BY_EXT: Record<string, string> = {
   png: "image/png",
@@ -98,12 +97,8 @@ The brand tone is "${appName}". Never invent features, testimonials, prices, or 
 export async function POST(req: Request) {
   const access = await authorizeRequest(req, "ai");
   if ("response" in access) return access.response;
-  if (!process.env.OPENAI_API_KEY) {
-    return NextResponse.json(
-      { ok: false, error: "OpenAI is not configured. Add OPENAI_API_KEY to .env.local." },
-      { status: 503 },
-    );
-  }
+  const configError = designConfigError();
+  if (configError) return NextResponse.json({ ok: false, error: configError }, { status: 503 });
 
   let body: unknown;
   try {
@@ -124,7 +119,7 @@ export async function POST(req: Request) {
   const responseSchema = buildResponseSchema(locales);
 
   // Read the uploaded files back from public/ and build the image inputs.
-  const userContent: OpenAI.Responses.ResponseInputContent[] = [];
+  const userContent: DesignPart[] = [];
   let totalBytes = 0;
   for (let i = 0; i < screenshots.length; i += 1) {
     const entry = screenshots[i];
@@ -149,53 +144,39 @@ export async function POST(req: Request) {
     }
     const ext = entry.path.match(/\.([^.]+)$/)?.[1]?.toLowerCase() || "png";
     const mime = MIME_BY_EXT[ext] || "image/png";
-    userContent.push({
-      type: "input_text",
-      text: `SCREENSHOT ${i + 1} of ${screenshots.length} — ${entry.name}`,
-    });
-    userContent.push({
-      type: "input_image",
-      image_url: `data:${mime};base64,${buf.toString("base64")}`,
-      detail: "auto",
-    });
+    userContent.push({ type: "text", text: `SCREENSHOT ${i + 1} of ${screenshots.length} — ${entry.name}` });
+    userContent.push({ type: "image", url: `data:${mime};base64,${buf.toString("base64")}` });
   }
-
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const model = process.env.OPENAI_DESIGN_MODEL || "gpt-5.6-terra";
 
   try {
     let lastError: unknown;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const response = await client.responses.parse(
-          {
-            model,
-            instructions: buildSystemPrompt(appName, locales),
-            input: [{ role: "user", content: userContent }],
-            reasoning: { effort: "medium" },
-            text: {
-              format: zodTextFormat(responseSchema, "app_store_slide_analysis"),
-            },
-            store: false,
-          },
-          { signal: req.signal },
-        );
-        if (!response.output_parsed) {
+        // The first draft a new user sees: the most capable model.
+        const analysis = await generateDesign({
+          task: "draft",
+          system: buildSystemPrompt(appName, locales),
+          content: userContent,
+          schema: responseSchema,
+          name: "app_store_slide_analysis",
+          signal: req.signal,
+        });
+        if (!analysis) {
           throw new Error("The model returned no slide analysis.");
         }
-        if (response.output_parsed.slides.length !== screenshots.length) {
+        if (analysis.slides.length !== screenshots.length) {
           throw new Error(
-            `Expected ${screenshots.length} slides, got ${response.output_parsed.slides.length}.`,
+            `Expected ${screenshots.length} slides, got ${analysis.slides.length}.`,
           );
         }
-        for (const [index, slide] of response.output_parsed.slides.entries()) {
+        for (const [index, slide] of analysis.slides.entries()) {
           for (const code of locales) {
             if (!slide.copy[code]) {
               throw new Error(`Slide ${index + 1} is missing copy for locale ${code}.`);
             }
           }
         }
-        return NextResponse.json({ ok: true, slides: response.output_parsed.slides });
+        return NextResponse.json({ ok: true, slides: analysis.slides });
       } catch (error) {
         lastError = error;
         if (!isRetryableStructureError(error) || attempt === 1) throw error;
@@ -203,7 +184,7 @@ export async function POST(req: Request) {
     }
     throw lastError;
   } catch (error) {
-    const providerFailure = openAIErrorResponse(error, "OpenAI could not analyze screenshots right now. Try again.", req);
+    const providerFailure = aiErrorResponse(error, "The AI could not analyze screenshots right now. Try again.", req);
     if (providerFailure) return providerFailure;
     if (req.signal.aborted) {
       return NextResponse.json(
@@ -218,6 +199,5 @@ export async function POST(req: Request) {
 }
 
 function isRetryableStructureError(error: unknown) {
-  if (error instanceof OpenAI.APIError) return false;
-  return error instanceof Error;
+  return !isProviderError(error) && error instanceof Error;
 }

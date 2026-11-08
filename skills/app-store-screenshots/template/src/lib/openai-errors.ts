@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import OpenAI, { APIUserAbortError } from "openai";
 import { NextResponse } from "next/server";
 import { report, requestIdOf } from "./ops";
@@ -64,4 +65,46 @@ export function openAIErrorResponse(error: unknown, unavailableMessage: string, 
         ? unavailableMessage
         : (error.code && REJECTED_COPY[error.code]) || AI_REJECTED;
   return NextResponse.json({ ok: false, error: message }, { status });
+}
+
+// Claude failures, mapped by the same rules. A spent prepaid balance or the
+// Console spend limit is the "monthly hard limit" here: it lasts until someone
+// tops up, so it gets AI_PAUSED, never "try again shortly".
+const CLAUDE_REJECTED = "Claude couldn't process this request. Try different screenshots or wording.";
+const CLAUDE_BUSY = "Claude is busy right now. Try again shortly.";
+
+export function claudeErrorResponse(error: unknown, unavailableMessage: string, req?: Request): NextResponse | null {
+  if (!(error instanceof Anthropic.APIError)) return null;
+  if (error instanceof Anthropic.APIUserAbortError) return null;
+  const requestId = requestIdOf(req);
+  const status = error.status || 502;
+  if (error.type === "billing_error" || /credit balance|usage limit|spend limit/i.test(error.message)) {
+    report("ai_quota", undefined, { code: error.type ?? String(status), requestId }, "warning", "day");
+    return NextResponse.json({ ok: false, error: AI_PAUSED }, { status: 503 });
+  }
+  if (status === 429 || status === 529 || error.type === "overloaded_error") {
+    console.warn("screenova_ai_rate_limited", { requestId, status });
+    return NextResponse.json({ ok: false, error: CLAUDE_BUSY }, { status: status === 429 ? 429 : 503 });
+  }
+  if (status === 401 || status === 403 || status === 404 || status >= 500) {
+    report("ai_provider", error, { code: error.type ?? String(status), requestId });
+  } else {
+    console.warn("screenova_ai_rejected", { status, code: error.type, message: error.message, requestId });
+  }
+  const message =
+    status === 401
+      ? "The Claude API key was rejected."
+      : status === 403 || status === 404 || status >= 500
+        ? unavailableMessage
+        : /image/i.test(error.message)
+          ? REJECTED_COPY.invalid_image
+          : /too long|too many tokens|context/i.test(error.message)
+            ? REJECTED_COPY.context_length_exceeded
+            : CLAUDE_REJECTED;
+  return NextResponse.json({ ok: false, error: message }, { status });
+}
+
+/** Whichever provider failed, its mapped response; null when neither did. */
+export function aiErrorResponse(error: unknown, unavailableMessage: string, req?: Request): NextResponse | null {
+  return claudeErrorResponse(error, unavailableMessage, req) ?? openAIErrorResponse(error, unavailableMessage, req);
 }

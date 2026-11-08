@@ -2,10 +2,10 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
+import { designConfigError, generateDesign, isProviderError, type DesignPart } from "@/lib/design-model";
 import { report, requestIdOf } from "@/lib/ops";
-import { openAIErrorResponse } from "@/lib/openai-errors";
+import { aiErrorResponse } from "@/lib/openai-errors";
 import { authorizeRequest, type Access } from "@/lib/supabase/access";
 import { storeAsset } from "@/lib/supabase/assets";
 import { isDesignImageSource, resolveDesignImage } from "@/lib/supabase/design-images";
@@ -20,7 +20,7 @@ import { CANVAS } from "@/lib/constants";
 import type { ProjectState, Slide } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 180;
+export const maxDuration = 300;
 
 const MAX_PROMPT_LENGTH = 4_000;
 const MAX_CONVERSATION_MESSAGES = 12;
@@ -79,12 +79,8 @@ When the user attaches an image and asks to redesign, restyle, match, copy the l
 export async function POST(req: Request) {
   const access = await authorizeRequest(req, "ai");
   if ("response" in access) return access.response;
-  if (!process.env.OPENAI_API_KEY) {
-    return NextResponse.json(
-      { ok: false, error: "OpenAI is not configured. Add OPENAI_API_KEY to .env.local." },
-      { status: 503 },
-    );
-  }
+  const configError = designConfigError();
+  if (configError) return NextResponse.json({ ok: false, error: configError }, { status: 503 });
 
   let body: DesignRequest;
   try {
@@ -111,57 +107,41 @@ export async function POST(req: Request) {
   }
 
   const { project, targetSlides } = validation;
-  const userContent: OpenAI.Responses.ResponseInputContent[] = [
-    {
-      type: "input_text",
-      text: buildDesignBrief(body, project, targetSlides),
-    },
+  const userContent: DesignPart[] = [
+    { type: "text", text: buildDesignBrief(body, project, targetSlides) },
   ];
 
   for (const preview of body.renderedPreviews) {
-    userContent.push({
-      type: "input_text",
-      text: `CURRENT SCREEN PREVIEW — slideId: ${preview.slideId}`,
-    });
-    userContent.push({ type: "input_image", image_url: preview.dataUrl, detail: "auto" });
+    userContent.push({ type: "text", text: `CURRENT SCREEN PREVIEW — slideId: ${preview.slideId}` });
+    userContent.push({ type: "image", url: preview.dataUrl });
   }
   for (const reference of body.references) {
     userContent.push({
-      type: "input_text",
+      type: "text",
       text: reference.purpose === "inspiration"
         ? `INSPIRATION (style reference only, never a screenshot) — sourceReferenceId: ${reference.id}; filename: ${reference.name}`
         : `ATTACHMENT — sourceReferenceId: ${reference.id}; filename: ${reference.name}`,
     });
-    userContent.push({ type: "input_image", image_url: reference.dataUrl, detail: "auto" });
+    userContent.push({ type: "image", url: reference.dataUrl });
   }
-
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const model = process.env.OPENAI_DESIGN_MODEL || "gpt-5.6-terra";
 
   try {
     let lastError: unknown;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const response = await client.responses.parse(
-          {
-            model,
-            instructions: SYSTEM_PROMPT,
-            input: [{ role: "user", content: userContent }],
-            reasoning: { effort: "medium" },
-            text: {
-              format: zodTextFormat(
-                designProposalResponseSchema,
-                "app_store_design_proposal",
-              ),
-            },
-            store: false,
-          },
-          { signal: req.signal },
-        );
-        if (!response.output_parsed) {
+        // Chat edits go back and forth, so they use the faster model.
+        const parsed = await generateDesign({
+          task: "edit",
+          system: SYSTEM_PROMPT,
+          content: userContent,
+          schema: designProposalResponseSchema,
+          name: "app_store_design_proposal",
+          signal: req.signal,
+        });
+        if (!parsed) {
           throw new Error("The model returned no structured proposal.");
         }
-        const normalizedProposal = normalizeDesignResponse(response.output_parsed, project.locale);
+        const normalizedProposal = normalizeDesignResponse(parsed, project.locale);
         const proposal =
           normalizedProposal.slidePatches.length === 0
             ? { ...normalizedProposal, theme: undefined }
@@ -172,7 +152,7 @@ export async function POST(req: Request) {
           // Inspiration images are style references; they never become a screen.
           body.references.filter((reference) => reference.purpose !== "inspiration").map((reference) => reference.id),
         );
-        const generatedVisualAssets = await generateVisualAssets(client, proposal, project, access);
+        const generatedVisualAssets = await generateVisualAssets(proposal, project, access);
         return NextResponse.json({ ok: true, proposal, generatedVisualAssets });
       } catch (error) {
         lastError = error;
@@ -181,7 +161,7 @@ export async function POST(req: Request) {
     }
     throw lastError;
   } catch (error) {
-    const providerFailure = openAIErrorResponse(error, "OpenAI could not generate a design right now. Try again.", req);
+    const providerFailure = aiErrorResponse(error, "The AI could not generate a design right now. Try again.", req);
     if (providerFailure) return providerFailure;
     if (req.signal.aborted) {
       return NextResponse.json({ ok: false, error: "Design request cancelled." }, { status: 499 });
@@ -359,7 +339,6 @@ function assertNewSlideReferences(proposed: string[], supplied: string[]) {
 }
 
 async function generateVisualAssets(
-  client: OpenAI,
   proposal: DesignProposal,
   project: ProjectState,
   access: Access,
@@ -380,6 +359,9 @@ async function generateVisualAssets(
     ),
   ];
   if (!requests.length) return [];
+  // Artwork always comes from OpenAI's image model, whichever model designed.
+  if (!process.env.OPENAI_API_KEY) throw new Error("Generated artwork needs OPENAI_API_KEY on the server.");
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   const canvas = CANVAS[project.device];
   const width =
@@ -450,6 +432,5 @@ async function generateVisualAsset(client: OpenAI, prompt: string, size: string,
 }
 
 function isRetryableStructureError(error: unknown) {
-  if (error instanceof OpenAI.APIError) return false;
-  return error instanceof Error;
+  return !isProviderError(error) && error instanceof Error;
 }
