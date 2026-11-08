@@ -3,12 +3,14 @@ import { zodTextFormat } from "openai/helpers/zod";
 import {
   buildDeckPrompt,
   buildDeckSchema,
+  COPY_ACCURACY_RULES,
   DECK_DEVICE_LAYOUTS,
   DECK_SLIDE_LAYOUTS,
   DECK_THEME_IDS,
   DEFAULT_DECK_COUNT,
   normalizeDeck,
   resolveDeckCount,
+  SCREENSHOT_LAYOUT_RULE,
 } from "./suggest-deck";
 
 const THEME = {
@@ -510,6 +512,18 @@ describe("screenshot-driven decks", () => {
     const without = buildDeckPrompt(["en"], "iphone", 5);
     expect(without).not.toContain("screenshots of their app");
     expect(without).toContain("no-device");
+  });
+
+  it("picks each layout from the screenshot instead of alternating", () => {
+    for (const prompt of [buildDeckPrompt(["en"], "iphone", 5, 5), buildDeckPrompt(["en"], "iphone", 7, 5)]) {
+      expect(prompt).toContain(SCREENSHOT_LAYOUT_RULE);
+      expect(prompt).not.toContain("Vary the layouts for rhythm");
+    }
+  });
+
+  it("asks for distinct benefits and exact numbers in every deck", () => {
+    expect(buildDeckPrompt(["en"], "iphone", 5)).toContain(COPY_ACCURACY_RULES);
+    expect(buildDeckPrompt(["en"], "iphone", 5, 5)).toContain(COPY_ACCURACY_RULES);
   });
 });
 

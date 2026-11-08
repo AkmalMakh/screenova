@@ -13,6 +13,7 @@ import type {
   Orientation,
   SelectedElement,
   Slide,
+  SlideLayout,
   TextElement,
   Theme,
 } from "@/lib/types";
@@ -506,6 +507,71 @@ export function getElementTransform(
     rotation: saved?.rotation ?? 0,
     zIndex: saved?.zIndex ?? defaultElementZ(id as BuiltInElementId),
   };
+}
+
+/**
+ * The patch for switching a screen to another layout. The headline and phone
+ * return to the new layout's defaults, and free text boxes (subheads, body
+ * copy) move with the headline so they don't stay behind over the phone. The
+ * defaults only leave room for a label and headline, so when the moved text
+ * would still overlap the phone, the phone steps away from it.
+ */
+export function layoutChangePatch(
+  slide: Slide,
+  layout: SlideLayout,
+  device: Device,
+  orientation: Orientation,
+): Partial<Slide> {
+  const patch: Partial<Slide> = {
+    layout,
+    transforms: undefined,
+    screenshotSecondary: layout === "two-devices" ? slide.screenshotSecondary || slide.screenshot : undefined,
+  };
+  const from = getElementTransform(slide, device, orientation, "caption");
+  const to = getElementTransform({ ...slide, ...patch }, device, orientation, "caption");
+  if (!from || !to || !slide.textElements?.length) return patch;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (!dx && !dy) return patch;
+  const { cW, cH } = getCanvas(device, orientation);
+  const clamp = (value: number, size: number, limit: number) => Math.min(Math.max(value, 0), Math.max(0, limit - size));
+  patch.textElements = slide.textElements.map((element) => ({
+    ...element,
+    transform: {
+      ...element.transform,
+      x: clamp(element.transform.x + dx, element.transform.width, cW),
+      y: clamp(element.transform.y + dy, element.transform.height, cH),
+    },
+  }));
+
+  const phone = getElementTransform({ ...slide, ...patch }, device, orientation, "device");
+  if (!phone) return patch;
+  const spans = patch.textElements.map((element) => textSpan(element, cW, cH));
+  const top = Math.min(...spans.map((span) => span.top));
+  const bottom = Math.max(...spans.map((span) => span.bottom));
+  const gap = cH * 0.03;
+  const y = to.y < phone.y
+    ? Math.min(Math.max(phone.y, bottom + gap), cH * 0.6)
+    : Math.min(phone.y, top - gap - phone.height);
+  if (y !== phone.y) patch.transforms = { device: { ...phone, y } };
+  return patch;
+}
+
+// Where a text box's words actually sit. Boxes are often much taller than
+// their words, which are centered vertically; estimate the height the longest
+// language fills from the canvas's own type defaults.
+function textSpan(element: TextElement, cW: number, cH: number): { top: number; bottom: number } {
+  const { y, width, height } = element.transform;
+  const size = element.fontSize ?? Math.min(cW, cH) * 0.06;
+  const perLine = Math.max(1, Math.floor(width / (size * 0.55)));
+  const lines = Math.max(
+    1,
+    ...Object.values(element.text).map((text) =>
+      (text ?? "").split("\n").reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / perLine)), 0),
+    ),
+  );
+  const words = Math.min(height, lines * size * 1.05);
+  return { top: y + (height - words) / 2, bottom: y + (height + words) / 2 };
 }
 
 function defaultElementZ(id: BuiltInElementId): number {

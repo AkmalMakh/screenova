@@ -410,6 +410,12 @@ export function PreviewStage({
         setZoom(nextZoom);
         return;
       }
+      // A mouse wheel with Shift held only reports deltaY on Windows and in
+      // Firefox; treat it as a sideways scroll.
+      if (event.shiftKey && event.deltaX === 0) {
+        applyPan(pan.x - event.deltaY, pan.y);
+        return;
+      }
       applyPan(pan.x - event.deltaX, pan.y - event.deltaY);
     };
     container.addEventListener("wheel", onWheel, { passive: false });
