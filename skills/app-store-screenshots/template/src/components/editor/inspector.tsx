@@ -65,7 +65,7 @@ import {
 } from "@/lib/ui-i18n";
 import { cn } from "@/lib/utils";
 import { ScreenshotPicker } from "./screenshot-picker";
-import { getCanvas, getElementTransform } from "./slide-canvas";
+import { getCanvas, getElementTransform, layoutChangePatch } from "./slide-canvas";
 
 type Props = {
   slide: Slide;
@@ -180,15 +180,7 @@ export function Inspector({
           <Label htmlFor={`${fieldId}-layout`} className={FIELD_LABEL}>{t("inspector.layout")}</Label>
           <Select
             value={layoutValue}
-            onValueChange={(layout) => {
-              const next = layout as SlideLayout;
-              onChange({
-                layout: next,
-                transforms: undefined,
-                screenshotSecondary:
-                  next === "two-devices" ? slide.screenshotSecondary || slide.screenshot : undefined,
-              });
-            }}
+            onValueChange={(layout) => onChange(layoutChangePatch(slide, layout as SlideLayout, device, orientation))}
           >
             <SelectTrigger id={`${fieldId}-layout`}>
               <SelectValue />

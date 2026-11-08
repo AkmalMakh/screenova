@@ -6,6 +6,7 @@ import { report, requestIdOf } from "@/lib/ops";
 import { openAIErrorResponse } from "@/lib/openai-errors";
 import { authorizeRequest } from "@/lib/supabase/access";
 import { readAsset } from "@/lib/supabase/assets";
+import { COPY_ACCURACY_RULES, SCREENSHOT_LAYOUT_RULE } from "@/lib/suggest-deck";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -84,7 +85,8 @@ function buildSystemPrompt(appName: string, locales: string[]) {
 For each supplied screenshot, write exactly one slide:
 - label: a short name for the feature or screen shown (≤40 characters). It renders as a small uppercase accent line.
 - headline: punchy, outcome-led copy (≤120 characters). It renders as the main text. Keep it readable at thumbnail size.
-- layout: the best-fit composition — "hero" for a launch or full-screen shot, "device-bottom" or "device-top" for feature screens, "two-devices" when the shot clearly shows two surfaces, "no-device" for close-ups or cropped detail shots.
+- layout: the best-fit composition — "hero" for a launch or full-screen shot, "device-bottom" or "device-top" for feature screens, "two-devices" when the shot clearly shows two surfaces, "no-device" for close-ups or cropped detail shots. ${SCREENSHOT_LAYOUT_RULE}
+${COPY_ACCURACY_RULES}
 
 Respond with one slide per input screenshot, in the same order — never more, never fewer.
 
