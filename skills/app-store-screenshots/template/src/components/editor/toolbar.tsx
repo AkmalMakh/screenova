@@ -11,6 +11,7 @@ import {
   Globe,
   Home,
   Languages,
+  MessageSquare,
   MoreHorizontal,
   RotateCcw,
   UnfoldHorizontal,
@@ -79,6 +80,8 @@ type Props = {
   setOrientation: (v: Orientation) => void;
   onExport: () => void;
   onPublish: () => void;
+  /** Opens the beta feedback dialog; absent in local mode. */
+  onFeedback?: () => void;
   /** The deck's current copy, one "Headline | Subheader" row per screen. */
   bulkCopyText: string;
   onBulkCopy: (input: string) => { applied: number; total: number };
@@ -338,6 +341,12 @@ export function Toolbar(props: Props) {
                 </DropdownMenuRadioGroup>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            {props.onFeedback && (
+              <DropdownMenuItem onSelect={props.onFeedback}>
+                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                {t("toolbar.feedback")}…
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={() => setResetOpen(true)}

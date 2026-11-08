@@ -318,4 +318,34 @@ describe("public gallery policies", () => {
     )).rejects.toThrow(/check constraint/i);
     await expect(publish("   ")).rejects.toThrow(/check constraint/i);
   });
+
+  it("lets beta members record their own exports and feedback, and read none back", async () => {
+    await asUser(alice);
+    await db.query("insert into public.beta_events(kind, project_id, detail) values ('export', 'p1', $1::jsonb)", [JSON.stringify({ device: "iphone", files: 6 })]);
+    await db.query("insert into public.beta_feedback(project_id, would_use, message, context) values ('p1', 'maybe', 'Needs more fonts', 'export')");
+    await db.query("insert into public.beta_feedback(would_use) values ('yes')");
+    await expect(db.query("select * from public.beta_events")).rejects.toThrow(/permission denied/i);
+    await expect(db.query("select * from public.beta_feedback")).rejects.toThrow(/permission denied/i);
+    // Rows are always attributed to the caller.
+    await expect(db.query("insert into public.beta_feedback(user_id, message) values ($1, 'as bob')", [bob])).rejects.toThrow(/permission denied/i);
+    await expect(db.query("insert into public.beta_events(user_id, kind) values ($1, 'export')", [bob])).rejects.toThrow(/permission denied/i);
+    await db.exec("reset role;");
+    const owners = await db.query<{ user_id: string }>("select user_id from public.beta_events union all select user_id from public.beta_feedback");
+    expect(owners.rows.map((row) => row.user_id)).toEqual([alice, alice, alice]);
+  });
+
+  it("refuses exports and feedback from visitors and non-members, and bounds their size", async () => {
+    await asAnon();
+    await expect(db.query("insert into public.beta_feedback(message) values ('anon')")).rejects.toThrow(/permission denied/i);
+    await expect(db.query("insert into public.beta_events(kind) values ('export')")).rejects.toThrow(/permission denied/i);
+    await asUser(outsider);
+    await expect(db.query("insert into public.beta_feedback(message) values ('outsider')")).rejects.toThrow(/row-level security/i);
+    await expect(db.query("insert into public.beta_events(kind) values ('export')")).rejects.toThrow(/row-level security/i);
+    await asUser(alice);
+    await expect(db.query("insert into public.beta_feedback(message) values ('   ')")).rejects.toThrow(/check constraint/i);
+    await expect(db.query("insert into public.beta_feedback(would_use) values ('sure')")).rejects.toThrow(/check constraint/i);
+    await expect(db.query("insert into public.beta_feedback(message) values ($1)", ["x".repeat(2001)])).rejects.toThrow(/check constraint/i);
+    await expect(db.query("insert into public.beta_events(kind) values ('page_view')")).rejects.toThrow(/check constraint/i);
+    await expect(db.query("insert into public.beta_events(kind, detail) values ('export', $1::jsonb)", [JSON.stringify({ pad: "x".repeat(2100) })])).rejects.toThrow(/check constraint/i);
+  });
 });
