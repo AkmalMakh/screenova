@@ -17,6 +17,15 @@ type FrameProps = {
 
 // iPhone — uses pre-measured mockup.png overlay
 export function Phone({ src, alt = "", style, hideEmpty, frameStyle = "device" }: FrameProps) {
+  if (frameStyle === "none") {
+    return (
+      <BareScreen
+        src={src} alt={alt} style={style} hideEmpty={hideEmpty} aspectRatio="1022 / 2082"
+        screen={{ left: `${PHONE_SCREEN.L}%`, top: `${PHONE_SCREEN.T}%`, width: `${PHONE_SCREEN.W}%`, height: `${PHONE_SCREEN.H}%` }}
+        radius={`${PHONE_SCREEN.RX}% / ${PHONE_SCREEN.RY}%`}
+      />
+    );
+  }
   if (frameStyle !== "device") return <MinimalPhone src={src} alt={alt} style={style} hideEmpty={hideEmpty} frameStyle={frameStyle} />;
   const resolved = img(src);
   return (
@@ -56,6 +65,15 @@ export function Phone({ src, alt = "", style, hideEmpty, frameStyle = "device" }
 }
 
 export function AndroidPhone({ src, alt = "", style, hideEmpty, frameStyle = "device" }: FrameProps) {
+  if (frameStyle === "none") {
+    return (
+      <BareScreen
+        src={src} alt={alt} style={style} hideEmpty={hideEmpty} aspectRatio="9 / 19.5"
+        screen={{ left: "3.5%", top: "2%", width: "93%", height: "96%" }}
+        radius="5.5% / 2.6%"
+      />
+    );
+  }
   if (frameStyle !== "device") return <MinimalPhone src={src} alt={alt} style={style} hideEmpty={hideEmpty} frameStyle={frameStyle} />;
   const resolved = img(src);
   return (
@@ -330,6 +348,28 @@ function EmptySlot({ light = false }: { light?: boolean } = {}) {
 }
 
 // Neutral phone bezel for references with soft white or minimal dark hardware.
+// No bezel: the screenshot alone, in the frame's screen area so layouts and
+// crops don't move. The drop shadow follows the image's own alpha, so a
+// screenshot with rounder corners than ours keeps them, with no black edge.
+function BareScreen({
+  src,
+  alt = "",
+  style,
+  hideEmpty,
+  aspectRatio,
+  screen,
+  radius,
+}: FrameProps & { aspectRatio: string; screen: React.CSSProperties; radius: string }) {
+  const resolved = img(src);
+  return <div data-frame-style="none" style={{ position: "relative", aspectRatio, ...style }}>
+    <div style={{ position: "absolute", ...screen, filter: "drop-shadow(0 16px 45px #14151a40)" }}>
+      <div style={{ width: "100%", height: "100%", overflow: "hidden", borderRadius: radius, background: resolved ? undefined : "#f5f5f7" }}>
+        {resolved ? <img src={resolved} alt={alt} draggable={false} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} /> : hideEmpty ? null : <EmptySlot light />}
+      </div>
+    </div>
+  </div>;
+}
+
 function MinimalPhone({ src, alt = "", style, hideEmpty, frameStyle }: FrameProps) {
   const resolved = img(src);
   const light = frameStyle === "white";
