@@ -40,12 +40,12 @@ describe("which model designs", () => {
     expect(designModel("edit")).toBe("gpt-5.6-terra");
   });
 
-  it("gives first drafts the most capable Claude model and edits the faster one", () => {
+  it("gives first drafts Opus at high effort and edits the faster model", () => {
     vi.stubEnv("DESIGN_PROVIDER", "anthropic");
-    expect(designModel("draft")).toBe("claude-fable-5-1");
-    expect(designModel("edit")).toBe("claude-sonnet-5-5");
-    vi.stubEnv("ANTHROPIC_DRAFT_MODEL", "claude-opus-5-5");
     expect(designModel("draft")).toBe("claude-opus-5-5");
+    expect(designModel("edit")).toBe("claude-sonnet-5-5");
+    vi.stubEnv("ANTHROPIC_DRAFT_MODEL", "claude-fable-5-1");
+    expect(designModel("draft")).toBe("claude-fable-5-1");
   });
 
   it("asks for the key the chosen provider needs", () => {
@@ -83,7 +83,7 @@ describe("drafting with Claude", () => {
 
     expect(result).toEqual({ title: "Plan your day" });
     const [params] = mocks.stream.mock.calls[0] as [Anthropic.MessageCreateParams];
-    expect(params.model).toBe("claude-fable-5-1");
+    expect(params.model).toBe("claude-opus-5-5");
     expect(params.output_config?.effort).toBe("high");
     expect(params.output_config?.format?.type).toBe("json_schema");
     // Draft prompts differ per request, so they are not cached.

@@ -7,9 +7,11 @@ import { z } from "zod";
 // One way for every design route to ask a model for a structured design.
 //
 // DESIGN_PROVIDER=anthropic sends design work to Claude. First drafts (a new
-// deck, an App Store import) go to the most capable model: that draft is the
-// moment a new user decides whether Screenova is worth it. Chat edits go back
-// and forth, so they use a faster model. Anything else keeps OpenAI, which is
+// deck, an App Store import) go to Opus at high effort: that draft is the
+// moment a new user decides whether Screenova is worth it. Measured on a real
+// import, Fable 5.1 drew a nearly identical deck at 2.4x the cost and slower,
+// so Opus is the default (ANTHROPIC_DRAFT_MODEL switches it). Chat edits go
+// back and forth, so they use a faster model. Anything else keeps OpenAI, which is
 // also where background artwork always goes: Claude does not generate images.
 
 export type DesignTask = "draft" | "edit";
@@ -22,7 +24,7 @@ type ClaudeSpec = { env: string; fallback: string; effort: "medium" | "high"; ma
 const CLAUDE: Record<DesignTask, ClaudeSpec> = {
   // Draft prompts change with every request's languages and screen count, so
   // caching them would only pay the cache-write premium.
-  draft: { env: "ANTHROPIC_DRAFT_MODEL", fallback: "claude-fable-5-1", effort: "high", maxTokens: 64_000, cacheSystem: false },
+  draft: { env: "ANTHROPIC_DRAFT_MODEL", fallback: "claude-opus-5-5", effort: "high", maxTokens: 64_000, cacheSystem: false },
   edit: { env: "ANTHROPIC_EDIT_MODEL", fallback: "claude-sonnet-5-5", effort: "medium", maxTokens: 32_000, cacheSystem: true },
 };
 

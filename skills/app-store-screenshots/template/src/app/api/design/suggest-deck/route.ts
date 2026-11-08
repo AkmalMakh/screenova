@@ -190,7 +190,7 @@ export async function POST(req: Request) {
     let lastError: unknown;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        // The first draft a new user sees: the most capable model.
+        // The first draft a new user sees: the draft model, at high effort.
         const draft = await generateDesign({
           task: "draft",
           system: buildDeckPrompt(
