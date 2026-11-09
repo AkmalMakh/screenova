@@ -850,7 +850,17 @@ function Editor() {
     const ordered = [...state.locales.filter((code) => next.includes(code)), ...next.filter((code) => !state.locales.includes(code))];
     const added = ordered.filter((code) => !state.locales.includes(code));
     const targets = rewrite ? ordered.filter((code) => code !== source) : added;
-    const items = targets.length ? collectCopy(state, source) : [];
+    // Untouched starter decks are placeholders: translating them wastes the
+    // call and makes them look edited, so they'd never take the real design.
+    const designed = {
+      ...state,
+      slidesByDevice: Object.fromEntries(
+        Object.entries(state.slidesByDevice).filter(([device, slides]) => !isStarterDeck(device as Device, slides)),
+      ) as typeof state.slidesByDevice,
+    };
+    const designedItems = targets.length ? collectCopy(designed, source) : [];
+    // A project with nothing designed yet still gets its starter copy translated.
+    const items = designedItems.length || !targets.length ? designedItems : collectCopy(state, source);
     if (!items.length) {
       setState((prev) => ({ ...prev, locales: ordered, locale: ordered.includes(prev.locale) ? prev.locale : ordered[0] }));
       if (targets.length) toast.info(t("languages.noCopy", { source: languageName(source) }));

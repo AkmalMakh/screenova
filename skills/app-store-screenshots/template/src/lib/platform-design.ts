@@ -1,6 +1,5 @@
 import { CANVAS } from "./constants";
 import { DEFAULT_PROJECT, detectPlatform, nid } from "./defaults";
-import { localizeStarterDeck } from "./starter-copy";
 import type { Device, ElementTransform, Orientation, ProjectState, Slide } from "./types";
 
 // iOS and Android decks are stored per device. A deck designed for one store
@@ -35,14 +34,16 @@ function shape(slides: Slide[]) {
   });
 }
 
-/**
- * True while a device still shows the untouched starter deck, in whatever
- * languages the project started with (new projects get translated starters).
- */
+// Starter screens in other languages can come from the starter's own
+// translations or from an AI translation of the whole project, in any
+// wording, so only the English copy and the structure identify a starter.
+const englishOnly = (slides: Slide[]) =>
+  slides.map((slide) => ({ ...slide, label: { en: slide.label?.en ?? "" }, headline: { en: slide.headline?.en ?? "" } }));
+
+/** True while a device still shows the untouched starter deck. */
 export function isStarterDeck(device: Device, slides: Slide[] | undefined): boolean {
   if (!slides?.length) return true;
-  const locales = [...new Set(slides.flatMap((slide) => [...Object.keys(slide.label ?? {}), ...Object.keys(slide.headline ?? {})]))];
-  return shape(slides) === shape(localizeStarterDeck(DEFAULT_PROJECT.slidesByDevice[device], locales));
+  return shape(englishOnly(slides)) === shape(englishOnly(DEFAULT_PROJECT.slidesByDevice[device]));
 }
 
 /**

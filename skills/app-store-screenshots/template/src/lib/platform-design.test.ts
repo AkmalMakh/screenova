@@ -92,9 +92,13 @@ describe("one design for both stores", () => {
     expect(isStarterDeck("android-10", fromDatabase)).toBe(true);
     const next = switchDevice(project({ slidesByDevice: { ...project().slidesByDevice, "android-10": fromDatabase } }), "android-10");
     expect(next.slidesByDevice["android-10"][0].headline.en).toBe("Plan your day");
-    // An edit in any language means the user has started on that deck.
-    const edited = fromDatabase.map((slide: Slide, index: number) => (index === 0 ? { ...slide, headline: { ...slide.headline, de: "Mein Tablet" } } : slide));
+    // Starter screens translated by the Languages dialog, in other wording, are still untouched.
+    const translated = fromDatabase.map((slide: Slide) => ({ ...slide, headline: { ...slide.headline, es: "Pensada para\nla pantalla grande." } }));
+    expect(isStarterDeck("android-10", translated)).toBe(true);
+    // Changing the English copy or the structure means the user has started on that deck.
+    const edited = fromDatabase.map((slide: Slide, index: number) => (index === 0 ? { ...slide, headline: { ...slide.headline, en: "My tablet" } } : slide));
     expect(isStarterDeck("android-10", edited)).toBe(false);
+    expect(isStarterDeck("android-10", fromDatabase.slice(0, 1))).toBe(false);
   });
 
   it("finds a tablet's design on its store's tablet first, then on a phone", () => {
