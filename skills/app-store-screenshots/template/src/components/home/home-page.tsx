@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { AccountButton } from "@/components/auth/account-button";
-import { announceCreditsChanged, CreditsBadge } from "@/components/auth/credits-badge";
+import { announceCreditsChanged, CreditsBadge, useCredits } from "@/components/auth/credits-badge";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Input } from "@/components/ui/input";
@@ -32,14 +32,14 @@ import {
   type ComposerReference,
 } from "@/components/home/studio-shell";
 import { fileToDataUrl, uploadImage } from "@/components/editor/screenshot-picker";
-import type { AppStoreLookupResult } from "@/lib/app-store";
+import { listingBrief, type AppStoreLookupResult } from "@/lib/app-store";
 import {
   MAX_REFERENCE_SCREENSHOTS,
   MAX_STYLE_REFERENCES,
   themeById,
 } from "@/lib/constants";
 import { SlideCanvas, getCanvas } from "@/components/editor/slide-canvas";
-import { buildSlidesFromAnalysis, buildSuggestedSlides, type SlideAnalysis } from "@/lib/import-slides";
+import { buildSuggestedSlides } from "@/lib/import-slides";
 import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { useProject } from "@/lib/storage";
 import { extractReferenceLinks, normalizeReferenceUrl } from "@/lib/reference-links";
@@ -221,39 +221,24 @@ function Home() {
       }
       const result = json as ImportResult;
       setImporting(t("home.importingDraft"));
-      const analysisResponse = await apiFetch("/api/design/analyze-screenshots", {
+      // The first draft a new user sees, so it gets the full creative engine
+      // (palette, type, decorations), briefed with the live listing text.
+      const draftResponse = await apiFetch("/api/design/suggest-deck", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          appName: result.app.trackName,
+          messages: [{ role: "user", text: listingBrief(result.app) }],
           locales,
+          device: importDevice,
           screenshots: result.screenshots,
         }),
       });
       announceCreditsChanged();
-      const analysis = (await analysisResponse.json()) as {
-        ok?: boolean;
-        slides?: SlideAnalysis[];
-        error?: string;
-      };
-      if (!analysisResponse.ok || !analysis.ok || !analysis.slides?.length) {
-        throw new Error(analysis.error || t("home.importFailed"));
+      const draft = (await draftResponse.json()) as { ok?: boolean; deck?: DeckSuggestion; error?: string };
+      if (!draftResponse.ok || !draft.ok || !draft.deck?.slides?.length) {
+        throw new Error(draft.error || t("home.importFailed"));
       }
-      const slides = buildSlidesFromAnalysis(
-        analysis.slides,
-        result.screenshots.map((screenshot) => screenshot.path),
-        locales,
-        importDevice,
-      );
-      createProject(result.app.trackName, locales);
-      setState((prev) => ({
-        ...prev,
-        appName: result.app.trackName,
-        appIcon: result.iconPath || prev.appIcon,
-        device: importDevice,
-        slidesByDevice: { ...prev.slidesByDevice, [importDevice]: slides },
-      }));
-      router.push("/editor");
+      openDeck(draft.deck, result.screenshots.map((screenshot) => screenshot.path), result.app.trackName, locales, importDevice, result.iconPath);
     } catch (error) {
       // Only create the project after analysis succeeds; a failed import must
       // not change the active project or discard the user's existing work.
@@ -484,27 +469,32 @@ function Home() {
 
   function openDeckInEditor() {
     if (!deck || !deckAppName.trim()) return;
-    const locales = chatLocales.length ? chatLocales : ["en"];
-    const slides = suggestedSlides;
-    createProject(deckAppName.trim(), locales);
+    openDeck(deck, deckScreenshots.map(({ path }) => path), deckAppName.trim(), chatLocales.length ? chatLocales : ["en"], chatDevice);
+  }
+
+  // A drafted deck becomes a new project, opened in the editor.
+  function openDeck(draft: DeckSuggestion, screenshots: string[], appName: string, locales: string[], device: Device, appIcon?: string) {
+    const slides = buildSuggestedSlides(draft.slides, screenshots, locales, device);
+    createProject(appName, locales);
     setState((prev) => ({
       ...prev,
-      appName: deckAppName.trim(),
+      appName,
+      ...(appIcon ? { appIcon } : {}),
       connectedCanvas: false,
-      locale: DECK_LOCALE(deck, locales),
-      themeId: deck.themeId,
+      locale: DECK_LOCALE(draft, locales),
+      themeId: draft.themeId,
       // The AI palette wins over the built-in fallback — same mechanism the
       // editor's design proposals use (customThemesByDevice beats themeId).
-      ...(deck.customTheme
+      ...(draft.customTheme
         ? {
             customThemesByDevice: {
               ...(prev.customThemesByDevice || {}),
-              [chatDevice]: { ...deck.customTheme, id: `ai-custom-${chatDevice}` },
+              [device]: { ...draft.customTheme, id: `ai-custom-${device}` },
             },
           }
         : {}),
-      device: chatDevice,
-      slidesByDevice: { ...prev.slidesByDevice, [chatDevice]: slides },
+      device,
+      slidesByDevice: { ...prev.slidesByDevice, [device]: slides },
     }));
     router.push("/editor");
   }
@@ -1097,6 +1087,8 @@ function LookupResult({
   onReset: () => void;
 }) {
   const { t } = useT();
+  // Cloud only: the first draft is the expensive call, so say so before it runs.
+  const credits = useCredits();
   const previewScreens =
     device === "ipad"
       ? app.ipadScreenshotUrls.length
@@ -1201,19 +1193,26 @@ function LookupResult({
           <X className="h-3.5 w-3.5" />
           {t("home.differentLink")}
         </Button>
-        <Button type="button" className="h-9 px-4" onClick={onImport} disabled={busy}>
-          {importing ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {importing}
-            </>
-          ) : (
-            <>
-              <Download className="h-3.5 w-3.5" />
-              {t("home.import")}
-            </>
+        <div className="flex items-center gap-3">
+          {credits && (
+            <span className="text-caption text-muted-foreground" title={credits.aiAccess ? undefined : t("credits.waitlistHint")}>
+              {credits.aiAccess ? t("credits.draftCost", { cost: credits.draft }) : t("credits.waitlist")}
+            </span>
           )}
-        </Button>
+          <Button type="button" className="h-9 px-4" onClick={onImport} disabled={busy}>
+            {importing ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {importing}
+              </>
+            ) : (
+              <>
+                <Download className="h-3.5 w-3.5" />
+                {t("home.import")}
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );

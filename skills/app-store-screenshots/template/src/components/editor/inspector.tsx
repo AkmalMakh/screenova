@@ -43,6 +43,7 @@ import {
   toTextElementId,
 } from "@/lib/elements";
 import { pickText, writeLocalized } from "@/lib/locale";
+import type { FrameStyle } from "@/lib/slide-appearance";
 import { img } from "@/lib/image-cache";
 import type {
   DecorationElement,
@@ -65,7 +66,7 @@ import {
 } from "@/lib/ui-i18n";
 import { cn } from "@/lib/utils";
 import { ScreenshotPicker } from "./screenshot-picker";
-import { getCanvas, getElementTransform } from "./slide-canvas";
+import { getCanvas, getElementTransform, layoutChangePatch } from "./slide-canvas";
 
 type Props = {
   slide: Slide;
@@ -76,8 +77,12 @@ type Props = {
   locales: string[];
   selectedElementId: ElementId | null;
   onChange: (patch: Partial<Slide>) => void;
+  /** Applies a patch to every screen of the current device. */
+  onChangeAll?: (patch: Partial<Slide>) => void;
   onSelectElement: (id: ElementId | null) => void;
 };
+
+const FRAME_STYLES = ["device", "white", "dark", "none"] as const satisfies readonly FrameStyle[];
 
 export function Inspector({
   slide,
@@ -88,6 +93,7 @@ export function Inspector({
   locales,
   selectedElementId,
   onChange,
+  onChangeAll,
   onSelectElement,
 }: Props) {
   const { t } = useT();
@@ -102,6 +108,15 @@ export function Inspector({
   }, [selectedElementId, slide.id]);
   const isFeatureGraphic = device === "feature-graphic" || slide.layout === "feature-graphic";
   const isNoDevice = slide.layout === "no-device";
+  // Tablets draw a single hardware frame; phones offer bezel styles.
+  const hasFrameChoice = !isFeatureGraphic && !isNoDevice && (device === "iphone" || device === "android");
+  const frameStyle = slide.frameStyle ?? "device";
+  const frameLabel: Record<FrameStyle, string> = {
+    device: t("inspector.frameDevice"),
+    white: t("inspector.frameWhite"),
+    dark: t("inspector.frameDark"),
+    none: t("inspector.frameNone"),
+  };
   const layoutValue = device === "feature-graphic" ? "feature-graphic" : slide.layout;
   const layoutOptions = (Object.keys(LAYOUT_LABEL) as SlideLayout[]).filter((layout) =>
     device === "feature-graphic" ? layout === "feature-graphic" : layout !== "feature-graphic",
@@ -180,15 +195,7 @@ export function Inspector({
           <Label htmlFor={`${fieldId}-layout`} className={FIELD_LABEL}>{t("inspector.layout")}</Label>
           <Select
             value={layoutValue}
-            onValueChange={(layout) => {
-              const next = layout as SlideLayout;
-              onChange({
-                layout: next,
-                transforms: undefined,
-                screenshotSecondary:
-                  next === "two-devices" ? slide.screenshotSecondary || slide.screenshot : undefined,
-              });
-            }}
+            onValueChange={(layout) => onChange(layoutChangePatch(slide, layout as SlideLayout, device, orientation))}
           >
             <SelectTrigger id={`${fieldId}-layout`}>
               <SelectValue />
@@ -202,6 +209,35 @@ export function Inspector({
             </SelectContent>
           </Select>
         </div>
+
+        {hasFrameChoice && (
+          <div className="space-y-1.5">
+            <Label htmlFor={`${fieldId}-frame`} className={FIELD_LABEL}>{t("inspector.frame")}</Label>
+            <Select value={frameStyle} onValueChange={(value) => onChange({ frameStyle: value as FrameStyle })}>
+              <SelectTrigger id={`${fieldId}-frame`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FRAME_STYLES.map((style) => (
+                  <SelectItem key={style} value={style}>
+                    {frameLabel[style]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {frameStyle === "none" && <p className="text-caption text-muted-foreground">{t("inspector.frameNoneHint")}</p>}
+            {onChangeAll && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 w-full justify-start px-2 text-footnote text-primary hover:text-primary"
+                onClick={() => onChangeAll({ frameStyle })}
+              >
+                {t("inspector.frameAllScreens")}
+              </Button>
+            )}
+          </div>
+        )}
 
         {!isFeatureGraphic && (
           <div className="space-y-1.5">

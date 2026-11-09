@@ -316,6 +316,19 @@ function Editor() {
     [setState],
   );
 
+  const patchAllSlides = React.useCallback(
+    (patch: Partial<Slide>) => {
+      setState((prev) => ({
+        ...prev,
+        slidesByDevice: {
+          ...prev.slidesByDevice,
+          [prev.device]: (prev.slidesByDevice[prev.device] || []).map((s) => ({ ...s, ...patch })),
+        },
+      }));
+    },
+    [setState],
+  );
+
   const reorderSlides = React.useCallback(
     (next: Slide[]) => {
       setState((prev) => ({
@@ -1563,6 +1576,7 @@ function Editor() {
                         : null
                     }
                     onChange={(patch) => patchSlide(activeSlide.id, patch)}
+                    onChangeAll={patchAllSlides}
                     onSelectElement={(elementId) =>
                       setSelectedElement(
                         elementId ? { slideId: activeSlide.id, elementId } : null,

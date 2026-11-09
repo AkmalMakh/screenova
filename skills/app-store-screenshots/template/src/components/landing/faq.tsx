@@ -13,8 +13,8 @@ const FAQS: FaqItem[] = [
     a: 'Not in local mode. Open Studio and start designing; projects stay on your computer without sign-in or email verification. Cloud installations require a verified email account.',
   },
   {
-    q: 'Do I need my own OpenAI key?',
-    a: 'For a local installation, the operator configures an OpenAI key on the server. In the hosted beta, the organizer provides it and daily usage limits apply. Keys are never sent to the browser. Manual editing and exports do not require AI.',
+    q: 'Do I need my own AI key?',
+    a: 'For a local installation, the operator configures the AI keys on the server: OpenAI, or Anthropic to design with Claude (generated artwork always uses OpenAI). In the hosted beta, the organizer provides them and usage limits apply. Keys are never sent to the browser. Manual editing and exports do not require AI.',
   },
   {
     q: 'If the AI generates a background, can I still edit it afterward?',
@@ -49,7 +49,7 @@ export const FAQ: React.FC<{ cloud?: boolean }> = ({ cloud = false }) => {
     if (item.q === 'Do I need an account to use Screenova?') return {
       ...item, a: 'Yes. Sign in to create your private workspace, save projects, and return to your designs on another device.',
     };
-    if (item.q === 'Do I need my own OpenAI key?') return {
+    if (item.q === 'Do I need my own AI key?') return {
       ...item, a: 'No. Screenova handles the server-side AI connection. Daily generation limits apply. Manual editing and exports do not require AI.',
     };
     if (item.q === 'Where does my project live?') return {
