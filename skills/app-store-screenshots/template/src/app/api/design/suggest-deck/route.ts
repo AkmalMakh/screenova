@@ -1,9 +1,10 @@
 import path from "node:path";
-import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
 import { NextResponse } from "next/server";
+import { designConfigError, generateDesign, isProviderError, type DesignPart } from "@/lib/design-model";
+import { fullSizeScreenshotUrl } from "@/lib/app-store";
+import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { report, requestIdOf } from "@/lib/ops";
-import { openAIErrorResponse } from "@/lib/openai-errors";
+import { aiErrorResponse } from "@/lib/openai-errors";
 import { authorizeRequest } from "@/lib/supabase/access";
 import { readAsset } from "@/lib/supabase/assets";
 import { z } from "zod";
@@ -22,7 +23,7 @@ import {
 } from "@/lib/suggest-deck";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 180;
+export const maxDuration = 300;
 
 const MAX_MESSAGES = 12;
 const MAX_SCREENSHOTS = 10;
@@ -50,7 +51,8 @@ const screenshotInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   path: z
     .string()
-    .regex(/^\/(?:screenshots\/uploaded\/[\w.-]+|api\/assets\/[a-f0-9-]+\/[\w/.-]+)\.(png|jpe?g|webp)$/i)
+    // Uploads, App Store imports (local mode), or private cloud assets.
+    .regex(/^\/(?:screenshots\/(?:uploaded\/[\w.-]+|app-store\/[\w.-]+\/[\w.-]+)|api\/assets\/[a-f0-9-]+\/[\w/.-]+)\.(png|jpe?g|webp)$/i)
     .refine((value) => path.posix.normalize(value) === value && !value.includes(".."), {
       message: "Invalid screenshot path",
     }),
@@ -76,7 +78,7 @@ const styleReferenceSchema = z.object({
 
 const suggestDeckRequestSchema = z.object({
   messages: z.array(messageSchema).min(1).max(MAX_MESSAGES),
-  locales: z.array(z.string().trim().regex(localeCode)).min(1).max(7),
+  locales: z.array(z.string().trim().regex(localeCode)).min(1).max(CONTENT_LANGUAGES.length),
   device: z.enum(["iphone", "ipad", "android"]),
   count: z.number().int().min(MIN_DECK_SLIDES).max(MAX_DECK_SLIDES).optional(),
   screenshots: z.array(screenshotInputSchema).min(1).max(MAX_SCREENSHOTS).optional(),
@@ -84,14 +86,10 @@ const suggestDeckRequestSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const access = await authorizeRequest(req, "ai");
+  const access = await authorizeRequest(req, "ai_draft");
   if ("response" in access) return access.response;
-  if (!process.env.OPENAI_API_KEY) {
-    return NextResponse.json(
-      { ok: false, error: "OpenAI is not configured. Add OPENAI_API_KEY to .env.local." },
-      { status: 503 },
-    );
-  }
+  const configError = designConfigError();
+  if (configError) return NextResponse.json({ ok: false, error: configError }, { status: 503 });
 
   let body: unknown;
   try {
@@ -136,11 +134,8 @@ export async function POST(req: Request) {
     .join("\n\n");
 
   // Build the input: description first, then one labeled image per screenshot.
-  const userContent: OpenAI.Responses.ResponseInputContent[] = [
-    {
-      type: "input_text",
-      text: `DESCRIPTION AND FEEDBACK\n${conversation}`,
-    },
+  const userContent: DesignPart[] = [
+    { type: "text", text: `DESCRIPTION AND FEEDBACK\n${conversation}` },
   ];
   if (withScreenshots) {
     let totalBytes = 0;
@@ -167,19 +162,12 @@ export async function POST(req: Request) {
       }
       const ext = entry.path.match(/\.([^.]+)$/)?.[1]?.toLowerCase() || "png";
       const mime = MIME_BY_EXT[ext] || "image/png";
-      userContent.push({
-        type: "input_text",
-        text: `SCREENSHOT ${i + 1} of ${screenshots.length} — ${entry.name}`,
-      });
-      userContent.push({
-        type: "input_image",
-        image_url: `data:${mime};base64,${buf.toString("base64")}`,
-        detail: "auto",
-      });
+      userContent.push({ type: "text", text: `SCREENSHOT ${i + 1} of ${screenshots.length} — ${entry.name}` });
+      userContent.push({ type: "image", url: `data:${mime};base64,${buf.toString("base64")}` });
     }
   }
 
-  // Style references ride along as remote CDN URLs — OpenAI fetches them, so
+  // Style references ride along as remote CDN URLs — the provider fetches them, so
   // nothing extra lands on this server. High detail, because the model has to
   // read widget placement and text position off these, not just their palette;
   // at "low" it cannot resolve either.
@@ -189,47 +177,41 @@ export async function POST(req: Request) {
     const shots = (reference.screenshotUrls ?? []).slice(0, referenceShotBudget);
     referenceShotBudget -= shots.length;
     userContent.push({
-      type: "input_text",
+      type: "text",
       text: `STYLE REFERENCE ${i + 1} of ${styleReferences.length} — ${reference.name} (${reference.url})${shots.length ? ` — ${shots.length} screens follow, in store order` : " — link only, no screenshots"}`,
     });
     for (const url of shots) {
-      userContent.push({ type: "input_image", image_url: url, detail: "high" });
+      // Large enough to read widget placement; the lookup's thumbnails are not.
+      userContent.push({ type: "image", url: fullSizeScreenshotUrl(url, 1600), detail: "high" });
     }
   }
-
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const model = process.env.OPENAI_DESIGN_MODEL || "gpt-5.6-terra";
 
   try {
     let lastError: unknown;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const response = await client.responses.parse(
-          {
-            model,
-            instructions: buildDeckPrompt(
-              locales,
-              device,
-              deckCount,
-              screenshots.length,
-              styleReferences.map((reference) => ({
-                name: reference.name,
-                hasImages: (reference.screenshotUrls ?? []).length > 0,
-              })),
-            ),
-            input: [{ role: "user", content: userContent }],
-            reasoning: { effort: "medium" },
-            text: {
-              format: zodTextFormat(responseSchema, "app_store_template_deck"),
-            },
-            store: false,
-          },
-          { signal: req.signal },
-        );
-        if (!response.output_parsed) {
+        // The first draft a new user sees: the draft model, at high effort.
+        const draft = await generateDesign({
+          task: "draft",
+          system: buildDeckPrompt(
+            locales,
+            device,
+            deckCount,
+            screenshots.length,
+            styleReferences.map((reference) => ({
+              name: reference.name,
+              hasImages: (reference.screenshotUrls ?? []).length > 0,
+            })),
+          ),
+          content: userContent,
+          schema: responseSchema,
+          name: "app_store_template_deck",
+          signal: req.signal,
+        });
+        if (!draft) {
           throw new Error("The model returned no template deck.");
         }
-        const deck = normalizeDeck(response.output_parsed, locales, deckCount, device);
+        const deck = normalizeDeck(draft, locales, deckCount, device);
         if (!deck) {
           throw new Error("The model returned an invalid template deck.");
         }
@@ -237,11 +219,13 @@ export async function POST(req: Request) {
       } catch (error) {
         lastError = error;
         if (!isRetryableStructureError(error) || attempt === 1) throw error;
+        // The reply didn't fit the design rules; say why before the one retry.
+        console.warn("screenova_ai_retry", { requestId: requestIdOf(req), reason: error instanceof Error ? error.message : String(error) });
       }
     }
     throw lastError;
   } catch (error) {
-    const providerFailure = openAIErrorResponse(error, "OpenAI could not draft a template right now. Try again.", req);
+    const providerFailure = aiErrorResponse(error, "The AI could not draft a template right now. Try again.", req);
     if (providerFailure) return providerFailure;
     if (req.signal.aborted) {
       return NextResponse.json(
@@ -256,6 +240,5 @@ export async function POST(req: Request) {
 }
 
 function isRetryableStructureError(error: unknown) {
-  if (error instanceof OpenAI.APIError) return false;
-  return error instanceof Error;
+  return !isProviderError(error) && error instanceof Error;
 }

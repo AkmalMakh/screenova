@@ -19,9 +19,14 @@ export type AppStoreLookupResult = {
   trackViewUrl: string;
   artworkUrl100: string;
   artworkUrl512: string;
+  /** The current listing text: the source of truth for features and numbers. */
+  description: string;
   screenshotUrls: string[];
   ipadScreenshotUrls: string[];
 };
+
+// Long enough for an app's feature list; the deck prompt reads the start.
+const MAX_DESCRIPTION = 4_000;
 
 const HOST_SUFFIXES = ["apps.apple.com", "itunes.apple.com"];
 const APP_ID = /^\d{4,20}$/;
@@ -98,7 +103,35 @@ export function normalizeLookupResult(
     trackViewUrl: str(result.trackViewUrl),
     artworkUrl100: str(result.artworkUrl100),
     artworkUrl512: str(result.artworkUrl512) || str(result.artworkUrl100),
+    description: str(result.description).trim().slice(0, MAX_DESCRIPTION),
     screenshotUrls,
     ipadScreenshotUrls,
   };
+}
+
+// The lookup API lists screenshots as small thumbnails (".../320x480bb.jpg",
+// about 240x520). Apple's CDN serves any bounding box up to the original, so
+// ask for the full size: sharp inside exported frames and readable for the AI.
+// JPEG keeps a full iPhone capture near 300 KB (the PNG is over 1.5 MB).
+export function fullSizeScreenshotUrl(url: string, box = 4000): string {
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.endsWith(".mzstatic.com")) return url;
+    parsed.pathname = parsed.pathname.replace(/\/\d+x\d+[a-z]*\.(?:jpe?g|png|webp)$/i, `/${box}x${box}bb.jpg`);
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+// The deck route reads at most this much of each message.
+const BRIEF_LIMIT = 1_500;
+
+/** An imported app's design brief: what it is, then its live listing text. */
+export function listingBrief(app: Pick<AppStoreLookupResult, "trackName" | "primaryGenreName" | "description">): string {
+  const intro = `Design App Store screenshots for "${app.trackName}"${app.primaryGenreName ? `, a ${app.primaryGenreName} app` : ""}, using its current screenshots.`;
+  const description = app.description.replace(/\s+\n/g, "\n").trim();
+  if (!description) return intro;
+  const heading = "\n\nIts current App Store description, the source of truth for features and numbers:\n";
+  return intro + heading + description.slice(0, Math.max(0, BRIEF_LIMIT - intro.length - heading.length));
 }

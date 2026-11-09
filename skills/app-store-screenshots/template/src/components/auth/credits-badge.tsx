@@ -15,9 +15,15 @@ export function useCredits(): CreditsSnapshot | null {
     const load = async () => {
       try {
         const response = await apiFetch("/api/credits");
-        const json = (await response.json()) as { ok?: boolean; credits?: number | null; perCall?: number };
-        if (!cancelled && response.ok && json.ok && typeof json.credits === "number" && typeof json.perCall === "number") {
-          setSnapshot({ credits: json.credits, perCall: json.perCall });
+        const json = (await response.json()) as {
+          ok?: boolean;
+          credits?: number | null;
+          cost?: { draft?: number; edit?: number };
+          aiAccess?: boolean;
+        };
+        const { draft, edit } = json.cost ?? {};
+        if (!cancelled && response.ok && json.ok && typeof json.credits === "number" && typeof draft === "number" && typeof edit === "number") {
+          setSnapshot({ credits: json.credits, draft, edit, aiAccess: json.aiAccess !== false });
         }
       } catch {
         // Keep whatever was shown; the next AI request refreshes it.
@@ -42,8 +48,13 @@ export function CreditsBadge({ className }: { className?: string }) {
   const { t } = useT();
   const snapshot = useCredits();
   if (!snapshot) return null;
-  const empty = snapshot.credits < snapshot.perCall;
-  const title = `${t("credits.left", { count: snapshot.credits })} · ${t("credits.perDesign", { cost: snapshot.perCall })}`;
+  const waitlisted = !snapshot.aiAccess;
+  // Out of credits once not even an edit fits; a draft may already be out of reach.
+  const empty = !waitlisted && snapshot.credits < snapshot.edit;
+  const label = waitlisted ? t("credits.waitlist") : t("credits.left", { count: snapshot.credits });
+  const title = waitlisted
+    ? t("credits.waitlistHint")
+    : `${label} · ${t("credits.costs", { draft: snapshot.draft, edit: snapshot.edit })}`;
   return (
     <span
       role="status"
@@ -56,7 +67,7 @@ export function CreditsBadge({ className }: { className?: string }) {
       )}
     >
       <Sparkles className="h-3.5 w-3.5" aria-hidden />
-      {t("credits.left", { count: snapshot.credits })}
+      {label}
     </span>
   );
 }

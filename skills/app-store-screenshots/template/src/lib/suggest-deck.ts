@@ -192,7 +192,8 @@ export function buildDeckSchema(
 export const SCREENSHOT_LAYOUT_RULE = `Pick each screen's layout from where its screenshot's important content sits, never to alternate for variety. "device-top" pushes the TOP of the phone off the canvas, so use it only when the screenshot's key content is in its lower half and its top is just a status bar, title or empty space. Otherwise use "device-bottom" or "hero", which keep the top of the screen visible. Never crop away the part of a screenshot that shows the feature its headline names. Create variety with background, phone scale and tilt instead.`;
 
 export const COPY_ACCURACY_RULES = `- Each screen sells a different benefit. Do not repeat an idea or a headline's key words on another screen; when two screenshots show the same feature, sell two different outcomes of it.
-- Numbers and specifics (sizes, counts, levels, durations, prices, ratings) may appear only when the user's description or screenshots state them, copied exactly. If the description says grids run from 5×5 to 20×20, write that range; never list sizes it doesn't name. When unsure, make the point without the number.`;
+- Numbers and specifics (sizes, counts, levels, durations, prices, ratings) may appear only when the user's description or screenshots state them, copied exactly. If the description says grids run from 5×5 to 20×20, write that range; never list sizes it doesn't name. When unsure, make the point without the number.
+- When the description and a screenshot disagree, follow the description: store screenshots are often older than the listing text.`;
 
 export function buildDeckPrompt(
   locales: string[],

@@ -29,6 +29,8 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 const routes = [redesign, analyze, suggest];
+// A first draft and a chat edit are charged differently.
+const budgets = new Map<unknown, string>([[redesign, "ai_edit"], [analyze, "ai_draft"], [suggest, "ai_draft"]]);
 const request = (body: string) => new Request("https://screenova.example/api/design", { method: "POST", body });
 
 describe("AI route authorization and validation boundaries", () => {
@@ -39,7 +41,7 @@ describe("AI route authorization and validation boundaries", () => {
         mocks.authorize.mockResolvedValue( { response: denied });
         const req = request("invalid json");
         expect(await route(req)).toBe(denied);
-        expect(mocks.authorize).toHaveBeenLastCalledWith(req, "ai");
+        expect(mocks.authorize).toHaveBeenLastCalledWith(req, budgets.get(route));
       }
     }
     expect(mocks.provider).not.toHaveBeenCalled();

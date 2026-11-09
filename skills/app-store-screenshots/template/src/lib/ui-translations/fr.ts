@@ -97,7 +97,10 @@ export const fr: Record<TranslationKey, string> = {
   "toolbar.savedHours": "enregistré il y a {hours}h",
   "toolbar.interfaceLanguage": "Langue de l'interface",
   "credits.left": "{count} crédit restant | {count} crédits restants",
-  "credits.perDesign": "{cost} par design",
+  "credits.costs": "Brouillon {draft} · Modification {edit}",
+  "credits.draftCost": "Utilise {cost} crédits",
+  "credits.waitlist": "Liste d'attente IA",
+  "credits.waitlistHint": "Toutes les places IA sont prises. Tu peux toujours concevoir à la main, utiliser des modèles et exporter.",
 
   // ---- sidebar ----
   "sidebar.screens": "Écrans",

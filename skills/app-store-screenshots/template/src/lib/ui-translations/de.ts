@@ -97,7 +97,10 @@ export const de: Record<TranslationKey, string> = {
   "toolbar.savedHours": "vor {hours} Std. gespeichert",
   "toolbar.interfaceLanguage": "Sprache der Oberfläche",
   "credits.left": "{count} Credit übrig | {count} Credits übrig",
-  "credits.perDesign": "{cost} pro Design",
+  "credits.costs": "Entwurf {draft} · Änderung {edit}",
+  "credits.draftCost": "Kostet {cost} Credits",
+  "credits.waitlist": "KI-Warteliste",
+  "credits.waitlistHint": "Alle KI-Plätze sind vergeben. Du kannst weiterhin von Hand gestalten, Vorlagen nutzen und exportieren.",
 
   // ---- sidebar ----
   "sidebar.screens": "Bildschirme",

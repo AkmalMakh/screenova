@@ -5,7 +5,7 @@ import { z } from "zod";
 import sharp from "sharp";
 import { authorizeRequest, type Access } from "@/lib/supabase/access";
 import { storeAsset } from "@/lib/supabase/assets";
-import { normalizeLookupResult, parseAppStoreUrl } from "@/lib/app-store";
+import { fullSizeScreenshotUrl, normalizeLookupResult, parseAppStoreUrl } from "@/lib/app-store";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
 
   const preferred = device === "ipad" ? app.ipadScreenshotUrls : app.screenshotUrls;
   const fallback = device === "ipad" ? app.screenshotUrls : app.ipadScreenshotUrls;
-  const sources = [...new Set([...preferred, ...fallback])].slice(0, MAX_SCREENSHOTS);
+  const sources = [...new Set([...preferred, ...fallback])].slice(0, MAX_SCREENSHOTS).map((url) => fullSizeScreenshotUrl(url));
 
   const screenshots: Array<{ name: string; path: string }> = [];
   let skipped = 0;

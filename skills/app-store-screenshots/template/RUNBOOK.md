@@ -71,13 +71,24 @@ Reset one account's counter for today (log why in the release notes):
 delete from public.beta_usage where user_id = '<uuid>' and day = (now() at time zone 'utc')::date;
 ```
 
-Change caps: write a new migration that replaces `public.consume_beta_budget_v2` with new numbers, keeping the lock, upsert, grants and verdict order. Run `npm test -- policies` before applying it in the SQL Editor. Current caps per UTC day: per account `ai` 20, `import` 10, `upload` 100; shared pool `ai` 1000, `import` 500, `upload` 5000.
+Change caps: write a new migration that replaces `public.consume_beta_budget_v3` with new numbers, keeping the lock, upsert, grants and verdict order. Run `npm test -- policies` before applying it in the SQL Editor. Current caps per UTC day: per account AI 20 (drafts and edits together), `import` 10, `upload` 100; shared pool AI 150, `import` 500, `upload` 5000.
 
-Keep `public.consume_beta_budget` (v1). It is a one-line boolean wrapper over v2 so `vercel rollback` to any older deployment keeps working. Do not drop it.
+Credits (since `202611090001`): every member with an AI seat gets 400 lifetime credits. A first draft (`ai_draft`: new deck, App Store import) costs 40, a design-chat edit (`ai_edit`) costs 10. Only the first 100 members get an AI seat; later sign-ups get the editor without AI (`ai_access = false`, 0 credits) and see the waitlist message. Owner accounts take seats too. Measured 2026-11-08: an Opus 5.5 draft costs $0.29-0.36 (budgeted at $0.50 with references and 10 screenshots) and a Sonnet 5.5 edit about $0.04, so 400 credits cap one member near $5. Each call logs its tokens as `screenova_ai_usage` in Vercel logs; recheck these numbers there before changing prices.
+
+```sql
+-- Top up one account (yours, or a tester who asks):
+update public.beta_members set credits = credits + 400 where user_id = '<uuid>';
+-- Give a waitlisted account an AI seat:
+update public.beta_members set ai_access = true, credits = 400 where user_id = '<uuid>';
+-- Seats used:
+select count(*) filter (where ai_access) as ai_seats, count(*) as members from public.beta_members;
+```
+
+Keep `public.consume_beta_budget` (v1) and `_v2`. v1 is a boolean wrapper over v2, and v2 still charges 10 per `ai` call, so `vercel rollback` to any older deployment keeps working. Waitlisted members have 0 credits, so v2 refuses them too. Do not drop either.
 
 ## Deploy order (migrations first)
 
-1. Apply new migrations in the Supabase SQL Editor, oldest first. Verify with a test account: `select public.consume_beta_budget_v2('import');` returns `ok`, `user`, `global` or `denied`.
+1. Apply new migrations in the Supabase SQL Editor, oldest first. Verify with a test account: `select public.consume_beta_budget_v3('import');` returns `ok`, `user`, `global` or `denied`.
 2. Push the branch: Vercel builds a Preview automatically. Run the hosted smoke against that preview URL (below).
 3. On preview only, prove alert delivery from a real error path: set `NEXT_PUBLIC_SUPABASE_URL` for Preview to `https://<your-project-ref>.invalid` (keep the same first label: the session cookie is named after it, so a different host signs you out instead of simulating an outage), redeploy preview, open `/api/project` signed in, confirm a `middleware` or `access_unavailable` event (environment preview) appears in Sentry, then restore the value and redeploy. Preview events do not email by design; the weekly self-test proves the production email path. A 401 here means the drill URL changed the project ref, not that alerting is broken.
 4. Merge to `main`: Vercel deploys Production automatically. Then run the hosted smoke against production.
