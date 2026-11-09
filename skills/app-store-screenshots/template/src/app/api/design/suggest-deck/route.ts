@@ -86,7 +86,7 @@ const suggestDeckRequestSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const access = await authorizeRequest(req, "ai");
+  const access = await authorizeRequest(req, "ai_draft");
   if ("response" in access) return access.response;
   const configError = designConfigError();
   if (configError) return NextResponse.json({ ok: false, error: configError }, { status: 503 });

@@ -100,7 +100,10 @@ export const ru: Record<TranslationKey, string> = {
   "toolbar.savedHours": "сохранено {hours} ч назад",
   "toolbar.interfaceLanguage": "Язык интерфейса",
   "credits.left": "{count} кредит осталось | Кредитов осталось: {count}",
-  "credits.perDesign": "{cost} за дизайн",
+  "credits.costs": "Черновик {draft} · Правка {edit}",
+  "credits.draftCost": "Спишет {cost} кредитов",
+  "credits.waitlist": "Лист ожидания ИИ",
+  "credits.waitlistHint": "Все места с ИИ заняты. Вы по-прежнему можете оформлять вручную, использовать шаблоны и экспортировать.",
 
   // ---- sidebar ----
   "sidebar.screens": "Экраны",

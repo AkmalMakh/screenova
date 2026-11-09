@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { AccountButton } from "@/components/auth/account-button";
-import { announceCreditsChanged, CreditsBadge } from "@/components/auth/credits-badge";
+import { announceCreditsChanged, CreditsBadge, useCredits } from "@/components/auth/credits-badge";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Input } from "@/components/ui/input";
@@ -1087,6 +1087,8 @@ function LookupResult({
   onReset: () => void;
 }) {
   const { t } = useT();
+  // Cloud only: the first draft is the expensive call, so say so before it runs.
+  const credits = useCredits();
   const previewScreens =
     device === "ipad"
       ? app.ipadScreenshotUrls.length
@@ -1191,19 +1193,26 @@ function LookupResult({
           <X className="h-3.5 w-3.5" />
           {t("home.differentLink")}
         </Button>
-        <Button type="button" className="h-9 px-4" onClick={onImport} disabled={busy}>
-          {importing ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {importing}
-            </>
-          ) : (
-            <>
-              <Download className="h-3.5 w-3.5" />
-              {t("home.import")}
-            </>
+        <div className="flex items-center gap-3">
+          {credits && (
+            <span className="text-caption text-muted-foreground" title={credits.aiAccess ? undefined : t("credits.waitlistHint")}>
+              {credits.aiAccess ? t("credits.draftCost", { cost: credits.draft }) : t("credits.waitlist")}
+            </span>
           )}
-        </Button>
+          <Button type="button" className="h-9 px-4" onClick={onImport} disabled={busy}>
+            {importing ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {importing}
+              </>
+            ) : (
+              <>
+                <Download className="h-3.5 w-3.5" />
+                {t("home.import")}
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -138,12 +138,12 @@ describe("Supabase migration policies", () => {
       (await db.query<{ verdict: string }>("select public.consume_beta_budget_v2($1) as verdict", [kind])).rows[0].verdict;
     const credits = async () => (await db.query<{ credits: number }>("select credits from public.beta_members")).rows[0].credits;
     await asUser(alice);
-    expect(await credits()).toBe(300);
+    expect(await credits()).toBe(400);
     expect(await verdict("ai")).toBe("ok");
-    expect(await credits()).toBe(290);
+    expect(await credits()).toBe(390);
     expect(await verdict("upload")).toBe("ok");
     expect(await verdict("import")).toBe("ok");
-    expect(await credits()).toBe(290);
+    expect(await credits()).toBe(390);
     // Members read their own balance but cannot top it up or reset it.
     await expect(db.query("update public.beta_members set credits = 300")).rejects.toThrow(/permission denied/i);
     await asUser(bob); expect((await db.query("select credits from public.beta_members")).rows).toHaveLength(1);
@@ -184,6 +184,82 @@ describe("Supabase migration policies", () => {
       { name: "consume_beta_budget", authenticated: true, anon: false },
       { name: "consume_beta_budget_v2", authenticated: true, anon: false },
     ]);
+  });
+});
+
+describe("Claude-priced credits and AI seats", () => {
+  const verdict = async (kind: string) =>
+    (await db.query<{ verdict: string }>("select public.consume_beta_budget_v3($1) as verdict", [kind])).rows[0].verdict;
+  const own = async () =>
+    (await db.query<{ credits: number; ai_access: boolean }>("select credits, ai_access from public.beta_members")).rows[0];
+  const usage = async (who: string) =>
+    (await db.query<{ attempts: number }>("select attempts from public.beta_usage where user_id = $1 and kind = 'ai'", [who])).rows[0]?.attempts ?? 0;
+
+  it("charges 40 for a first draft and 10 for an edit, from one daily AI allowance", async () => {
+    await asUser(alice);
+    expect(await own()).toEqual({ credits: 400, ai_access: true });
+    expect(await verdict("ai_draft")).toBe("ok");
+    expect((await own()).credits).toBe(360);
+    expect(await verdict("ai_edit")).toBe("ok");
+    expect((await own()).credits).toBe(350);
+    expect(await verdict("upload")).toBe("ok");
+    expect(await verdict("import")).toBe("ok");
+    expect((await own()).credits).toBe(350);
+    await db.exec("reset role;");
+    expect(await usage(alice)).toBe(2);
+    // 35 left: a draft no longer fits, an edit still does.
+    await db.query("update public.beta_members set credits = 35 where user_id = $1", [alice]);
+    await asUser(alice);
+    expect(await verdict("ai_draft")).toBe("credits");
+    expect(await verdict("ai_edit")).toBe("ok");
+    expect((await own()).credits).toBe(25);
+    expect(await verdict("ai")).toBe("denied");
+    expect(await verdict("video")).toBe("denied");
+    await asUser(outsider);
+    expect(await verdict("ai_draft")).toBe("denied");
+  });
+
+  it("caps the shared AI pool at 150 calls a day while v2 keeps its old pool for rollback", async () => {
+    await db.exec("reset role;");
+    await db.query("insert into public.beta_usage(user_id, day, kind, attempts) values($1, (now() at time zone 'utc')::date, 'ai', 150)", [bob]);
+    await asUser(alice);
+    expect(await verdict("ai_edit")).toBe("global");
+    expect(await verdict("upload")).toBe("ok");
+    expect((await own()).credits).toBe(400);
+    expect((await db.query<{ verdict: string }>("select public.consume_beta_budget_v2('ai') as verdict")).rows[0].verdict).toBe("ok");
+  });
+
+  it("puts members without an AI seat on the waitlist, for every version of the budget", async () => {
+    await db.exec("reset role;");
+    await db.query("update public.beta_members set ai_access = false, credits = 0 where user_id = $1", [bob]);
+    await asUser(bob);
+    expect(await verdict("ai_draft")).toBe("waitlist");
+    expect(await verdict("ai_edit")).toBe("waitlist");
+    expect(await verdict("upload")).toBe("ok");
+    expect(await verdict("import")).toBe("ok");
+    expect((await db.query<{ verdict: string }>("select public.consume_beta_budget_v2('ai') as verdict")).rows[0].verdict).toBe("credits");
+    await db.exec("reset role;");
+    expect(await usage(bob)).toBe(0);
+    // Members can read their seat but never grant themselves one.
+    await asUser(bob);
+    expect((await own()).ai_access).toBe(false);
+    await expect(db.query("update public.beta_members set ai_access = true")).rejects.toThrow(/permission denied/i);
+  });
+
+  it("gives the first 100 members an AI seat with 400 credits and later sign-ups the editor only", async () => {
+    // alice and bob hold two seats; 98 confirmed sign-ups fill the rest.
+    await db.exec(`insert into auth.users(id, email, email_confirmed_at)
+      select gen_random_uuid(), 'seat' || g || '@example.com', now() from generate_series(1, 98) g`);
+    const seats = async () => (await db.query<{ n: number }>("select count(*)::int as n from public.beta_members where ai_access")).rows[0].n;
+    expect(await seats()).toBe(100);
+    expect((await db.query<{ credits: number }>("select credits from public.beta_members m join auth.users u on u.id = m.user_id where u.email = 'seat98@example.com'")).rows[0].credits).toBe(400);
+    const late = "66666666-6666-4666-8666-666666666666";
+    await db.query("insert into auth.users(id, email, email_confirmed_at) values($1, 'late@example.com', now())", [late]);
+    expect(await seats()).toBe(100);
+    await asUser(late);
+    expect(await own()).toEqual({ credits: 0, ai_access: false });
+    expect(await verdict("ai_draft")).toBe("waitlist");
+    expect((await save("Hand-made deck")).rows[0].revision).toBe("1");
   });
 });
 

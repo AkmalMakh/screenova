@@ -111,7 +111,10 @@ export const en = {
   "toolbar.savedHours": "saved {hours}h ago",
   "toolbar.interfaceLanguage": "Interface language",
   "credits.left": "{count} credit left | {count} credits left",
-  "credits.perDesign": "{cost} per design",
+  "credits.costs": "Draft {draft} · Edit {edit}",
+  "credits.draftCost": "Uses {cost} credits",
+  "credits.waitlist": "AI waitlist",
+  "credits.waitlistHint": "All AI spots are taken. You can still design by hand, use templates and export.",
 
   // ---- sidebar ----
   "sidebar.screens": "Screens",
