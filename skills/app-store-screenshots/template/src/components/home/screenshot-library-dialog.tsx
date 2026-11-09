@@ -33,7 +33,7 @@ export function ScreenshotLibraryDialog({ open, onOpenChange, paths, room, onPic
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(720px,90dvh)] max-w-3xl flex-col gap-4">
+      <DialogContent className="flex max-h-[min(760px,90dvh)] max-w-4xl flex-col gap-4">
         <DialogHeader>
           <DialogTitle>{t("library.title")}</DialogTitle>
           <DialogDescription>{t("library.hint", { count: room })}</DialogDescription>
@@ -44,34 +44,38 @@ export function ScreenshotLibraryDialog({ open, onOpenChange, paths, room, onPic
             {t("library.empty")}
           </p>
         ) : (
-          <div className="-mx-1 grid min-h-0 flex-1 grid-cols-3 gap-3 overflow-y-auto px-1 py-1 sm:grid-cols-5">
-            {paths.map((path, index) => {
-              const order = picked.indexOf(path);
-              const on = order >= 0;
-              const full = !on && picked.length >= room;
-              return (
-                <button
-                  key={path}
-                  type="button"
-                  onClick={() => toggle(path)}
-                  disabled={full}
-                  aria-pressed={on}
-                  aria-label={t("library.item", { index: index + 1 })}
-                  className={cn(
-                    "relative aspect-[9/19.5] overflow-hidden rounded-sm border bg-muted transition-[border-color,opacity] duration-micro ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40",
-                    on ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-foreground/30",
-                  )}
-                >
-                  <img src={thumbnailUrl(path)} alt="" loading="lazy" className="h-full w-full object-cover object-top" />
-                  {on && (
-                    // The number is the order the screens will appear in the deck.
-                    <span className="absolute right-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-caption font-semibold text-primary-foreground">
-                      {order + 1}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          // The scroll box is height-limited; the grid inside is not, so its rows
+          // grow to each screenshot's full height instead of collapsing into overlap.
+          <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 py-1">
+            <div className="grid auto-rows-max grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+              {paths.map((path, index) => {
+                const order = picked.indexOf(path);
+                const on = order >= 0;
+                const full = !on && picked.length >= room;
+                return (
+                  <button
+                    key={path}
+                    type="button"
+                    onClick={() => toggle(path)}
+                    disabled={full}
+                    aria-pressed={on}
+                    aria-label={t("library.item", { index: index + 1 })}
+                    className={cn(
+                      "relative block aspect-[9/19.5] w-full overflow-hidden rounded-sm border bg-muted transition-[border-color,opacity] duration-micro ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40",
+                      on ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-foreground/30",
+                    )}
+                  >
+                    <img src={thumbnailUrl(path)} alt="" loading="lazy" className="h-full w-full object-cover object-top" />
+                    {on && (
+                      // The number is the order the screens will appear in the deck.
+                      <span className="absolute right-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-caption font-semibold text-primary-foreground">
+                        {order + 1}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

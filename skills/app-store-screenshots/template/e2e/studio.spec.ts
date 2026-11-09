@@ -855,3 +855,26 @@ test("choosing iPhone and iPad drafts once and gives the iPad the same design wi
   expect(project.slidesByDevice.ipad).toHaveLength(1);
   expect(project.slidesByDevice.ipad[0]).toMatchObject({ screenshot: "", frameStyle: "white", layout: "device-bottom" });
 });
+
+test("Your uploads shows every screenshot whole when there are more than fit", async ({ page, request }) => {
+  const workspace = fixture();
+  const slides = [];
+  for (let index = 0; index < 14; index += 1) {
+    const png = await sharp({ create: { width: 390, height: 844, channels: 3, background: `#${(0x203040 + index * 0x0a0b0c).toString(16).slice(-6)}` } }).png().toBuffer();
+    const { path } = await (await request.post("/api/upload", { data: { dataUrl: `data:image/png;base64,${png.toString("base64")}` } })).json();
+    slides.push({ ...workspace.projects.qa.slidesByDevice.iphone[0], id: `upload-${index}`, screenshot: path });
+  }
+  workspace.projects.qa.slidesByDevice.iphone = slides;
+  expect((await request.post("/api/project", { data: workspace })).ok()).toBe(true);
+  await page.goto("/studio");
+  await page.getByRole("button", { name: "Attach screenshots", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Choose from your uploads" }).click();
+  const tiles = page.getByRole("dialog").getByRole("button", { name: /^Screenshot \d+$/ });
+  await expect(tiles).toHaveCount(14);
+  // Rows used to collapse inside the scroll box, stacking screenshots on top of each other.
+  const boxes = await tiles.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().toJSON() as DOMRect));
+  const rows = [...new Set(boxes.map((box) => Math.round(box.top)))].sort((a, b) => a - b);
+  expect(rows.length).toBeGreaterThan(1);
+  for (let index = 1; index < rows.length; index += 1) expect(rows[index] - rows[index - 1]).toBeGreaterThanOrEqual(Math.round(boxes[0].height));
+  expect(boxes[0].height / boxes[0].width).toBeGreaterThan(2);
+});
