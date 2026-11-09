@@ -2,6 +2,7 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import JSZip from "jszip";
 import sharp from "sharp";
+import { exportDevices } from "./support/export";
 
 const devices = ["iphone", "ipad", "android", "android-7", "android-10", "feature-graphic"];
 function fixture(device = "iphone") {
@@ -47,7 +48,7 @@ test("award badge edits, duplicates, reloads and renders into exported PNGs", as
   await expect(badge).toContainText("App Store");
   await page.screenshot({ path: info.outputPath("badge-desktop.png") });
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export bundle", exact: true }).click();
+  await exportDevices(page, ["iphone"]);
   const target = info.outputPath("badge.zip");
   await (await download).saveAs(target);
   const zip = await JSZip.loadAsync(await readFile(target));

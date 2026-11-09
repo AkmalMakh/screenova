@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { AccountButton } from "@/components/auth/account-button";
+import { CreditsBadge } from "@/components/auth/credits-badge";
 import {
   Dialog,
   DialogContent,
@@ -74,7 +75,7 @@ type Props = {
   locale: string;
   setLocale: (v: string) => void;
   locales: string[];
-  /** Opens the languages dialog (add languages, have Claude write them). */
+  /** Opens the languages dialog (add languages, have the AI write them). */
   onOpenLanguages: () => void;
   device: Device;
   setDevice: (v: Device) => void;
@@ -309,6 +310,7 @@ export function Toolbar(props: Props) {
       </ScrollStrip>
 
       <div className="ml-auto flex shrink-0 items-center gap-1">
+        <CreditsBadge compact className="hidden sm:inline-flex" />
         <SaveStatus savedAt={props.savedAt} saveError={props.saveError} />
         <span aria-hidden className="mx-1 hidden h-5 w-px bg-border sm:block" />
         <Button

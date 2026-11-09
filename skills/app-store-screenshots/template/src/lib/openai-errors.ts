@@ -70,8 +70,8 @@ export function openAIErrorResponse(error: unknown, unavailableMessage: string, 
 // Claude failures, mapped by the same rules. A spent prepaid balance or the
 // Console spend limit is the "monthly hard limit" here: it lasts until someone
 // tops up, so it gets AI_PAUSED, never "try again shortly".
-const CLAUDE_REJECTED = "Claude couldn't process this request. Try different screenshots or wording.";
-const CLAUDE_BUSY = "Claude is busy right now. Try again shortly.";
+const CLAUDE_REJECTED = "Screenova AI couldn't process this request. Try different screenshots or wording.";
+const CLAUDE_BUSY = "Screenova AI is busy right now. Try again shortly.";
 
 export function claudeErrorResponse(error: unknown, unavailableMessage: string, req?: Request): NextResponse | null {
   if (!(error instanceof Anthropic.APIError)) return null;
@@ -93,7 +93,7 @@ export function claudeErrorResponse(error: unknown, unavailableMessage: string, 
   }
   const message =
     status === 401
-      ? "The Claude API key was rejected."
+      ? "Screenova AI isn't available right now. Try again later."
       : status === 403 || status === 404 || status >= 500
         ? unavailableMessage
         : /image/i.test(error.message)

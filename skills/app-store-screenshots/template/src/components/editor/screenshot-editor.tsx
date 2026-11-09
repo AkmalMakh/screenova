@@ -31,7 +31,8 @@ import {
   themeById,
 } from "@/lib/constants";
 import { detectPlatform, nid } from "@/lib/defaults";
-import { counterpartDevice, switchDevice, withCounterpartDesign, withDesignFrom } from "@/lib/platform-design";
+import { counterpartDevice, designSource, isStarterDeck, switchDevice, withCounterpartDesign, withDesignFrom } from "@/lib/platform-design";
+import { ExportDialog, type ExportChoice } from "./export-dialog";
 import {
   applyDesignProposal,
   cloneProject,
@@ -141,6 +142,9 @@ function Editor() {
   const [exporting, setExporting] = React.useState<string | null>(null);
   const [ready, setReady] = React.useState(false);
   const [exportLocaleOverride, setExportLocaleOverride] = React.useState<string | null>(null);
+  // While exporting another device, the off-screen renderer draws that device's deck.
+  const [exportDevice, setExportDevice] = React.useState<Device | null>(null);
+  const [exportOpen, setExportOpen] = React.useState(false);
   const [exportSlideIndex, setExportSlideIndex] = React.useState(0);
   const [designMessages, setDesignMessages] = React.useState<DesignConversationMessage[]>([]);
   const [messagesProjectId, setMessagesProjectId] = React.useState<string | null>(null);
@@ -175,6 +179,9 @@ function Editor() {
   const exportRef = React.useRef<HTMLDivElement | null>(null);
   const exportInProgress = React.useRef(false);
   const designAbortRef = React.useRef<AbortController | null>(null);
+  // The export reads the project after it may have filled in untouched decks.
+  const stateRef = React.useRef(state);
+  stateRef.current = state;
   // A first draft started on the home page keeps streaming in here.
   const draft = useDraft(activeProjectId);
   const drafting = draft?.status === "uploading" || draft?.status === "designing";
@@ -1050,37 +1057,68 @@ function Editor() {
     });
   }
 
-  async function exportAll() {
-    if (exportInProgress.current || generatingDesign || pendingDesign || importing) return;
+  // Every device's deck, in store order, for the export dialog.
+  const exportChoices = React.useMemo<ExportChoice[]>(() => EXPORT_DEVICES.map((device) => {
+    const slides = state.slidesByDevice[device] || [];
+    const starter = isStarterDeck(device, slides);
+    const source = starter ? designSource(state, device) : null;
+    return {
+      device,
+      screens: source ? (state.slidesByDevice[source] || []).length : slides.length,
+      status: !starter ? "designed" : source ? "copies" : "starter",
+      ...(source ? { source } : {}),
+    };
+  }), [state]);
+  const exportDefaults = React.useMemo(
+    () => exportChoices.filter((choice) => choice.status === "designed" || choice.device === state.device).map((choice) => choice.device),
+    [exportChoices, state.device],
+  );
+
+  // One zip for every chosen device: each in its own folder, in every
+  // language and App Store size. An untouched deck first takes the design it
+  // would get on opening (tablets with empty screens), so it's never exported
+  // as starter screens.
+  async function exportAll(devices: Device[] = [state.device]) {
+    if (exportInProgress.current || generatingDesign || pendingDesign || importing || !devices.length) return;
     exportInProgress.current = true;
     setExporting("0/1");
     try {
-    if (!currentSlides.length) {
+    if (devices.some((device) => isStarterDeck(device, state.slidesByDevice[device]) && designSource(state, device))) {
+      setState((prev) => {
+        let next = prev;
+        for (const device of devices) {
+          const from = isStarterDeck(device, next.slidesByDevice[device]) ? designSource(next, device) : null;
+          if (from) next = withDesignFrom(next, device, from);
+        }
+        return next;
+      });
+      await waitForPaint();
+    }
+    const project = stateRef.current;
+    const targets = devices
+      .map((device) => {
+        const orientation = supportsLandscape(device) ? project.orientation : "portrait";
+        return { device, orientation, slides: project.slidesByDevice[device] || [], sizes: getExportSizes(device, orientation) };
+      })
+      .filter((target) => target.slides.length && target.sizes.length);
+    if (!targets.length) {
       toast.error(t("toasts.noScreensToExport"));
       return;
     }
 
-    const sizes = getExportSizes(state.device, state.orientation);
-    if (!sizes.length) {
-      toast.error(t("toasts.nothingToExport"));
-      return;
-    }
-    const locales = state.locales;
+    const locales = project.locales;
     await preloadImages(assetPaths, { retryFailed: true });
     await waitForPaint();
 
-    const missingScreens = currentSlides
-      .map((slide, index) => ({ slide, index }))
-      .filter(({ slide }) => slideNeedsScreenshot(state.device, slide) && !slide.screenshot);
-    const reusedBackScreens = currentSlides
-      .map((slide, index) => ({ slide, index }))
-      .filter(
-        ({ slide }) =>
-          state.device !== "feature-graphic" &&
-          slide.layout === "two-devices" &&
-          slide.screenshot &&
-          !slide.screenshotSecondary,
-      );
+    const allSlides = targets.flatMap((target) => target.slides.map((slide) => ({ slide, device: target.device })));
+    const missingScreens = allSlides.filter(({ slide, device }) => slideNeedsScreenshot(device, slide) && !slide.screenshot);
+    const reusedBackScreens = allSlides.filter(
+      ({ slide, device }) =>
+        device !== "feature-graphic" &&
+        slide.layout === "two-devices" &&
+        slide.screenshot &&
+        !slide.screenshotSecondary,
+    );
     if (missingScreens.length > 0 || reusedBackScreens.length > 0) {
       const details = [
         missingScreens.length
@@ -1106,50 +1144,55 @@ function Editor() {
       }
     }
 
-    const { cW, cH } = getCanvas(state.device, state.orientation);
-    const platform = detectPlatform(state.device);
     const zip = new JSZip();
-    const totalUnits = sizes.length * locales.length * currentSlides.length;
+    const totalUnits = targets.reduce((sum, target) => sum + target.sizes.length * locales.length * target.slides.length, 0);
     let unit = 0;
     let okCount = 0;
     let failed = 0;
     const errors: string[] = [];
 
-    for (const locale of locales) {
-      setExportLocaleOverride(locale);
-      await waitForPaint();
+    for (const target of targets) {
+      const { device, orientation, slides, sizes } = target;
+      const { cW, cH } = getCanvas(device, orientation);
+      const platform = detectPlatform(device);
+      setExportDevice(device);
+      for (const locale of locales) {
+        setExportLocaleOverride(locale);
+        await waitForPaint();
 
-      for (const size of sizes) {
-        for (let i = 0; i < currentSlides.length; i++) {
-          const slide = currentSlides[i];
-          unit += 1;
-          setExporting(`${unit}/${totalUnits}`);
-          setExportSlideIndex(i);
-          await waitForPaint();
-          const el = exportRef.current;
-          if (!el) {
-            failed += 1;
-            errors.push(`${locale} ${size.w}×${size.h} screen ${i + 1}: render target missing`);
-            continue;
-          }
-          try {
-            const dataUrl = await captureSlide(el, cW, cH, size.w, size.h);
-            const base64 = dataUrl.split(",")[1] || "";
-            const filename = `${String(i + 1).padStart(2, "0")}-${slide.layout}.png`;
-            const path = `${platform}/${state.device}/${size.w}x${size.h}/${locale}/${filename}`;
-            zip.file(path, base64, { base64: true });
-            okCount += 1;
-          } catch (e) {
-            failed += 1;
-            const msg = e instanceof Error ? e.message : String(e);
-            errors.push(`${locale} ${size.w}×${size.h} screen ${i + 1}: ${msg}`);
-            console.error("Export failed", { slideId: slide.id, locale, size }, e);
+        for (const size of sizes) {
+          for (let i = 0; i < slides.length; i++) {
+            const slide = slides[i];
+            unit += 1;
+            setExporting(`${unit}/${totalUnits}`);
+            setExportSlideIndex(i);
+            await waitForPaint();
+            const el = exportRef.current;
+            if (!el) {
+              failed += 1;
+              errors.push(`${device} ${locale} ${size.w}×${size.h} screen ${i + 1}: render target missing`);
+              continue;
+            }
+            try {
+              const dataUrl = await captureSlide(el, cW, cH, size.w, size.h);
+              const base64 = dataUrl.split(",")[1] || "";
+              const filename = `${String(i + 1).padStart(2, "0")}-${slide.layout}.png`;
+              const path = `${platform}/${device}/${size.w}x${size.h}/${locale}/${filename}`;
+              zip.file(path, base64, { base64: true });
+              okCount += 1;
+            } catch (e) {
+              failed += 1;
+              const msg = e instanceof Error ? e.message : String(e);
+              errors.push(`${device} ${locale} ${size.w}×${size.h} screen ${i + 1}: ${msg}`);
+              console.error("Export failed", { slideId: slide.id, device, locale, size }, e);
+            }
           }
         }
       }
     }
 
     setExportLocaleOverride(null);
+    setExportDevice(null);
 
     if (okCount > 0) {
       try {
@@ -1157,7 +1200,10 @@ function Editor() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${slugify(state.appName)}-${platform}-${state.device}-${stamp()}.zip`;
+        const only = targets.length === 1 ? targets[0].device : null;
+        a.download = only
+          ? `${slugify(project.appName)}-${detectPlatform(only)}-${only}-${stamp()}.zip`
+          : `${slugify(project.appName)}-${stamp()}.zip`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
         if (betaSignals) {
@@ -1168,7 +1214,15 @@ function Editor() {
             body: JSON.stringify({
               kind: "export",
               projectId: activeProjectId ?? null,
-              detail: { device: state.device, screens: currentSlides.length, locales: locales.length, sizes: sizes.length, files: okCount, failed },
+              detail: {
+                device: targets[0].device,
+                devices: targets.map((target) => target.device),
+                screens: allSlides.length,
+                locales: locales.length,
+                sizes: targets.reduce((sum, target) => sum + target.sizes.length, 0),
+                files: okCount,
+                failed,
+              },
             }),
           }).catch(() => {});
         }
@@ -1179,7 +1233,8 @@ function Editor() {
       }
     }
 
-    const summary = `${t("toasts.localeCount", { count: locales.length })} × ${t("toasts.sizeCount", { count: sizes.length })}`;
+    const sizeCount = targets.reduce((sum, target) => sum + target.sizes.length, 0);
+    const summary = `${t("toasts.localeCount", { count: locales.length })} × ${t("toasts.sizeCount", { count: sizeCount })}`;
     if (failed === 0) {
       toast.success(t("toasts.exportedPngs", { count: okCount, summary }), betaSignals
         ? { action: { label: t("toasts.shareFeedback"), onClick: () => setFeedbackContext("export") } }
@@ -1199,6 +1254,7 @@ function Editor() {
     } finally {
       exportInProgress.current = false;
       setExportLocaleOverride(null);
+      setExportDevice(null);
       setExporting(null);
     }
   }
@@ -1263,7 +1319,12 @@ function Editor() {
     );
   }
 
-  const { cW, cH } = getCanvas(state.device, state.orientation);
+  // The off-screen export renderer draws the device being exported.
+  const exportTarget = exportDevice ?? state.device;
+  const exportOrientation = supportsLandscape(exportTarget) ? state.orientation : "portrait";
+  const exportSlides = state.slidesByDevice[exportTarget] || [];
+  const exportTheme = state.customThemesByDevice?.[exportTarget] || themeById(state.themeId, state.customTheme);
+  const { cW, cH } = getCanvas(exportTarget, exportOrientation);
   const busy = !!exporting || generatingDesign || !!pendingDesign || !!importing || drafting;
 
   // ⌘K command palette — flat action list grouped for scanning.
@@ -1281,7 +1342,7 @@ function Editor() {
         {
           id: "palette-export",
           label: t("palette.action.export"),
-          run: () => void exportAll(),
+          run: () => setExportOpen(true),
           disabled: !!exporting || currentSlides.length === 0,
         },
       ],
@@ -1387,7 +1448,7 @@ function Editor() {
         }}
         orientation={state.orientation}
         setOrientation={(v) => setState((p) => ({ ...p, orientation: v }))}
-        onExport={exportAll}
+        onExport={() => setExportOpen(true)}
         bulkCopyText={bulkCopyText}
         onPublish={() => setPublishOpen(true)}
         onFeedback={betaSignals ? () => setFeedbackContext("menu") : undefined}
@@ -1414,6 +1475,14 @@ function Editor() {
         defaultTitle={state.appName.trim() || state.name || ""}
         screenCount={Math.min(currentSlides.length, 20)}
         onPublish={publishToGallery}
+      />
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        choices={exportChoices}
+        initial={exportDefaults}
+        onExport={(devices) => void exportAll(devices)}
       />
 
       <LanguagesDialog
@@ -1799,7 +1868,7 @@ function Editor() {
           pointerEvents: "none",
         }}
       >
-        {currentSlides.length > 0 && (
+        {exportSlides.length > 0 && (
           <div
             ref={exportRef}
             style={{
@@ -1816,15 +1885,15 @@ function Editor() {
                 position: "absolute",
                 left: -exportSlideIndex * cW,
                 top: 0,
-                width: cW * currentSlides.length,
+                width: cW * exportSlides.length,
                 height: cH,
               }}
             >
               <DeckCanvas
-                slides={currentSlides}
-                device={state.device}
-                orientation={state.orientation}
-                theme={canonicalTheme}
+                slides={exportSlides}
+                device={exportTarget}
+                orientation={exportOrientation}
+                theme={exportTheme}
                 locale={exportLocaleOverride ?? state.locale}
                 appName={state.appName}
                 appIcon={state.appIcon}
@@ -1881,6 +1950,9 @@ const PANEL_MOTION =
   "ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-short data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-micro data-[state=closed]:ease-in data-[state=closed]:fill-mode-forwards";
 const PANEL_MOTION_LEFT = `${PANEL_MOTION} data-[state=open]:slide-in-from-left-3 data-[state=closed]:slide-out-to-left-3`;
 const PANEL_MOTION_RIGHT = `${PANEL_MOTION} data-[state=open]:slide-in-from-right-3 data-[state=closed]:slide-out-to-right-3`;
+
+// Store order for the export dialog.
+const EXPORT_DEVICES: Device[] = ["iphone", "ipad", "android", "android-7", "android-10", "feature-graphic"];
 
 function slugify(s: string) {
   return (

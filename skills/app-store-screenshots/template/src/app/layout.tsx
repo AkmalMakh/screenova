@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { PageAnalytics } from "@/components/page-analytics";
 
 export const metadata: Metadata = {
   title: "App Store Screenshots",
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <PageAnalytics />
+      </body>
     </html>
   );
 }

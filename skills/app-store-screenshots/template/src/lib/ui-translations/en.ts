@@ -555,7 +555,7 @@ export const en = {
 
   // ---- first-draft progress, uploads library, editor languages ----
   "draft.uploading": "Uploading screenshots · {done} of {total}",
-  "draft.planning": "Claude is planning your deck…",
+  "draft.planning": "Screenova AI is planning your deck…",
   "draft.designing": "Designing screen {current} of {total}",
   "draft.hint": "Screens appear here as they're designed. You can edit once the draft is done.",
   "draft.failed": "The draft stopped",
@@ -573,7 +573,7 @@ export const en = {
   "library.item": "Screenshot {index}",
   "languages.button": "Languages",
   "languages.title": "Languages",
-  "languages.hint": "Pick this project's languages. Claude writes native copy for each new one from your {source} text.",
+  "languages.hint": "Pick this project's languages. Screenova AI writes native copy for each new one from your {source} text.",
   "languages.source": "Source",
   "languages.rewrite": "Also rewrite languages that already have copy",
   "languages.select": "Select",
@@ -582,6 +582,13 @@ export const en = {
   "languages.updated": "Languages updated",
   "languages.failed": "Couldn't write the new languages",
   "languages.noCopy": "There's no {source} copy to work from yet, so the new languages start empty.",
+  "export.title": "Export screenshots",
+  "export.hint": "Choose the devices to include. Each gets every language and App Store size.",
+  "export.screens": "{count} screen | {count} screens",
+  "export.copies": "Uses your {device} design",
+  "export.starter": "Not designed yet",
+  "export.cancel": "Cancel",
+  "export.submit": "Export {count} device | Export {count} devices",
 } as const;
 
 export type TranslationKey = keyof typeof en;

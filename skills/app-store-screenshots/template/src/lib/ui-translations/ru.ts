@@ -544,7 +544,7 @@ export const ru: Record<TranslationKey, string> = {
 
   // ---- first-draft progress, uploads library, editor languages ----
   "draft.uploading": "Загрузка скриншотов · {done} из {total}",
-  "draft.planning": "Claude продумывает ваш набор…",
+  "draft.planning": "Screenova AI продумывает ваш набор…",
   "draft.designing": "Оформляем экран {current} из {total}",
   "draft.hint": "Экраны появляются здесь по мере готовности. Редактировать можно, когда черновик будет готов.",
   "draft.failed": "Черновик прервался",
@@ -562,7 +562,7 @@ export const ru: Record<TranslationKey, string> = {
   "library.item": "Скриншот {index}",
   "languages.button": "Языки",
   "languages.title": "Языки",
-  "languages.hint": "Выберите языки проекта. Claude напишет естественные тексты для каждого нового языка на основе ваших текстов ({source}).",
+  "languages.hint": "Выберите языки проекта. Screenova AI напишет естественные тексты для каждого нового языка на основе ваших текстов ({source}).",
   "languages.source": "Исходный",
   "languages.rewrite": "Переписать и языки, где тексты уже есть",
   "languages.select": "Выбрать",
@@ -571,4 +571,11 @@ export const ru: Record<TranslationKey, string> = {
   "languages.updated": "Языки обновлены",
   "languages.failed": "Не удалось написать тексты для новых языков",
   "languages.noCopy": "Текстов ({source}) пока нет, поэтому новые языки начнутся пустыми.",
+  "export.title": "Экспорт скриншотов",
+  "export.hint": "Выберите устройства для экспорта. Для каждого будут все языки и размеры App Store.",
+  "export.screens": "{count} экран | Экранов: {count}",
+  "export.copies": "Использует ваш дизайн для {device}",
+  "export.starter": "Ещё не оформлено",
+  "export.cancel": "Отмена",
+  "export.submit": "Экспортировать {count} устройство | Экспортировать устройств: {count}",
 };

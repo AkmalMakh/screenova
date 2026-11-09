@@ -216,7 +216,7 @@ async function callClaude(
     stop: message.stop_reason,
   });
   if (message.stop_reason === "max_tokens") throw new Error("The design ran too long and was cut off. Try fewer screens or languages.");
-  if (message.stop_reason === "refusal") throw new Error("Claude declined to design this. Try different screenshots or wording.");
+  if (message.stop_reason === "refusal") throw new Error("Screenova AI declined to design this. Try different screenshots or wording.");
   return message;
 }
 

@@ -541,7 +541,7 @@ export const fr: Record<TranslationKey, string> = {
 
   // ---- first-draft progress, uploads library, editor languages ----
   "draft.uploading": "Envoi des captures · {done} sur {total}",
-  "draft.planning": "Claude prépare ton deck…",
+  "draft.planning": "Screenova AI prépare ton deck…",
   "draft.designing": "Création de l'écran {current} sur {total}",
   "draft.hint": "Les écrans apparaissent ici au fur et à mesure. Tu pourras modifier une fois le brouillon terminé.",
   "draft.failed": "Le brouillon s'est arrêté",
@@ -559,7 +559,7 @@ export const fr: Record<TranslationKey, string> = {
   "library.item": "Capture {index}",
   "languages.button": "Langues",
   "languages.title": "Langues",
-  "languages.hint": "Choisis les langues de ce projet. Claude rédige des textes natifs pour chaque nouvelle langue à partir de ton texte en {source}.",
+  "languages.hint": "Choisis les langues de ce projet. Screenova AI rédige des textes natifs pour chaque nouvelle langue à partir de ton texte en {source}.",
   "languages.source": "Source",
   "languages.rewrite": "Réécrire aussi les langues qui ont déjà des textes",
   "languages.select": "Sélectionner",
@@ -568,4 +568,11 @@ export const fr: Record<TranslationKey, string> = {
   "languages.updated": "Langues mises à jour",
   "languages.failed": "Impossible de rédiger les nouvelles langues",
   "languages.noCopy": "Il n'y a pas encore de texte en {source}, donc les nouvelles langues commencent vides.",
+  "export.title": "Exporter les captures",
+  "export.hint": "Choisis les appareils à inclure. Chacun reçoit toutes les langues et tailles de l'App Store.",
+  "export.screens": "{count} écran | {count} écrans",
+  "export.copies": "Reprend ton design {device}",
+  "export.starter": "Pas encore conçu",
+  "export.cancel": "Annuler",
+  "export.submit": "Exporter {count} appareil | Exporter {count} appareils",
 };

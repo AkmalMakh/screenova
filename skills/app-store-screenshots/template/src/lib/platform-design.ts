@@ -1,5 +1,6 @@
 import { CANVAS } from "./constants";
 import { DEFAULT_PROJECT, detectPlatform, nid } from "./defaults";
+import { localizeStarterDeck } from "./starter-copy";
 import type { Device, ElementTransform, Orientation, ProjectState, Slide } from "./types";
 
 // iOS and Android decks are stored per device. A deck designed for one store
@@ -22,15 +23,26 @@ function canvasSize(device: Device, orientation: Orientation) {
   return orientation === "landscape" && c.wL && c.hL ? { w: c.wL, h: c.hL } : { w: c.w, h: c.h };
 }
 
-/** Slide content with every id removed, for comparing against the starter. */
+/**
+ * Slide content with every id removed and keys sorted, for comparing against
+ * the starter: a deck read back from the database has its keys reordered.
+ */
 function shape(slides: Slide[]) {
-  return JSON.stringify(slides, (key, value) => (key === "id" ? undefined : value));
+  return JSON.stringify(slides, (key, value) => {
+    if (key === "id") return undefined;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)));
+  });
 }
 
-/** True while a device still shows the untouched starter deck. */
+/**
+ * True while a device still shows the untouched starter deck, in whatever
+ * languages the project started with (new projects get translated starters).
+ */
 export function isStarterDeck(device: Device, slides: Slide[] | undefined): boolean {
   if (!slides?.length) return true;
-  return shape(slides) === shape(DEFAULT_PROJECT.slidesByDevice[device]);
+  const locales = [...new Set(slides.flatMap((slide) => [...Object.keys(slide.label ?? {}), ...Object.keys(slide.headline ?? {})]))];
+  return shape(slides) === shape(localizeStarterDeck(DEFAULT_PROJECT.slidesByDevice[device], locales));
 }
 
 /**

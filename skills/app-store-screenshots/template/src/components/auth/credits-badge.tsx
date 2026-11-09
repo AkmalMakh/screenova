@@ -44,7 +44,8 @@ export function announceCreditsChanged() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(CREDITS_CHANGED_EVENT));
 }
 
-export function CreditsBadge({ className }: { className?: string }) {
+/** compact shows just the number (the editor toolbar is tight); the full text stays in the tooltip. */
+export function CreditsBadge({ className, compact = false }: { className?: string; compact?: boolean }) {
   const { t } = useT();
   const snapshot = useCredits();
   if (!snapshot) return null;
@@ -67,7 +68,7 @@ export function CreditsBadge({ className }: { className?: string }) {
       )}
     >
       <Sparkles className="h-3.5 w-3.5" aria-hidden />
-      {label}
+      {compact && !waitlisted ? snapshot.credits : label}
     </span>
   );
 }

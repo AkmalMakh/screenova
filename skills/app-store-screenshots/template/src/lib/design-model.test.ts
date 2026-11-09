@@ -201,13 +201,13 @@ describe("Claude error mapping", () => {
   it.each([
     { name: "spent prepaid balance", error: () => vendor(400, "invalid_request_error", "Your credit balance is too low to access the Anthropic API."), status: 503, copy: AI_PAUSED, reported: "ai_quota" },
     { name: "billing error", error: () => vendor(402, "billing_error"), status: 503, copy: AI_PAUSED, reported: "ai_quota" },
-    { name: "rate limit", error: () => vendor(429, "rate_limit_error"), status: 429, copy: "Claude is busy right now. Try again shortly.", reported: null },
-    { name: "overloaded", error: () => vendor(529, "overloaded_error"), status: 503, copy: "Claude is busy right now. Try again shortly.", reported: null },
-    { name: "rejected key", error: () => vendor(401, "authentication_error"), status: 401, copy: "The Claude API key was rejected.", reported: "ai_provider" },
+    { name: "rate limit", error: () => vendor(429, "rate_limit_error"), status: 429, copy: "Screenova AI is busy right now. Try again shortly.", reported: null },
+    { name: "overloaded", error: () => vendor(529, "overloaded_error"), status: 503, copy: "Screenova AI is busy right now. Try again shortly.", reported: null },
+    { name: "rejected key", error: () => vendor(401, "authentication_error"), status: 401, copy: "Screenova AI isn't available right now. Try again later.", reported: "ai_provider" },
     { name: "missing model", error: () => vendor(404, "not_found_error"), status: 404, copy: UNAVAILABLE, reported: "ai_provider" },
     { name: "outage", error: () => vendor(500, "api_error"), status: 500, copy: UNAVAILABLE, reported: "ai_provider" },
     { name: "unreadable image", error: () => vendor(400, "invalid_request_error", "Could not process image"), status: 400, copy: "One of the images couldn't be read. Try a PNG or JPEG screenshot.", reported: null },
-    { name: "other bad input", error: () => vendor(400, "invalid_request_error"), status: 400, copy: "Claude couldn't process this request. Try different screenshots or wording.", reported: null },
+    { name: "other bad input", error: () => vendor(400, "invalid_request_error"), status: 400, copy: "Screenova AI couldn't process this request. Try different screenshots or wording.", reported: null },
   ])("$name", async ({ error, status, copy, reported }) => {
     const response = claudeErrorResponse(error(), UNAVAILABLE)!;
     expect(response.status).toBe(status);

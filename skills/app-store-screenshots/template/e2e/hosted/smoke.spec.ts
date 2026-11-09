@@ -68,6 +68,8 @@ test("account A: large upload, localized replacement, reload and export on the r
   await expect(page.getByRole("button", { name: "Export bundle" })).toBeEnabled({ timeout: 60_000 });
   const downloaded = page.waitForEvent("download", { timeout: 120_000 });
   await page.getByRole("button", { name: "Export bundle" }).click();
+  // The dialog opens with the designed decks ticked; export those.
+  await page.getByRole("dialog").getByRole("button", { name: /^Export \d+ devices?$/ }).click();
   const zipPath = test.info().outputPath("hosted-export.zip");
   await (await downloaded).saveAs(zipPath);
   const zip = await JSZip.loadAsync(await readFile(zipPath));
