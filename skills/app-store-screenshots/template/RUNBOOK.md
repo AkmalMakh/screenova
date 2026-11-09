@@ -28,6 +28,7 @@ Every Sentry event carries `stage` and, when available, `kind`, `code`, the Verc
 | `ai_quota` | OpenAI billing | Raise the hard limit or wait for the month; manual editing and export keep working |
 | `ai_provider` | Code tag: `invalid_api_key` (or `401`) means the key was rejected | Rotate `OPENAI_API_KEY` in Vercel; any other code is a vendor incident |
 | `gallery_publish` / `gallery_read` / `gallery_unpublish` / `gallery_hide` | Vercel logs for the request id; `select count(*) from public.gallery_posts;` | A missing `gallery_posts` table means `202610190001_gallery.sql` was not applied; RLS denials on publish usually mean the account is not in `beta_members` |
+| `feedback_send` / `event_record` | Vercel logs for the request id; `select count(*) from public.beta_feedback;` | A missing table means `202611080001_beta_feedback.sql` was not applied; RLS denials mean the account is not in `beta_members`. Export events are best effort and never block a download |
 | `ai_design_failed` / `ai_template_failed` / `ai_analysis_failed` | Vercel logs for the request id | An app-side failure after OpenAI answered (schema, parsing, normalizing), not a vendor incident |
 
 Top accounts today:
@@ -35,6 +36,29 @@ Top accounts today:
 ```sql
 select user_id, kind, attempts from public.beta_usage
 where day = (now() at time zone 'utc')::date order by attempts desc limit 10;
+```
+
+## Beta cohort review
+
+The editor records each successful export in `public.beta_events` (the ZIP itself is built in the browser and never reaches the server) and saves the Feedback dialog in `public.beta_feedback`. Members can insert their own rows but cannot read any back. Review both here. Leave the operator's own accounts out of any count.
+
+How far each member got:
+
+```sql
+select u.email, u.created_at::date as signed_up,
+  (select count(*) from public.projects p where p.user_id = u.id) as projects,
+  (select coalesce(sum(attempts), 0) from public.beta_usage b where b.user_id = u.id and b.kind = 'ai') as ai_calls,
+  (select count(*) from public.beta_events e where e.user_id = u.id and e.kind = 'export') as exports,
+  (select max(created_at) from public.beta_events e where e.user_id = u.id) as last_export
+from auth.users u order by u.created_at desc;
+```
+
+Feedback, newest first:
+
+```sql
+select f.created_at, u.email, f.would_use, f.context, f.message, f.project_id
+from public.beta_feedback f join auth.users u on u.id = f.user_id
+order by f.created_at desc;
 ```
 
 ## Gallery moderation

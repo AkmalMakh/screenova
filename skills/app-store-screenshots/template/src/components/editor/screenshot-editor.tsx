@@ -64,6 +64,8 @@ import type {
 import { Inspector } from "./inspector";
 import { DesignChatLog, DesignComposer } from "./design-sidebar";
 import { PublishDialog } from "./publish-dialog";
+import { FeedbackDialog } from "./feedback-dialog";
+import type { FeedbackContext, WouldUse } from "@/lib/beta-feedback";
 import { GALLERY_MAX_PREVIEWS, toGalleryTemplate } from "@/lib/gallery";
 import { NewProjectDialog } from "./new-project-dialog";
 import { CommandPalette, type PaletteGroup } from "./command-palette";
@@ -125,6 +127,9 @@ function Editor() {
   } = useProject();
   const [activeSlideId, setActiveSlideId] = React.useState<string | null>(null);
   const [publishOpen, setPublishOpen] = React.useState(false);
+  const [feedbackContext, setFeedbackContext] = React.useState<FeedbackContext | null>(null);
+  // Feedback and export events belong to a hosted-beta account; local mode has none.
+  const betaSignals = accountScope() !== null;
   const [selectedElement, setSelectedElement] = React.useState<SelectedElement | null>(null);
   const [exporting, setExporting] = React.useState<string | null>(null);
   const [ready, setReady] = React.useState(false);
@@ -728,6 +733,16 @@ function Editor() {
     return json.id;
   }
 
+  async function sendFeedback(wouldUse: WouldUse | null, message: string, context: FeedbackContext): Promise<void> {
+    const response = await apiFetch("/api/feedback", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ projectId: activeProjectId ?? null, wouldUse, message, context }),
+    });
+    const json = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    if (!response.ok || !json.ok) throw new Error(json.error || t("feedback.failed"));
+  }
+
   function applyPendingDesign() {
     if (!pendingDesign) return;
     setState(pendingDesign.state, { coalesce: false });
@@ -1058,6 +1073,18 @@ function Editor() {
         a.download = `${slugify(state.appName)}-${platform}-${state.device}-${stamp()}.zip`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
+        if (betaSignals) {
+          // Best effort: a lost event must never fail or slow down the export.
+          void apiFetch("/api/events", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              kind: "export",
+              projectId: activeProjectId ?? null,
+              detail: { device: state.device, screens: currentSlides.length, locales: locales.length, sizes: sizes.length, files: okCount, failed },
+            }),
+          }).catch(() => {});
+        }
       } catch (e) {
         toast.error(t("toasts.bundleFailed"));
         console.error(e);
@@ -1067,7 +1094,9 @@ function Editor() {
 
     const summary = `${t("toasts.localeCount", { count: locales.length })} × ${t("toasts.sizeCount", { count: sizes.length })}`;
     if (failed === 0) {
-      toast.success(t("toasts.exportedPngs", { count: okCount, summary }));
+      toast.success(t("toasts.exportedPngs", { count: okCount, summary }), betaSignals
+        ? { action: { label: t("toasts.shareFeedback"), onClick: () => setFeedbackContext("export") } }
+        : undefined);
     } else if (okCount === 0) {
       toast.error(t("toasts.rendersFailedAll", { count: failed }), {
         description: errors.slice(0, 3).join("\n"),
@@ -1273,6 +1302,7 @@ function Editor() {
         onExport={exportAll}
         bulkCopyText={bulkCopyText}
         onPublish={() => setPublishOpen(true)}
+        onFeedback={betaSignals ? () => setFeedbackContext("menu") : undefined}
         onBulkCopy={applyBulkCopy}
         onResetAll={() => {
           reset();
@@ -1296,6 +1326,12 @@ function Editor() {
         defaultTitle={state.appName.trim() || state.name || ""}
         screenCount={Math.min(currentSlides.length, 20)}
         onPublish={publishToGallery}
+      />
+
+      <FeedbackDialog
+        context={feedbackContext}
+        onOpenChange={(open) => { if (!open) setFeedbackContext(null); }}
+        onSend={sendFeedback}
       />
 
       <NewProjectDialog
