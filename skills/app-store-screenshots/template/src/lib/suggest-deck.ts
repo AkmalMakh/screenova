@@ -55,45 +55,19 @@ export type DeckSuggestion = {
   slides: SlideAnalysis[];
 };
 
-// Apple accepts up to 10 screenshots per device, so a deck cloning a
-// competitor's full sequence has to be able to reach 10.
-export const MAX_DECK_SLIDES = 10;
-export const MIN_DECK_SLIDES = 3;
-export const DEFAULT_DECK_COUNT = 5;
-
-/**
- * How many screens to draft.
- *
- * A reference deck sets the pace: reproducing a competitor's sequence means
- * matching its length, so a 7-screen reference yields 7 screens even when the
- * user attached fewer screenshots of their own — the surplus screens become
- * device-free interstitials and closers. An explicit request from the UI still
- * wins, and with no signal at all it falls back to the default.
- */
-export function resolveDeckCount({
-  requested,
-  screenshotCount = 0,
-  referenceScreenCounts = [],
-}: {
-  requested?: number;
-  screenshotCount?: number;
-  referenceScreenCounts?: number[];
-}): number {
-  const referenceScreens = referenceScreenCounts.length ? Math.max(...referenceScreenCounts) : 0;
-  const derived = Math.max(referenceScreens, screenshotCount) || DEFAULT_DECK_COUNT;
-  const raw = requested ?? derived;
-  return Math.min(MAX_DECK_SLIDES, Math.max(MIN_DECK_SLIDES, raw));
-}
-
 // Competitor / inspiration links the user attaches to the studio composer.
 // App Store links resolve to real screenshots; anything else rides along as
 // a named URL the model may recognize.
 // Re-exported so the route keeps a single import site; defined in constants.ts
 // because the studio composer needs them too and must not pull zod in.
 export {
+  DEFAULT_DECK_COUNT,
+  MAX_DECK_SLIDES,
   MAX_REFERENCE_SCREENSHOTS,
   MAX_REFERENCE_SCREENSHOTS_TOTAL,
   MAX_STYLE_REFERENCES,
+  MIN_DECK_SLIDES,
+  resolveDeckCount,
 } from "./constants";
 
 export type StyleReferenceSummary = {
@@ -316,44 +290,53 @@ export function normalizeDeck(
 
   const slides: SlideAnalysis[] = [];
   for (const item of raw.slides) {
-    if (!item || typeof item !== "object") return null;
-    const entry = item as Record<string, unknown>;
-    if (
-      typeof entry.layout !== "string" ||
-      !(DECK_SLIDE_LAYOUTS as readonly string[]).includes(entry.layout)
-    ) {
-      return null;
-    }
-    const copy = entry.copy as Record<string, unknown> | null;
-    if (!copy || typeof copy !== "object") return null;
-    const localized: SlideAnalysis["copy"] = {};
-    for (const locale of locales) {
-      const pair = copy[locale] as Record<string, unknown> | null;
-      if (!pair || typeof pair !== "object") return null;
-      const label = typeof pair.label === "string" ? pair.label.trim().slice(0, 40) : "";
-      const headline = typeof pair.headline === "string" ? pair.headline.trim().slice(0, 120) : "";
-      if (!headline) return null;
-      localized[locale] = { label, headline };
-    }
-    const slide: SlideAnalysis = {
-      layout: entry.layout as DeckSlideLayout,
-      showDeviceFrame: entry.layout !== "no-device",
-      copy: localized,
-      ...normalizeDeckSlideDesign(entry, locales),
-    };
-    separateCaptionAndDevice(slide, CANVAS[device] ?? CANVAS.iphone);
+    const slide = normalizeDeckSlide(item, locales, device);
+    if (!slide) return null;
     slides.push(slide);
   }
 
-  const themeId = (DECK_THEME_IDS as readonly string[]).includes(String(raw.themeId))
-    ? (raw.themeId as ThemeId)
-    : DEFAULT_THEME_ID;
+  const themeId = normalizeDeckThemeId(raw.themeId);
   const customTheme = normalizeDeckTheme(raw.theme);
   const appName = typeof raw.appName === "string" ? raw.appName.trim().slice(0, 40) : "";
   const summary = typeof raw.summary === "string" ? raw.summary.trim().slice(0, 500) : "";
   if (!appName || !summary) return null;
 
   return { appName, themeId, ...(customTheme ? { customTheme } : {}), summary, slides };
+}
+
+/** One drafted screen, or null when its layout or any language's headline is missing. */
+export function normalizeDeckSlide(item: unknown, locales: string[], device: Device = "iphone"): SlideAnalysis | null {
+  if (!item || typeof item !== "object") return null;
+  const entry = item as Record<string, unknown>;
+  if (
+    typeof entry.layout !== "string" ||
+    !(DECK_SLIDE_LAYOUTS as readonly string[]).includes(entry.layout)
+  ) {
+    return null;
+  }
+  const copy = entry.copy as Record<string, unknown> | null;
+  if (!copy || typeof copy !== "object") return null;
+  const localized: SlideAnalysis["copy"] = {};
+  for (const locale of locales) {
+    const pair = copy[locale] as Record<string, unknown> | null;
+    if (!pair || typeof pair !== "object") return null;
+    const label = typeof pair.label === "string" ? pair.label.trim().slice(0, 40) : "";
+    const headline = typeof pair.headline === "string" ? pair.headline.trim().slice(0, 120) : "";
+    if (!headline) return null;
+    localized[locale] = { label, headline };
+  }
+  const slide: SlideAnalysis = {
+    layout: entry.layout as DeckSlideLayout,
+    showDeviceFrame: entry.layout !== "no-device",
+    copy: localized,
+    ...normalizeDeckSlideDesign(entry, locales),
+  };
+  separateCaptionAndDevice(slide, CANVAS[device] ?? CANVAS.iphone);
+  return slide;
+}
+
+export function normalizeDeckThemeId(value: unknown): ThemeId {
+  return (DECK_THEME_IDS as readonly string[]).includes(String(value)) ? (value as ThemeId) : DEFAULT_THEME_ID;
 }
 
 // The design half of a slide: font, inversion, device placement, and the
@@ -570,7 +553,7 @@ function separateCaptionAndDevice(slide: SlideAnalysis, canvas: { w: number; h: 
 }
 
 /** Validate the model's custom palette; a bad palette degrades to themeId. */
-function normalizeDeckTheme(raw: unknown): Theme | null {
+export function normalizeDeckTheme(raw: unknown): Theme | null {
   if (!raw || typeof raw !== "object") return null;
   const value = raw as Record<string, unknown>;
   const colors: Record<string, string> = {};

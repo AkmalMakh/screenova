@@ -130,7 +130,8 @@ const BRIEF_LIMIT = 1_500;
 /** An imported app's design brief: what it is, then its live listing text. */
 export function listingBrief(app: Pick<AppStoreLookupResult, "trackName" | "primaryGenreName" | "description">): string {
   const intro = `Design App Store screenshots for "${app.trackName}"${app.primaryGenreName ? `, a ${app.primaryGenreName} app` : ""}, using its current screenshots.`;
-  const description = app.description.replace(/\s+\n/g, "\n").trim();
+  // Older lookups and some listings come back without a description.
+  const description = (app.description ?? "").replace(/\s+\n/g, "\n").trim();
   if (!description) return intro;
   const heading = "\n\nIts current App Store description, the source of truth for features and numbers:\n";
   return intro + heading + description.slice(0, Math.max(0, BRIEF_LIMIT - intro.length - heading.length));

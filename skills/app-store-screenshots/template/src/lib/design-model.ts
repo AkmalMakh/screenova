@@ -62,6 +62,8 @@ export async function generateDesign<Schema extends z.ZodType>(request: {
   schema: Schema;
   name: string;
   signal?: AbortSignal;
+  /** Claude only: the reply's text as it is written, for live previews. */
+  onText?: (delta: string) => void;
 }): Promise<z.infer<Schema> | null> {
   return designProvider() === "anthropic" ? viaClaude(request) : viaOpenAI(request);
 }
@@ -107,8 +109,9 @@ async function viaOpenAI<Schema extends z.ZodType>({ task, system, content, sche
 const PROMPTED_SCHEMAS = new Set<string>();
 const GRAMMAR_TOO_LARGE = /grammar is too large|schema is too (?:large|complex)/i;
 
-async function viaClaude<Schema extends z.ZodType>({ task, system, content, schema, name, signal }: {
+async function viaClaude<Schema extends z.ZodType>({ task, system, content, schema, name, signal, onText }: {
   task: DesignTask; system: string; content: DesignPart[]; schema: Schema; name: string; signal?: AbortSignal;
+  onText?: (delta: string) => void;
 }): Promise<z.infer<Schema> | null> {
   const blocks: Anthropic.ContentBlockParam[] = [];
   for (const part of content) {
@@ -116,7 +119,7 @@ async function viaClaude<Schema extends z.ZodType>({ task, system, content, sche
   }
   if (!PROMPTED_SCHEMAS.has(name)) {
     try {
-      const message = await callClaude(task, system, blocks, signal, zodOutputFormat(schema));
+      const message = await callClaude(task, system, blocks, signal, onText, zodOutputFormat(schema));
       return (message.parsed_output as z.infer<Schema> | null) ?? null;
     } catch (error) {
       if (!(error instanceof Anthropic.APIError && error.status === 400 && GRAMMAR_TOO_LARGE.test(error.message))) throw error;
@@ -128,7 +131,7 @@ async function viaClaude<Schema extends z.ZodType>({ task, system, content, sche
 RESPONSE FORMAT
 Reply with exactly one JSON object and nothing else: no prose, no code fences. Every property in the schema is required; use null where the schema allows it. It must validate against this JSON Schema:
 ${JSON.stringify(z.toJSONSchema(schema))}`;
-  const message = await callClaude(task, instructions, blocks, signal);
+  const message = await callClaude(task, instructions, blocks, signal, onText);
   const text = message.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
@@ -179,6 +182,7 @@ async function callClaude(
   system: string,
   blocks: Anthropic.ContentBlockParam[],
   signal: AbortSignal | undefined,
+  onText?: (delta: string) => void,
   format?: ReturnType<typeof zodOutputFormat>,
 ) {
   const spec = CLAUDE[task];
@@ -196,6 +200,7 @@ async function callClaude(
     },
     { signal },
   );
+  if (onText) stream.on("text", onText);
   const message = await stream.finalMessage();
   // One line per call in the server log: what each draft and edit really costs.
   console.info("screenova_ai_usage", {

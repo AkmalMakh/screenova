@@ -1,4 +1,4 @@
-import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
+import { test, expect, type Page, type APIRequestContext, type Route } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import JSZip from "jszip";
 import sharp from "sharp";
@@ -30,6 +30,20 @@ async function activeProject(request: APIRequestContext) {
 async function openEditor(page: Page) {
   await page.goto("/editor");
   await expect(page.getByRole("textbox", { name: "App name", exact: true })).toHaveValue("QA App");
+}
+
+// The first draft streams one JSON event per line; a mock sends them all at once.
+type MockDeck = { appName: string; themeId: string; summary: string; customTheme?: Record<string, string>; slides: Array<Record<string, unknown>> };
+function draftStream(deck: MockDeck) {
+  return [
+    { type: "start", count: deck.slides.length },
+    { type: "theme", appName: deck.appName, themeId: deck.themeId, ...(deck.customTheme ? { customTheme: deck.customTheme } : {}) },
+    ...deck.slides.map((slide, index) => ({ type: "slide", index, slide })),
+    { type: "done", deck },
+  ].map((event) => JSON.stringify(event)).join("\n") + "\n";
+}
+function fulfillDraft(route: Route, deck: MockDeck) {
+  return route.fulfill({ body: draftStream(deck), contentType: "application/x-ndjson" });
 }
 
 test.beforeEach(async ({ page, request }) => {
@@ -96,10 +110,10 @@ test("pasted description links auto-attach and Send waits for App Store screensh
   let suggestion: Record<string, any> | undefined;
   await page.route("**/api/design/suggest-deck", (route) => {
     suggestion = route.request().postDataJSON();
-    return route.fulfill({ json: { ok: true, deck: {
+    return fulfillDraft(route, {
       appName: "My calendar", themeId: "clean-light", summary: "Reference draft ready",
       slides: [{ layout: "hero", copy: { en: { label: "PLAN", headline: "A calmer day" } } }],
-    } } });
+    });
   });
   await page.goto("/studio");
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
@@ -114,8 +128,10 @@ test("pasted description links auto-attach and Send waits for App Store screensh
   await expect(composer).toBeDisabled();
   expect(suggestion).toBeUndefined();
   releaseLookup();
+  await expect(page).toHaveURL(/\/editor$/);
   await expect(page.getByText("Reference draft ready", { exact: true }).first()).toBeVisible();
   expect(lookups).toBe(1);
+  expect(suggestion!.stream).toBe(true);
   expect(suggestion!.messages[0].text).toBe(description);
   expect(suggestion!.styleReferences).toEqual([
     { name: "Reference Calendar", url: appleUrl, screenshotUrls: ["https://is1-ssl.mzstatic.com/image/test.png"] },
@@ -363,21 +379,29 @@ test("failed hydration never overwrites projects on navigation", async ({ page }
   expect(writes).toBe(0);
 });
 
-test("failed screenshot import keeps the current project and selected files", async ({ page, request }) => {
+test("a failed first draft keeps the new project's screenshot and can be retried", async ({ page, request }) => {
   await openEditor(page);
-  await page.route("**/api/design/analyze-screenshots", (route) => route.fulfill({ status: 503, json: { ok: false, error: "AI unavailable" } }));
+  let attempts = 0;
+  await page.route("**/api/design/suggest-deck", (route) => {
+    attempts += 1;
+    return attempts === 1
+      ? route.fulfill({ status: 503, json: { ok: false, error: "AI unavailable" } })
+      : fulfillDraft(route, { appName: "Failed import", themeId: "dark-bold", summary: "Recovered draft",
+          slides: [{ layout: "device-bottom", copy: { en: { label: "PLAN", headline: "A calmer day" } } }] });
+  });
   await page.getByRole("button", { name: "QA campaign", exact: true }).click();
   await page.getByRole("menuitem", { name: "New project" }).click();
   await page.getByRole("textbox", { name: "Project name" }).fill("Failed import");
   await page.getByRole("dialog").locator('input[type="file"]').setInputFiles("public/before-after/raw-calendar.webp");
   await page.getByRole("button", { name: /Create project & draft/ }).click();
   await expect(page.getByText("AI unavailable", { exact: true })).toBeVisible();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByRole("dialog").getByAltText("raw-calendar.webp")).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Project name" })).toHaveValue("Failed import");
-  expect((await activeProject(request)).id).toBe("qa");
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "App name", exact: true })).toHaveValue("QA App");
+  // The screenshot is already in the new project; the earlier project is untouched.
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].screenshot).toMatch(/^\/screenshots\/uploaded\//);
+  const workspace = (await (await request.get("/api/project")).json()).state;
+  expect(workspace.projects.qa.appName).toBe("QA App");
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("A calmer day");
+  expect(attempts).toBe(2);
 });
 
 test("API rejects malformed images, projects and design requests", async ({ request }) => {
@@ -391,30 +415,38 @@ test("API rejects malformed images, projects and design requests", async ({ requ
   expect([400, 503]).toContain(response.status());
 });
 
-test("AI draft refinement retains uploaded screenshots and opens an editable project", async ({ page, request }) => {
-  const calls: Array<{ screenshots: Array<{ name: string; path: string }> }> = [];
-  await page.route("**/api/design/suggest-deck", (route) => {
+test("Send opens the editor at once and fills in the streamed draft in every chosen language", async ({ page, request }) => {
+  const calls: Array<{ screenshots: Array<{ name: string; path: string }>; locales: string[]; stream: boolean }> = [];
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/design/suggest-deck", async (route) => {
     calls.push(route.request().postDataJSON());
-    return route.fulfill({ json: { ok: true, deck: {
-      appName: "Calendar launch", themeId: "dark-bold", summary: `Draft ${calls.length} ready`,
-      slides: [{ layout: "device-bottom", copy: { en: { label: "PLAN", headline: "A calmer day" } } }],
-    } } });
+    await gate;
+    return fulfillDraft(route, {
+      appName: "Calendar launch", themeId: "dark-bold", summary: "Draft ready",
+      slides: [{ layout: "device-bottom", copy: { en: { label: "PLAN", headline: "A calmer day" }, de: { label: "PLAN", headline: "Ein ruhigerer Tag" } } }],
+    });
   });
   await page.goto("/studio");
   await page.locator('input[type="file"]').setInputFiles("public/before-after/raw-calendar.webp");
-  const composer = page.getByPlaceholder(/Describe your app/);
-  await composer.fill("Create a calendar launch campaign");
+  await page.getByRole("button", { name: "Languages", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Deutsch", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await page.getByPlaceholder(/Describe your app/).fill("Create a calendar launch campaign");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByText("Draft 1 ready", { exact: true }).first()).toBeVisible();
-  await composer.fill("Use a bolder palette but keep my screenshot");
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByText("Draft 2 ready", { exact: true }).first()).toBeVisible();
-  expect(calls[1].screenshots).toEqual(calls[0].screenshots);
-  expect(calls[1].screenshots).toHaveLength(1);
-  await page.getByRole("button", { name: "Open in editor", exact: true }).click();
+  // The editor is open, with the uploaded screenshot, before the draft returns.
   await expect(page).toHaveURL(/\/editor$/);
+  await expect(page.getByText("Claude is planning your deck…", { exact: true })).toBeVisible();
+  await expect.poll(() => calls.length).toBe(1);
+  expect(calls[0]).toMatchObject({ locales: ["en", "de"], stream: true });
+  expect(calls[0].screenshots).toHaveLength(1);
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].screenshot).toBe(calls[0].screenshots[0].path);
-  expect((await activeProject(request)).themeId).toBe("dark-bold");
+  release();
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline).toEqual({ en: "A calmer day", de: "Ein ruhigerer Tag" });
+  const project = await activeProject(request);
+  expect(project.themeId).toBe("dark-bold");
+  expect(project.name).toBe("Calendar launch");
+  expect(project.locales).toEqual(["en", "de"]);
 });
 
 test("localized JPEG replacement is served as genuine PNG", async ({ request }) => {
@@ -429,7 +461,7 @@ test("localized JPEG replacement is served as genuine PNG", async ({ request }) 
   expect((await sharp(await asset.body()).metadata()).format).toBe("png");
 });
 
-test("App Store import can retry failed analysis without changing the active project", async ({ page, request }) => {
+test("App Store import opens the editor on the imported screenshots and can retry a failed draft", async ({ page, request }) => {
   const app = { appId: "123456789", country: "us", trackName: "Imported calendar", sellerName: "QA Studio",
     primaryGenreName: "Productivity", averageUserRating: 4.8, userRatingCount: 10, version: "1.0",
     trackViewUrl: "https://apps.apple.com/us/app/id123456789", artworkUrl100: "", artworkUrl512: "",
@@ -442,22 +474,24 @@ test("App Store import can retry failed analysis without changing the active pro
     ok: true, app, iconPath: "", screenshots: [{ name: "Calendar", path: upload.path }],
   } }));
   let attempts = 0;
-  await page.route("**/api/design/analyze-screenshots", (route) => {
+  await page.route("**/api/design/suggest-deck", (route) => {
     attempts += 1;
     return attempts === 1
       ? route.fulfill({ status: 503, json: { ok: false, error: "Temporary AI failure" } })
-      : route.fulfill({ json: { ok: true, slides: [{ layout: "device-bottom", copy: { en: { label: "PLAN", headline: "Find your rhythm" } } }] } });
+      : fulfillDraft(route, { appName: "Imported calendar", themeId: "clean-light", summary: "Imported",
+          slides: [{ layout: "device-bottom", copy: { en: { label: "PLAN", headline: "Find your rhythm" } } }] });
   });
   await page.goto("/studio");
   await page.getByRole("button", { name: "Import from App Store", exact: true }).click();
   await page.getByRole("textbox", { name: "App Store link" }).fill(app.trackViewUrl);
   await page.getByRole("button", { name: "Fetch app", exact: true }).click();
   await page.getByRole("button", { name: "Import & draft screens", exact: true }).click();
-  await expect(page.getByText("Temporary AI failure", { exact: true })).toBeVisible();
-  expect((await activeProject(request)).id).toBe("qa");
-  await page.getByRole("button", { name: "Import & draft screens", exact: true }).click();
   await expect(page).toHaveURL(/\/editor$/);
+  await expect(page.getByText("Temporary AI failure", { exact: true })).toBeVisible();
   await expect.poll(async () => (await activeProject(request)).appName).toBe(app.trackName);
+  expect((await activeProject(request)).slidesByDevice.iphone[0].screenshot).toBe(upload.path);
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Find your rhythm");
   expect((await activeProject(request)).slidesByDevice.iphone[0].screenshot).toBe(upload.path);
 });
 
@@ -634,58 +668,49 @@ test("mobile project drawer traps focus, closes with Escape and restores focus",
   await expect(menu).toBeFocused();
 });
 
-test("approved suggestion keeps its composition, palette and IDs in the editor and after reload", async ({ page, request }) => {
+test("a streamed suggestion keeps its composition and palette in the editor and after reload", async ({ page, request }) => {
   const palette = { id: "cloud-aura", name: "Cloud & Aura", bg: "#f8f9fa", bgAlt: "#20242a", fg: "#17191c", fgAlt: "#f8f9fa", accent: "#008c70", muted: "#667078" };
   const caption = { x: 110, y: 200, width: 1100, height: 500 };
   const decoration = { id: "aura", kind: "ellipse", transform: { x: 0, y: 1900, width: 1320, height: 900 }, fill: { type: "solid", colors: ["#dfc9ef"] }, opacity: .6, blur: 80 };
-  await page.route("**/api/design/suggest-deck", route => route.fulfill({ json: { ok: true, deck: {
+  await page.route("**/api/design/suggest-deck", route => fulfillDraft(route, {
     appName: "Habit Journal", themeId: "clean-light", customTheme: palette, summary: "Your journal draft",
     slides: [{ layout: "device-bottom", copy: { en: { label: "YOUR PRACTICE", headline: "Make space for your habits" } }, captionTransform: caption, decorations: [decoration] }],
-  } } }));
+  }));
   await page.goto('/studio');
   await page.getByPlaceholder(/Describe your app/).fill('An airy habit journal without screenshots');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
-  const preview = page.locator('[data-suggestion-slide]').first();
-  await expect(preview).toBeVisible();
-  const id = await preview.getAttribute('data-suggestion-slide');
-  await expect(preview.locator('img')).toHaveCount(0);
-  const headline = preview.getByText('Make space for your habits', { exact: true });
-  const typography = await headline.evaluate(el => ({ size: getComputedStyle(el).fontSize, font: getComputedStyle(el).fontFamily, color: getComputedStyle(el).color }));
-  await page.getByRole('button', { name: 'Open in editor', exact: true }).click();
   await expect(page).toHaveURL(/\/editor$/);
   await expect.poll(async () => (await activeProject(request)).appName).toBe('Habit Journal');
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone.length).toBe(1);
   const project = await activeProject(request);
   expect(project.connectedCanvas).toBe(false);
-  expect(project.slidesByDevice.iphone[0]).toMatchObject({ id, layout: 'no-device', backgroundStyle: 'plain', transforms: { caption }, decorations: [decoration] });
+  expect(project.slidesByDevice.iphone[0]).toMatchObject({ layout: 'no-device', backgroundStyle: 'plain', transforms: { caption }, decorations: [decoration] });
   expect(project.slidesByDevice.iphone[0].transforms.device).toBeUndefined();
   expect(project.customThemesByDevice.iphone.bg).toBe(palette.bg);
   const stage = page.locator('.dot-grid');
+  await expect(stage.getByText('Make space for your habits', { exact: true })).toBeVisible();
   await expect(stage.locator('img')).toHaveCount(0);
-  expect(await stage.getByText('Make space for your habits', { exact: true }).evaluate(el => ({ size: getComputedStyle(el).fontSize, font: getComputedStyle(el).fontFamily, color: getComputedStyle(el).color }))).toEqual(typography);
   await page.reload();
   await expect(stage.getByText('Make space for your habits', { exact: true })).toBeVisible();
   await expect(stage.locator('img')).toHaveCount(0);
   expect((await activeProject(request)).slidesByDevice.iphone[0].backgroundStyle).toBe('plain');
 });
 
-test("intentional reference phone framing survives preview approval without an uploaded screenshot", async ({ page, request }) => {
+test("intentional reference phone framing survives the streamed draft without an uploaded screenshot", async ({ page, request }) => {
   const backgroundFill = { angle: 180, stops: [{ color: "#f9f9fa", position: 0 }, { color: "#f9f9fa", position: 45 }, { color: "#f2c9eb", position: 100 }] };
   const headlineStyle = { fontSize: 96, fontWeight: 600, lineHeight: 1.15, align: "center" };
   const deviceTransform = { x: 150, y: -600, width: 1000, height: 2170, rotation: -8 };
-  await page.route('**/api/design/suggest-deck', route => route.fulfill({ json: { ok: true, deck: {
+  await page.route('**/api/design/suggest-deck', route => fulfillDraft(route, {
     appName: 'Reference journal', themeId: 'clean-light', summary: 'Reference-inspired framing',
     slides: [{ layout: 'device-top', showDeviceFrame: true, deviceTransform, backgroundFill, headlineStyle, frameStyle: 'white',
       captionTransform: { x: 110, y: 1800, width: 1100, height: 600 },
       copy: { en: { label: '', headline: 'Find your rhythm' } } }],
-  } } }));
+  }));
   await page.goto('/studio');
   await page.getByPlaceholder(/Describe your app/).fill('Keep the phone placement from my reference');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
-  await expect(page.locator('[data-suggestion-slide]')).toHaveCount(1);
-  await expect(page.locator('[data-suggestion-slide] [data-frame-style=white]')).toHaveCount(1);
-  const previewBackground = await page.locator('[data-suggestion-slide]').evaluate(el => [...el.querySelectorAll('div')].map(node => node.style.background).find(bg => bg.includes('linear-gradient(180deg')));
-  await page.getByRole('button', { name: 'Open in editor', exact: true }).click();
   await expect.poll(async () => (await activeProject(request)).appName).toBe('Reference journal');
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone.length).toBe(1);
   const check = async () => {
     const slide = (await activeProject(request)).slidesByDevice.iphone[0];
     expect(slide.layout).toBe('device-top');
@@ -701,8 +726,9 @@ test("intentional reference phone framing survives preview approval without an u
   await expect(page.locator('.dot-grid').getByText('Find your rhythm', { exact: true })).toBeVisible();
   await check();
   await expect(page.locator('.dot-grid [data-frame-style=white]')).toHaveCount(1);
-  const editorBackground = await page.locator('.dot-grid').evaluate(el => [...el.querySelectorAll('div')].map(node => node.style.background).find(bg => bg.includes('linear-gradient(180deg')));
-  expect(editorBackground).toBe(previewBackground);
+  // Browsers drop the default 180deg, so look for the gradient's pink stop instead.
+  const editorBackground = await page.locator('.dot-grid').evaluate(el => [...el.querySelectorAll('div')].map(node => node.style.background).find(bg => bg.includes('linear-gradient') && bg.includes('242, 201, 235')));
+  expect(editorBackground).toBeTruthy();
 });
 
 test("Studio languages support keyboard selection and return focus", async ({ page }) => {
@@ -741,11 +767,12 @@ test("mobile editor keeps zoom reachable and opens one panel at a time", async (
 
 test("Android can take the iPhone design in one click and undo it", async ({ page, request }) => {
   await openEditor(page);
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Screen settings open by default on desktop widths.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   await page.getByRole("textbox", { name: "Headline", exact: true }).fill("Shared across stores");
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Shared across stores");
   await page.getByRole("tab", { name: "Android", exact: true }).click();
-  await expect(page.getByText("1080×1920")).toBeVisible();
+  await expect(page.getByRole("combobox").filter({ hasText: "Android Phone" })).toBeVisible();
   await page.getByRole("button", { name: "Use iPhone design", exact: true }).click();
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.android[0].headline.en).toBe("Shared across stores");
   const copied = await activeProject(request);
@@ -753,4 +780,78 @@ test("Android can take the iPhone design in one click and undo it", async ({ pag
   expect(copied.slidesByDevice.android[0].id).not.toBe(copied.slidesByDevice.iphone[0].id);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.android[0].headline.en).toBe("Your day, organized");
+});
+
+test("Languages adds a language with written copy and shows it", async ({ page, request }) => {
+  let sent: { source: string; targets: string[]; items: unknown[] } | undefined;
+  await page.route("**/api/design/translate", (route) => {
+    sent = route.request().postDataJSON();
+    return route.fulfill({ json: { ok: true, failed: [], translations: {
+      WELCOME: { de: "WILLKOMMEN" }, "Your day, organized": { de: "Dein Tag, geordnet" },
+    } } });
+  });
+  await openEditor(page);
+  await page.getByRole("button", { name: "Languages (1)", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Deutsch", exact: true }).click();
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  await expect.poll(async () => (await activeProject(request)).locales).toEqual(["en", "de"]);
+  const project = await activeProject(request);
+  expect(project.locale).toBe("de");
+  expect(project.slidesByDevice.iphone[0].headline).toEqual({ en: "Your day, organized", de: "Dein Tag, geordnet" });
+  expect(project.slidesByDevice.ipad[0].label.de).toBe("WILLKOMMEN");
+  // Six devices share the same two captions: each is sent once.
+  expect(sent).toMatchObject({ source: "en", targets: ["de"] });
+  expect(sent!.items).toHaveLength(2);
+  await expect(page.locator(".dot-grid").getByText("Dein Tag, geordnet", { exact: true }).first()).toBeVisible();
+});
+
+test("Your uploads reuses an earlier screenshot without uploading it again", async ({ page, request }) => {
+  const image = await readFile("public/before-after/raw-calendar.webp");
+  const upload = await (await request.post("/api/upload", { data: { dataUrl: `data:image/webp;base64,${image.toString("base64")}` } })).json();
+  const workspace = fixture();
+  workspace.projects.qa.slidesByDevice.iphone[0].screenshot = upload.path;
+  expect((await request.post("/api/project", { data: workspace })).ok()).toBe(true);
+  let uploads = 0;
+  page.on("request", (sent) => { if (new URL(sent.url()).pathname === "/api/upload") uploads += 1; });
+  let call: { screenshots?: Array<{ path: string }> } | undefined;
+  await page.route("**/api/design/suggest-deck", (route) => {
+    call = route.request().postDataJSON();
+    return fulfillDraft(route, { appName: "Reused", themeId: "clean-light", summary: "Reused draft",
+      slides: [{ layout: "device-bottom", copy: { en: { label: "", headline: "Same screen, new story" } } }] });
+  });
+  await page.goto("/studio");
+  await page.getByRole("button", { name: "Attach screenshots", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Choose from your uploads" }).click();
+  await page.getByRole("button", { name: "Screenshot 1", exact: true }).click();
+  await page.getByRole("button", { name: "Add 1 screenshot", exact: true }).click();
+  await page.getByPlaceholder(/Describe your app/).fill("A calendar for busy parents");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page).toHaveURL(/\/editor$/);
+  await expect.poll(() => call?.screenshots?.[0]?.path).toBe(upload.path);
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Same screen, new story");
+  expect(uploads).toBe(0);
+});
+
+test("choosing iPhone and iPad drafts once and gives the iPad the same design with empty screens", async ({ page, request }) => {
+  let drafted: { device?: string } | undefined;
+  await page.route("**/api/design/suggest-deck", (route) => {
+    drafted = route.request().postDataJSON();
+    return fulfillDraft(route, { appName: "Two devices", themeId: "dark-bold", summary: "Both devices",
+      slides: [{ layout: "device-bottom", frameStyle: "white", copy: { en: { label: "PLAN", headline: "A calmer day" } } }] });
+  });
+  await page.goto("/studio");
+  await page.locator('input[type="file"]').setInputFiles("public/before-after/raw-calendar.webp");
+  const devices = page.getByRole("group", { name: "Device" });
+  await devices.getByRole("button", { name: "iPad", exact: true }).click();
+  await expect(devices.getByRole("button", { name: "iPhone", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(devices.getByRole("button", { name: "iPad", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByPlaceholder(/Describe your app/).fill("A calendar for phones and tablets");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.ipad?.[0]?.headline?.en).toBe("A calmer day");
+  expect(drafted?.device).toBe("iphone");
+  const project = await activeProject(request);
+  expect(project.device).toBe("iphone");
+  expect(project.slidesByDevice.iphone[0].screenshot).toMatch(/^\/screenshots\/uploaded\//);
+  expect(project.slidesByDevice.ipad).toHaveLength(1);
+  expect(project.slidesByDevice.ipad[0]).toMatchObject({ screenshot: "", frameStyle: "white", layout: "device-bottom" });
 });

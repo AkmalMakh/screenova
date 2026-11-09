@@ -1,5 +1,5 @@
 "use client";
-import { apiFetch } from "@/lib/account-scope";
+import { accountScope, apiFetch } from "@/lib/account-scope";
 import Link from "next/link";
 import { galleryTemplateSchema, type GalleryPostSummary, PENDING_TEMPLATE_KEY, slidesFromTemplate, themeFromTemplate } from "@/lib/gallery";
 import * as React from "react";
@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { AccountButton } from "@/components/auth/account-button";
-import { announceCreditsChanged, CreditsBadge, useCredits } from "@/components/auth/credits-badge";
+import { CreditsBadge, useCredits } from "@/components/auth/credits-badge";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Input } from "@/components/ui/input";
@@ -31,28 +31,30 @@ import {
   StudioSidebar,
   type ComposerReference,
 } from "@/components/home/studio-shell";
-import { fileToDataUrl, uploadImage } from "@/components/editor/screenshot-picker";
+import { fileToDataUrl } from "@/components/editor/screenshot-picker";
 import { listingBrief, type AppStoreLookupResult } from "@/lib/app-store";
 import {
   MAX_REFERENCE_SCREENSHOTS,
   MAX_STYLE_REFERENCES,
-  themeById,
+  resolveDeckCount,
 } from "@/lib/constants";
-import { SlideCanvas, getCanvas } from "@/components/editor/slide-canvas";
-import { buildSuggestedSlides } from "@/lib/import-slides";
+import { startDraft, type DraftAttachment, type DraftRequest } from "@/lib/draft-runner";
+import { placeholderSlides } from "@/lib/draft-slides";
 import { CONTENT_LANGUAGES } from "@/lib/locale";
+import { libraryScreenshots, thumbnailUrl } from "@/lib/screenshot-library";
 import { useProject } from "@/lib/storage";
 import { extractReferenceLinks, normalizeReferenceUrl } from "@/lib/reference-links";
-import type { DeckSuggestion } from "@/lib/suggest-deck";
-import type { Device, Slide, Theme } from "@/lib/types";
+import type { Device } from "@/lib/types";
+import { ScreenshotLibraryDialog } from "@/components/home/screenshot-library-dialog";
 import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
 import type { TranslationKey } from "@/lib/ui-translations/en";
 import { cn } from "@/lib/utils";
 
 type T = ReturnType<typeof useT>["t"];
 
-type ChatMessage = { id: string; role: "user" | "assistant"; text: string };
-type Attachment = { id: string; name: string; dataUrl: string };
+// An attached screenshot is either a new file (dataUrl, uploaded when the
+// draft starts) or one already uploaded and picked from "Your uploads" (path).
+type Attachment = { id: string; name: string; preview: string; dataUrl?: string; path?: string };
 
 // A reference link plus what the App Store lookup resolved for it. Screenshot
 // URLs stay here (page state) — the composer chip only shows icon + name.
@@ -73,12 +75,6 @@ const MAX_REFERENCE_SHOTS = MAX_REFERENCE_SCREENSHOTS;
 const MAX_ATTACH_BYTES = 8 * 1024 * 1024;
 const ATTACHMENT_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const ATTACHMENT_ACCEPT = "image/png,image/jpeg,image/webp";
-const DECK_LOCALE = (deck: DeckSuggestion, locales: string[]): string => {
-  for (const locale of locales) {
-    if (deck.slides.some((slide) => slide.copy[locale])) return locale;
-  }
-  return "en";
-};
 const SUGGESTION_CHIPS: TranslationKey[] = [
   "home.chip1",
   "home.chip2",
@@ -106,6 +102,7 @@ function Home() {
     createProject,
     switchProject,
     setState,
+    projectStates,
   } = useProject();
 
   // Workspace chrome: the rail is a sheet below lg, and the App Store import
@@ -125,8 +122,7 @@ function Home() {
   const [importing, setImporting] = React.useState<string | null>(null);
   const [importError, setImportError] = React.useState<string | null>(null);
 
-  // Describe-your-app chat flow (main).
-  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
+  // Describe-your-app flow (main).
   const [chatDraft, setChatDraft] = React.useState("");
   const [chatLoading, setChatLoading] = React.useState(false);
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
@@ -136,14 +132,11 @@ function Home() {
   const ignoredAutoReferences = React.useRef(new Set<string>());
   const referenceLookups = React.useRef(new Map<string, Promise<void>>());
   const [referenceError, setReferenceError] = React.useState<string | null>(null);
-  const [deck, setDeck] = React.useState<DeckSuggestion | null>(null);
-  const [deckScreenshots, setDeckScreenshots] = React.useState<Array<{ name: string; path: string }>>([]);
-  const [deckAppName, setDeckAppName] = React.useState("");
-  const [chatDevice, setChatDevice] = React.useState<Device>("iphone");
+  const [chatDevices, setChatDevices] = React.useState<Device[]>(["iphone"]);
   const [chatLocales, setChatLocales] = React.useState<string[]>(["en"]);
-  const suggestedSlides = React.useMemo(() => deck ? buildSuggestedSlides(deck.slides, deckScreenshots.map(({ path }) => path), chatLocales.length ? chatLocales : ["en"], chatDevice) : [], [deck, deckScreenshots, chatLocales, chatDevice]);
-  const chatScrollRef = React.useRef<HTMLDivElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const [libraryOpen, setLibraryOpen] = React.useState(false);
+  const library = React.useMemo(() => libraryScreenshots(projectStates, accountScope()), [projectStates]);
 
   React.useEffect(() => {
     try {
@@ -154,7 +147,7 @@ function Home() {
         sessionStorage.removeItem("screenova:studio-prompt");
       }
       const device = sessionStorage.getItem("screenova:studio-device");
-      if (device && (CHAT_DEVICES as string[]).includes(device)) setChatDevice(device as Device);
+      if (device && (CHAT_DEVICES as string[]).includes(device)) setChatDevices([device as Device]);
       sessionStorage.removeItem("screenova:studio-device");
     } catch { /* The composer also works without browser storage. */ }
   }, []);
@@ -165,10 +158,6 @@ function Home() {
     setImportLocales((current) => (current.length === 1 ? [lang, "en"] : current));
     setChatLocales((current) => (current.length === 1 ? [lang, "en"] : current));
   }, [lang]);
-
-  React.useEffect(() => {
-    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight });
-  }, [chatMessages, chatLoading]);
 
   // ---------- App Store link flow ----------
 
@@ -220,27 +209,19 @@ function Home() {
         throw new Error(json.error || t("home.importFailed"));
       }
       const result = json as ImportResult;
-      setImporting(t("home.importingDraft"));
       // The first draft a new user sees, so it gets the full creative engine
-      // (palette, type, decorations), briefed with the live listing text.
-      const draftResponse = await apiFetch("/api/design/suggest-deck", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          messages: [{ role: "user", text: listingBrief(result.app) }],
-          locales,
-          device: importDevice,
-          screenshots: result.screenshots,
-        }),
+      // (palette, type, decorations), briefed with the live listing text. It
+      // streams into the editor, which opens right away.
+      launchDraft({
+        name: result.app.trackName,
+        appIcon: result.iconPath,
+        device: importDevice,
+        locales,
+        messages: [{ role: "user", text: listingBrief(result.app) }],
+        attachments: result.screenshots.map(({ name, path }) => ({ name, path })),
       });
-      announceCreditsChanged();
-      const draft = (await draftResponse.json()) as { ok?: boolean; deck?: DeckSuggestion; error?: string };
-      if (!draftResponse.ok || !draft.ok || !draft.deck?.slides?.length) {
-        throw new Error(draft.error || t("home.importFailed"));
-      }
-      openDeck(draft.deck, result.screenshots.map((screenshot) => screenshot.path), result.app.trackName, locales, importDevice, result.iconPath);
     } catch (error) {
-      // Only create the project after analysis succeeds; a failed import must
+      // Only create the project after the import succeeds; a failed import must
       // not change the active project or discard the user's existing work.
       setImporting(null);
       setImportError(error instanceof Error ? error.message : t("home.importFailed"));
@@ -268,7 +249,8 @@ function Home() {
         continue;
       }
       try {
-        next.push({ id: chatId(), name: file.name, dataUrl: await fileToDataUrl(file) });
+        const dataUrl = await fileToDataUrl(file);
+        next.push({ id: chatId(), name: file.name, dataUrl, preview: dataUrl });
       } catch {
         setAttachError(t("home.uploadFailed", { name: file.name }));
       }
@@ -277,6 +259,16 @@ function Home() {
       setAttachments((current) => [...current, ...next].slice(0, MAX_ATTACHMENTS));
     }
     if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function addFromLibrary(paths: string[]) {
+    setAttachError(null);
+    setAttachments((current) => [
+      ...current,
+      ...paths
+        .filter((path) => !current.some((attachment) => attachment.path === path))
+        .map((path) => ({ id: chatId(), name: path.split("/").pop() || "screenshot", path, preview: thumbnailUrl(path) })),
+    ].slice(0, MAX_ATTACHMENTS));
   }
 
   function removeAttachment(id: string) {
@@ -400,102 +392,67 @@ function Home() {
     const value = text.trim();
     if (!value || chatLoading) return;
     detectDescriptionLinks(value, true);
-    setChatDraft("");
     setAttachError(null);
-    const userMessage: ChatMessage = { id: chatId(), role: "user", text: value };
-    const nextMessages = [...chatMessages, userMessage];
-    setChatMessages(nextMessages);
     setChatLoading(true);
     try {
       // An immediate Send must include the resolved App Store screenshots,
       // not just an unresolved URL chip from a paste moments earlier.
       await Promise.all([...referenceLookups.current.values()]);
-      const styleReferences = referencesRef.current;
-      // Upload the attached screenshots first so the model can see them.
-      const screenshots = [...deckScreenshots];
-      if (screenshots.length + attachments.length > MAX_ATTACHMENTS) {
+      if (attachments.length > MAX_ATTACHMENTS) {
         throw new Error(t("home.attachTooMany", { count: MAX_ATTACHMENTS }));
       }
-      for (const attachment of attachments) {
-        const { path: uploaded, error: uploadError } = await uploadImage(attachment.dataUrl);
-        if (!uploaded) {
-          throw new Error(uploadError ?? t("home.uploadFailed", { name: attachment.name }));
-        }
-        screenshots.push({ name: attachment.name, path: uploaded });
-      }
-      const response = await apiFetch("/api/design/suggest-deck", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          messages: nextMessages.slice(-12).map(({ role, text: messageText }) => ({ role, text: messageText })),
-          locales: chatLocales,
-          device: chatDevice,
-          // Deliberately unset: the route derives the count from the reference
-          // deck's screen count and the attached screenshots. Sending a fixed
-          // number here is what pinned every deck to 5 screens.
-          screenshots: screenshots.length ? screenshots : undefined,
-          styleReferences: styleReferences.length
-            ? styleReferences.map(({ name, url, screenshotUrls }) => ({
-                name,
-                url,
-                ...(screenshotUrls.length ? { screenshotUrls } : {}),
-              }))
-            : undefined,
-        }),
+      const styleReferences = referencesRef.current.map(({ name, url, screenshotUrls }) => ({
+        name,
+        url,
+        ...(screenshotUrls.length ? { screenshotUrls } : {}),
+      }));
+      launchDraft({
+        name: t("draft.projectName"),
+        nameFromDraft: true,
+        // The first chosen device is drafted; the others take its design.
+        device: chatDevices[0],
+        extraDevices: chatDevices.slice(1),
+        locales: chatLocales.length ? chatLocales : ["en"],
+        messages: [{ role: "user", text: value }],
+        attachments: attachments.map(({ name, path, dataUrl }) => ({ name, path, dataUrl })),
+        styleReferences,
       });
-      announceCreditsChanged();
-      const json = (await response.json()) as { ok?: boolean; deck?: DeckSuggestion; error?: string };
-      if (!response.ok || !json.ok || !json.deck?.slides?.length) {
-        throw new Error(json.error || t("home.chatFailed"));
-      }
-      setDeck(json.deck);
-      setDeckScreenshots(screenshots);
-      setDeckAppName(json.deck.appName);
-      setAttachments([]);
-      setChatMessages((messages) => [
-        ...messages,
-        { id: chatId(), role: "assistant", text: json.deck!.summary },
-      ]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : t("home.chatFailed");
-      setChatMessages((messages) => [
-        ...messages,
-        { id: chatId(), role: "assistant", text: message },
-      ]);
-    } finally {
+      setAttachError(error instanceof Error ? error.message : t("home.chatFailed"));
       setChatLoading(false);
     }
   }
 
-  function openDeckInEditor() {
-    if (!deck || !deckAppName.trim()) return;
-    openDeck(deck, deckScreenshots.map(({ path }) => path), deckAppName.trim(), chatLocales.length ? chatLocales : ["en"], chatDevice);
-  }
-
-  // A drafted deck becomes a new project, opened in the editor.
-  function openDeck(draft: DeckSuggestion, screenshots: string[], appName: string, locales: string[], device: Device, appIcon?: string) {
-    const slides = buildSuggestedSlides(draft.slides, screenshots, locales, device);
-    createProject(appName, locales);
+  // A first draft takes a minute or more, so the editor opens at once on a
+  // new project with one placeholder per screen: the user watches each
+  // screenshot upload and each screen get designed, instead of a spinner here.
+  function launchDraft({ name, appIcon, nameFromDraft, device, extraDevices = [], locales, messages, attachments: files, styleReferences = [] }: {
+    name: string;
+    appIcon?: string;
+    nameFromDraft?: boolean;
+    device: Device;
+    extraDevices?: Device[];
+    locales: string[];
+    messages: DraftRequest["messages"];
+    attachments: DraftAttachment[];
+    styleReferences?: NonNullable<DraftRequest["styleReferences"]>;
+  }) {
+    const count = resolveDeckCount({
+      screenshotCount: files.length,
+      referenceScreenCounts: styleReferences.map((reference) => (reference.screenshotUrls ?? []).length),
+    });
+    const created = createProject(name, locales);
+    const paths = files.map((file) => file.path ?? "");
     setState((prev) => ({
       ...prev,
-      appName,
+      appName: nameFromDraft ? "" : name,
       ...(appIcon ? { appIcon } : {}),
       connectedCanvas: false,
-      locale: DECK_LOCALE(draft, locales),
-      themeId: draft.themeId,
-      // The AI palette wins over the built-in fallback — same mechanism the
-      // editor's design proposals use (customThemesByDevice beats themeId).
-      ...(draft.customTheme
-        ? {
-            customThemesByDevice: {
-              ...(prev.customThemesByDevice || {}),
-              [device]: { ...draft.customTheme, id: `ai-custom-${device}` },
-            },
-          }
-        : {}),
       device,
-      slidesByDevice: { ...prev.slidesByDevice, [device]: slides },
+      // Every attachment gets a phone, whether or not it has uploaded yet.
+      slidesByDevice: { ...prev.slidesByDevice, [device]: placeholderSlides(count, paths, locales, device) },
     }));
+    startDraft({ projectId: created.id || "", device, extraDevices, locales, messages, attachments: files, styleReferences, nameFromDraft }, count);
     router.push("/editor");
   }
 
@@ -509,6 +466,14 @@ function Home() {
   function toggleLocale(code: string, current: string[]): string[] {
     if (!current.includes(code)) return [...current, code];
     return current.length === 1 ? current : current.filter((entry) => entry !== code);
+  }
+
+  // Several devices at once, kept in the picker's order; at least one stays on.
+  function toggleChatDevice(device: Device) {
+    setChatDevices((current) => {
+      if (current.includes(device)) return current.length === 1 ? current : current.filter((entry) => entry !== device);
+      return CHAT_DEVICES.filter((entry) => entry === device || current.includes(entry));
+    });
   }
 
   function toggleChatLocale(code: string) {
@@ -693,9 +658,10 @@ function Home() {
                 attachments={attachments}
                 attachError={attachError}
                 onAttachClick={() => fileRef.current?.click()}
+                onAttachLibrary={library.length ? () => setLibraryOpen(true) : undefined}
                 onRemoveAttachment={removeAttachment}
-                device={chatDevice}
-                onDeviceChange={setChatDevice}
+                devices={chatDevices}
+                onToggleDevice={toggleChatDevice}
                 deviceOptions={CHAT_DEVICES}
                 locales={chatLocales}
                 onToggleLocale={toggleChatLocale}
@@ -715,9 +681,16 @@ function Home() {
                   void addFiles(event.currentTarget.files);
                 }}
               />
+              <ScreenshotLibraryDialog
+                open={libraryOpen}
+                onOpenChange={setLibraryOpen}
+                paths={library}
+                room={Math.max(0, MAX_ATTACHMENTS - attachments.length)}
+                onPick={addFromLibrary}
+              />
             </div>
 
-            {chatMessages.length === 0 ? (
+            {!chatLoading && (
               <div className="mt-5 flex flex-wrap gap-2">
                 {SUGGESTION_CHIPS.map((key) => (
                   <button
@@ -729,35 +702,6 @@ function Home() {
                     {t(key)}
                   </button>
                 ))}
-              </div>
-            ) : (
-              <div ref={chatScrollRef} className="mt-6 space-y-3">
-                {chatMessages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      "flex",
-                      message.role === "user" ? "justify-end" : "justify-start",
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "max-w-[85%] whitespace-pre-line rounded-lg px-3.5 py-2 text-subhead leading-relaxed",
-                        message.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground",
-                      )}
-                    >
-                      {message.text}
-                    </div>
-                  </div>
-                ))}
-                {chatLoading && (
-                  <div className="flex items-center gap-1.5 text-caption text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    {t("home.chatThinking")}
-                  </div>
-                )}
               </div>
             )}
 
@@ -813,23 +757,6 @@ function Home() {
                   )}
                 </div>
               </section>
-            )}
-
-            {deck && (
-              <div className="mt-8">
-                <DeckPreview
-                  deck={deck}
-                  slides={suggestedSlides}
-                  appName={deckAppName}
-                  onAppNameChange={setDeckAppName}
-                  device={chatDevice}
-                  onDeviceChange={setChatDevice}
-                  locales={chatLocales}
-                  onToggleLocale={toggleChatLocale}
-                  loading={chatLoading}
-                  onOpenEditor={openDeckInEditor}
-                />
-              </div>
             )}
 
             {projects.length > 0 && (
@@ -935,131 +862,6 @@ function InspirationRow({ posts }: { posts: GalleryPostSummary[] | null }) {
         </div>
       )}
     </section>
-  );
-}
-
-// ---------- Deck preview ----------
-
-function DeckPreview({
-  deck,
-  slides,
-  appName,
-  onAppNameChange,
-  device,
-  onDeviceChange,
-  locales,
-  onToggleLocale,
-  loading,
-  onOpenEditor,
-}: {
-  deck: DeckSuggestion;
-  slides: Slide[];
-  appName: string;
-  onAppNameChange: (value: string) => void;
-  device: Device;
-  onDeviceChange: (device: Device) => void;
-  locales: string[];
-  onToggleLocale: (code: string) => void;
-  loading: boolean;
-  onOpenEditor: () => void;
-}) {
-  const { t } = useT();
-  const theme = deck.customTheme ?? themeById(deck.themeId);
-
-  return (
-    <div className="mx-auto mt-6 max-w-3xl space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-title3 font-semibold tracking-tight">{t("home.deckTitle")}</h2>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-caption text-muted-foreground">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: theme.accent }} />
-            {t("home.deckTheme", { theme: theme.name })}
-          </span>
-          <span className="text-caption text-muted-foreground">
-            {t("home.deckScreens", { count: deck.slides.length })}
-          </span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {slides.map((slide, index) => (
-          <div
-            key={index}
-            className="fade-up"
-            style={{ animationDelay: `${Math.min(index * 60, 300)}ms` }}
-          >
-            <DeckSlideCard
-              slide={slide}
-              locale={DECK_LOCALE(deck, locales)}
-              theme={theme}
-              appName={appName}
-              device={device}
-            />
-          </div>
-        ))}
-      </div>
-
-      <section
-        aria-label={t("home.openEditor")}
-        className="overflow-hidden rounded-lg border border-border bg-card shadow-card"
-      >
-        <div className="grid gap-5 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6">
-          <div className="space-y-2">
-            <Label htmlFor="deck-app-name" className="block text-footnote font-medium">
-              {t("home.appNameLabel")}
-            </Label>
-            <Input
-              id="deck-app-name"
-              value={appName}
-              onChange={(event) => onAppNameChange(event.target.value)}
-              maxLength={60}
-              className="h-10 rounded-sm text-base"
-              disabled={loading}
-            />
-          </div>
-          <div className="space-y-2">
-            <span id="deck-device-label" className="block text-footnote font-medium">
-              {t("home.device")}
-            </span>
-            <DevicePicker
-              value={device}
-              options={CHAT_DEVICES}
-              onChange={onDeviceChange}
-              disabled={loading}
-              labelledBy="deck-device-label"
-            />
-          </div>
-          <div className="space-y-2 sm:col-span-2">
-            <div className="flex items-baseline justify-between gap-3">
-              <span id="deck-languages-label" className="block text-footnote font-medium">
-                {t("home.languages")}
-              </span>
-              <span className="text-caption tabular-nums text-muted-foreground">
-                {locales.length}/{CONTENT_LANGUAGES.length}
-              </span>
-            </div>
-            <LocalePicker
-              selected={locales}
-              onToggle={onToggleLocale}
-              disabled={loading}
-              labelledBy="deck-languages-label"
-            />
-          </div>
-        </div>
-        <div className="flex flex-col gap-3 border-t border-border bg-background/60 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-caption text-muted-foreground">{t("home.languagesHint")}</p>
-          <Button
-            type="button"
-            className="h-10 shrink-0 gap-2 rounded-sm px-5"
-            onClick={onOpenEditor}
-            disabled={loading || !appName.trim()}
-          >
-            {t("home.openEditor")}
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Button>
-        </div>
-      </section>
-    </div>
   );
 }
 
@@ -1219,31 +1021,6 @@ function LookupResult({
 }
 
 // ---------- Small pieces ----------
-
-function DeckSlideCard({ slide, locale, theme, appName, device }: {
-  slide: Slide; locale: string; theme: Theme; appName: string; device: Device;
-}) {
-  const ref = React.useRef<HTMLDivElement>(null);
-  const [width, setWidth] = React.useState(0);
-  const { cW, cH } = getCanvas(device, "portrait");
-  React.useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-  return (
-    <div ref={ref} data-suggestion-slide={slide.id}
-      className="relative overflow-hidden rounded-lg ring-1 ring-border/70"
-      style={{ aspectRatio: `${cW} / ${cH}` }}>
-      <div style={{ width: cW, height: cH, transform: `scale(${width / cW})`, transformOrigin: "top left" }}>
-        <SlideCanvas slide={slide} device={device} orientation="portrait" theme={theme}
-          locale={locale} appName={appName} hideEmpty />
-      </div>
-    </div>
-  );
-}
 
 function DevicePicker({
   value,

@@ -31,7 +31,7 @@ import {
   themeById,
 } from "@/lib/constants";
 import { detectPlatform, nid } from "@/lib/defaults";
-import { counterpartDevice, switchDevice, withCounterpartDesign } from "@/lib/platform-design";
+import { counterpartDevice, switchDevice, withCounterpartDesign, withDesignFrom } from "@/lib/platform-design";
 import {
   applyDesignProposal,
   cloneProject,
@@ -72,7 +72,13 @@ import { CommandPalette, type PaletteGroup } from "./command-palette";
 import { PreviewStage, type CanvasTool } from "./preview-stage";
 import { fileToDataUrl, uploadImage } from "./screenshot-picker";
 import { Sidebar } from "./sidebar";
-import { buildSlidesFromAnalysis, type SlideAnalysis } from "@/lib/import-slides";
+import { clearDraft, retryDraft, startDraft, useDraft } from "@/lib/draft-runner";
+import { mergeDraftSlides, placeholderSlides } from "@/lib/draft-slides";
+import { styledLikeDeck } from "@/lib/slide-style";
+import { resolveDeckCount } from "@/lib/constants";
+import { DraftProgress } from "./draft-progress";
+import { LanguagesDialog, languageName } from "./languages-dialog";
+import { applyTranslations, collectCopy, type Translations } from "@/lib/translate-copy";
 import { deviceLabel, LanguageProvider, useT } from "@/lib/ui-i18n";
 import { DeckCanvas, getCanvas, getElementTransform } from "./slide-canvas";
 import { parseBulkCopy, planBulkCopy, serializeBulkCopy } from "@/lib/bulk-copy";
@@ -127,6 +133,7 @@ function Editor() {
   } = useProject();
   const [activeSlideId, setActiveSlideId] = React.useState<string | null>(null);
   const [publishOpen, setPublishOpen] = React.useState(false);
+  const [languagesOpen, setLanguagesOpen] = React.useState(false);
   const [feedbackContext, setFeedbackContext] = React.useState<FeedbackContext | null>(null);
   // Feedback and export events belong to a hosted-beta account; local mode has none.
   const betaSignals = accountScope() !== null;
@@ -168,6 +175,10 @@ function Editor() {
   const exportRef = React.useRef<HTMLDivElement | null>(null);
   const exportInProgress = React.useRef(false);
   const designAbortRef = React.useRef<AbortController | null>(null);
+  // A first draft started on the home page keeps streaming in here.
+  const draft = useDraft(activeProjectId);
+  const drafting = draft?.status === "uploading" || draft?.status === "designing";
+  const appliedDraft = React.useRef<typeof draft>(undefined);
 
   const currentSlides = state.slidesByDevice[state.device] || [];
   const canonicalActiveSlide =
@@ -253,6 +264,51 @@ function Editor() {
       });
     }
   }, [hydrated, state.customTheme?.id, state.themeId]);
+
+  // Paint each streamed screen into the project as it arrives, then the
+  // validated deck when the draft finishes.
+  React.useEffect(() => {
+    // Wait for the loading screen to go: the toast below needs the editor's toaster.
+    if (!hydrated || !ready || !draft || draft.request.projectId !== activeProjectId) return;
+    if (appliedDraft.current === draft) return;
+    appliedDraft.current = draft;
+    const { device, locales, projectId } = draft.request;
+    const final = draft.status === "done" ? draft.deck : undefined;
+    const theme = draft.theme;
+    const customTheme = final?.customTheme ?? theme?.customTheme;
+    const themeId = final?.themeId ?? theme?.themeId;
+    const appName = draft.request.nameFromDraft ? (final?.appName || theme?.appName || "").trim() : "";
+    setState((prev) => {
+      let next: typeof prev = {
+        ...prev,
+        ...(themeId ? { themeId } : {}),
+        ...(customTheme
+          ? { customThemesByDevice: { ...(prev.customThemesByDevice || {}), [device]: { ...customTheme, id: `ai-custom-${device}` } } }
+          : {}),
+        ...(appName ? { appName } : {}),
+        ...(final ? { locale: locales.find((locale) => final.slides.some((slide) => slide.copy[locale]?.headline)) ?? prev.locale } : {}),
+        slidesByDevice: {
+          ...prev.slidesByDevice,
+          [device]: mergeDraftSlides(prev.slidesByDevice[device] || [], draft.slides, draft.total, draft.paths, locales, device),
+        },
+      };
+      // Other chosen devices take the finished design: phones keep the
+      // screenshots, tablets get empty screens to upload into.
+      if (final) for (const extra of draft.request.extraDevices ?? []) next = withDesignFrom(next, extra, device);
+      return next;
+    });
+    if (appName) renameProject(projectId, appName);
+    // Follow the screen being designed, so the user watches it land.
+    const latest = draft.slides.reduce((last, slide, index) => (slide ? index : last), -1);
+    const slides = state.slidesByDevice[device] || [];
+    if (!final && latest >= 0 && slides[latest]) setActiveSlideId(slides[latest].id);
+    if (final) {
+      clearDraft(projectId);
+      toast.success(t("draft.ready"), { description: final.summary, duration: 8000 });
+    }
+    // Runs once per draft update; the project state it writes is read through setState.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, hydrated, ready, activeProjectId]);
 
   const assetPaths = React.useMemo(() => {
     const paths = new Set<string>();
@@ -379,18 +435,20 @@ function Editor() {
     [setState, state.device, state.slidesByDevice],
   );
 
+  // A new screen takes the look of the screen being viewed (or the last one).
   const addSlide = React.useCallback(
     (slide: Slide) => {
-      setState((prev) => ({
-        ...prev,
-        slidesByDevice: {
-          ...prev.slidesByDevice,
-          [prev.device]: [...(prev.slidesByDevice[prev.device] || []), slide],
-        },
-      }));
+      setState((prev) => {
+        const slides = prev.slidesByDevice[prev.device] || [];
+        const reference = slides.find((entry) => entry.id === activeSlideId) ?? slides.at(-1);
+        return {
+          ...prev,
+          slidesByDevice: { ...prev.slidesByDevice, [prev.device]: [...slides, styledLikeDeck(slide, reference)] },
+        };
+      });
       setActiveSlideId(slide.id);
     },
-    [setState],
+    [setState, activeSlideId],
   );
 
   const patchLocalized = React.useCallback(
@@ -775,6 +833,53 @@ function Editor() {
     );
   }
 
+  // ---------- Languages ----------
+
+  // Sets the project's languages. New ones (or all of them, when asked to
+  // rewrite) get native copy from Claude, written from the language being
+  // edited. Resolves false to keep the dialog open after a failure.
+  async function applyLanguages(next: string[], rewrite: boolean): Promise<boolean> {
+    const source = state.locale;
+    const ordered = [...state.locales.filter((code) => next.includes(code)), ...next.filter((code) => !state.locales.includes(code))];
+    const added = ordered.filter((code) => !state.locales.includes(code));
+    const targets = rewrite ? ordered.filter((code) => code !== source) : added;
+    const items = targets.length ? collectCopy(state, source) : [];
+    if (!items.length) {
+      setState((prev) => ({ ...prev, locales: ordered, locale: ordered.includes(prev.locale) ? prev.locale : ordered[0] }));
+      if (targets.length) toast.info(t("languages.noCopy", { source: languageName(source) }));
+      else toast.success(t("languages.updated"));
+      return true;
+    }
+    try {
+      const response = await apiFetch("/api/design/translate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ appName: state.appName, source, targets, items }),
+      });
+      const json = (await response.json().catch(() => ({}))) as { ok?: boolean; translations?: Translations; failed?: string[]; error?: string };
+      if (!response.ok || !json.ok || !json.translations) throw new Error(json.error || t("languages.failed"));
+      const translations = json.translations;
+      const failed = json.failed ?? [];
+      // A new language whose copy failed stays out rather than sitting there empty.
+      const locales = ordered.filter((code) => !(failed.includes(code) && added.includes(code)));
+      const shown = added.find((code) => locales.includes(code));
+      setState((prev) => ({
+        ...applyTranslations(prev, source, translations, rewrite),
+        locales,
+        // Show the first new language, so the result is right there.
+        locale: shown ?? (locales.includes(prev.locale) ? prev.locale : locales[0]),
+      }));
+      if (failed.length) toast.warning(t("languages.failed"), { description: failed.map(languageName).join(", ") });
+      else toast.success(added.length ? t("languages.done", { count: added.length }) : t("languages.updated"));
+      return true;
+    } catch (error) {
+      toast.error(t("languages.failed"), { description: error instanceof Error ? error.message : undefined });
+      return false;
+    } finally {
+      announceCreditsChanged();
+    }
+  }
+
   // ---------- New project from screenshots ----------
 
   async function handleCreateProject(name: string, files: File[], locales: string[]) {
@@ -786,47 +891,29 @@ function Editor() {
       toast.success(t("toasts.projectCreated"));
       return;
     }
+    // Same live first draft as the home page: the new project opens on
+    // placeholder screens that fill in as the draft streams.
     setImporting(t("toasts.uploadingScreens", { count: files.length }));
     try {
-      const paths = await Promise.all(
-        files.map(async (file) => {
-          const dataUrl = await fileToDataUrl(file);
-          const { path, error: uploadError } = await uploadImage(dataUrl);
-          if (!path) throw new Error(uploadError ?? t("toasts.uploadFailed", { name: file.name }));
-          setImage(path, dataUrl); // prime the cache so the canvas paints immediately
-          return path;
-        }),
-      );
-      setImporting(t("toasts.analyzingScreens"));
-      const response = await apiFetch("/api/design/analyze-screenshots", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          appName: name.trim() || "My App",
-          locales,
-          screenshots: files.map((file, index) => ({ name: file.name, path: paths[index] })),
-        }),
-      });
-      const json = (await response.json()) as {
-        ok?: boolean;
-        slides?: SlideAnalysis[];
-        error?: string;
-      };
-      if (!response.ok || !json.ok || !json.slides?.length) {
-        throw new Error(json.error || t("toasts.analysisFailed", { status: response.status }));
-      }
-      const created = createProject(name.trim(), locales);
-      const slides = buildSlidesFromAnalysis(json.slides, paths, created.locales, created.device);
-      // Replace the new project's starter deck for the current device.
+      const attachments = await Promise.all(files.map(async (file) => ({ name: file.name, dataUrl: await fileToDataUrl(file) })));
+      const appName = name.trim();
+      const created = createProject(appName, locales);
+      const count = resolveDeckCount({ screenshotCount: attachments.length });
       setState((prev) => ({
         ...prev,
+        appName,
         slidesByDevice: {
           ...prev.slidesByDevice,
-          [prev.device]: slides,
+          [created.device]: placeholderSlides(count, attachments.map(() => ""), created.locales, created.device),
         },
       }));
-      if (slides[0]) setActiveSlideId(slides[0].id);
-      toast.success(t("toasts.projectCreatedFromScreens", { count: slides.length }));
+      startDraft({
+        projectId: created.id || "",
+        device: created.device,
+        locales: created.locales,
+        messages: [{ role: "user", text: `Design App Store screenshots for "${appName || "My App"}" from its screenshots.` }],
+        attachments,
+      }, count);
       setImportDialogOpen(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : t("toasts.importFailed");
@@ -1177,7 +1264,7 @@ function Editor() {
   }
 
   const { cW, cH } = getCanvas(state.device, state.orientation);
-  const busy = !!exporting || generatingDesign || !!pendingDesign || !!importing;
+  const busy = !!exporting || generatingDesign || !!pendingDesign || !!importing || drafting;
 
   // ⌘K command palette — flat action list grouped for scanning.
   const paletteGroups: PaletteGroup[] = [
@@ -1273,6 +1360,7 @@ function Editor() {
         locale={state.locale}
         setLocale={(v) => setState((p) => ({ ...p, locale: v }))}
         locales={state.locales}
+        onOpenLanguages={() => setLanguagesOpen(true)}
         device={state.device}
         setDevice={(v) => {
           setState((p) => switchDevice(p, v));
@@ -1326,6 +1414,14 @@ function Editor() {
         defaultTitle={state.appName.trim() || state.name || ""}
         screenCount={Math.min(currentSlides.length, 20)}
         onPublish={publishToGallery}
+      />
+
+      <LanguagesDialog
+        open={languagesOpen}
+        onOpenChange={setLanguagesOpen}
+        locales={state.locales}
+        source={state.locale}
+        onApply={applyLanguages}
       />
 
       <FeedbackDialog
@@ -1393,6 +1489,15 @@ function Editor() {
             </div>
           )}
         </main>
+
+        {draft && draft.status !== "done" && draft.request.projectId === activeProjectId && (
+          <DraftProgress
+            job={draft}
+            top={geometry.canvas.top + 12}
+            onRetry={() => retryDraft(draft.request.projectId)}
+            onDismiss={() => clearDraft(draft.request.projectId)}
+          />
+        )}
 
         {/* Design chat — floating, collapsible (Stitch's agent panel). */}
         {chatPresence.mounted && (

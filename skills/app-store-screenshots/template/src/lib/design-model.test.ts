@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-const mocks = vi.hoisted(() => ({ stream: vi.fn(), finalMessage: vi.fn(), report: vi.fn() }));
+const mocks = vi.hoisted(() => ({ stream: vi.fn(), finalMessage: vi.fn(), on: vi.fn(), report: vi.fn() }));
 // Keep the real error classes so the error mapping sees what the SDK throws.
 vi.mock("@anthropic-ai/sdk", async () => {
   const actual = await vi.importActual<typeof import("@anthropic-ai/sdk")>("@anthropic-ai/sdk");
   class FakeAnthropic {
-    messages = { stream: (...args: unknown[]) => { mocks.stream(...args); return { finalMessage: mocks.finalMessage }; } };
+    messages = { stream: (...args: unknown[]) => { mocks.stream(...args); return { finalMessage: mocks.finalMessage, on: mocks.on }; } };
   }
   return { ...actual, default: Object.assign(FakeAnthropic, { APIError: actual.APIError, APIUserAbortError: actual.APIUserAbortError }) };
 });
@@ -105,6 +105,16 @@ describe("drafting with Claude", () => {
     expect(params.model).toBe("claude-sonnet-5-5");
     expect(params.output_config?.effort).toBe("medium");
     expect(params.system).toEqual([{ type: "text", text: "CHAT RULES", cache_control: { type: "ephemeral" } }]);
+  });
+
+  it("passes the reply's text along as it streams, only when asked", async () => {
+    mocks.finalMessage.mockResolvedValue(reply({ title: "x" }));
+    const onText = vi.fn();
+    await generateDesign({ task: "draft", system: "s", content: [], schema, name: "deck", onText });
+    expect(mocks.on).toHaveBeenCalledWith("text", onText);
+    mocks.on.mockClear();
+    await generateDesign({ task: "draft", system: "s", content: [], schema, name: "deck" });
+    expect(mocks.on).not.toHaveBeenCalled();
   });
 
   it("treats a cut-off or refused design as a failed draft the route can retry", async () => {

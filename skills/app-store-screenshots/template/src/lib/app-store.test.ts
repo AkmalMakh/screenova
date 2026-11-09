@@ -164,5 +164,7 @@ describe("listingBrief", () => {
   });
   it("still briefs an app without a description", () => {
     expect(listingBrief({ trackName: "Mote", primaryGenreName: "", description: "" })).toBe('Design App Store screenshots for "Mote", using its current screenshots.');
+    // A lookup without a description still briefs the draft instead of failing the import.
+    expect(listingBrief({ trackName: "Mote", primaryGenreName: "" } as Parameters<typeof listingBrief>[0])).toBe('Design App Store screenshots for "Mote", using its current screenshots.');
   });
 });
