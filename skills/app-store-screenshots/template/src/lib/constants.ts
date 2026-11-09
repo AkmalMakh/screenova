@@ -21,6 +21,36 @@ export const MAX_REFERENCE_SCREENSHOTS = 8;
 // user's own screenshots, so bound the total across all references too.
 export const MAX_REFERENCE_SCREENSHOTS_TOTAL = 12;
 
+// Apple accepts up to 10 screenshots per device, so a deck cloning a
+// competitor's full sequence has to be able to reach 10.
+export const MAX_DECK_SLIDES = 10;
+export const MIN_DECK_SLIDES = 3;
+export const DEFAULT_DECK_COUNT = 5;
+
+/**
+ * How many screens to draft.
+ *
+ * A reference deck sets the pace: reproducing a competitor's sequence means
+ * matching its length, so a 7-screen reference yields 7 screens even when the
+ * user attached fewer screenshots of their own — the surplus screens become
+ * device-free interstitials and closers. An explicit request from the UI still
+ * wins, and with no signal at all it falls back to the default.
+ */
+export function resolveDeckCount({
+  requested,
+  screenshotCount = 0,
+  referenceScreenCounts = [],
+}: {
+  requested?: number;
+  screenshotCount?: number;
+  referenceScreenCounts?: number[];
+}): number {
+  const referenceScreens = referenceScreenCounts.length ? Math.max(...referenceScreenCounts) : 0;
+  const derived = Math.max(referenceScreens, screenshotCount) || DEFAULT_DECK_COUNT;
+  const raw = requested ?? derived;
+  return Math.min(MAX_DECK_SLIDES, Math.max(MIN_DECK_SLIDES, raw));
+}
+
 // ---------- Canvas dimensions (design at largest required resolution) ----------
 export const CANVAS: Record<Device, { w: number; h: number; wL?: number; hL?: number }> = {
   iphone:        { w: 1320, h: 2868 },

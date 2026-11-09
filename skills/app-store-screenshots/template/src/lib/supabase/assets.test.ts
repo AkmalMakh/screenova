@@ -63,6 +63,21 @@ describe("private asset route integration with a storage adapter", () => {
     expect(image.headers.get("content-type")).toBe("image/png");
     expect(Buffer.from(await image.arrayBuffer()).equals(bytes)).toBe(true);
   });
+  it("serves a small cached preview for the uploads picker, and only within bounds", async () => {
+    const tall = await sharp({ create: { width: 1320, height: 2868, channels: 3, background: "#0055ee" } }).png().toBuffer();
+    const { path } = await (await post({ dataUrl: `data:image/png;base64,${tall.toString("base64")}` })).json();
+    const preview = (query: string) => GET(new Request(`https://studio.example${path}${query}`), { params: Promise.resolve({ asset: path.slice("/api/assets/".length).split("/") }) });
+    const small = await preview("?w=240");
+    expect(small.headers.get("content-type")).toBe("image/webp");
+    expect(small.headers.get("cache-control")).toBe("private, max-age=86400");
+    expect(await sharp(Buffer.from(await small.arrayBuffer())).metadata()).toMatchObject({ width: 240, height: 521 });
+    // Out-of-range sizes get the original, never an enlarged or unbounded resize.
+    for (const query of ["?w=4000", "?w=10", "?w=abc"]) {
+      const original = await preview(query);
+      expect(original.headers.get("content-type")).toBe("image/png");
+      expect(original.headers.get("cache-control")).toBe("private, no-store");
+    }
+  });
   it("seeds untouched locales while re-encoding a replacement to its PNG destination", async () => {
     const original = await pixels();
     objects.set(`${owner}/source.png`, { bytes: original, mime: "image/png" });

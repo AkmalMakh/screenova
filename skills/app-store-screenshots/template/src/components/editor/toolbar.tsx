@@ -74,6 +74,8 @@ type Props = {
   locale: string;
   setLocale: (v: string) => void;
   locales: string[];
+  /** Opens the languages dialog (add languages, have Claude write them). */
+  onOpenLanguages: () => void;
   device: Device;
   setDevice: (v: Device) => void;
   orientation: Orientation;
@@ -273,6 +275,21 @@ export function Toolbar(props: Props) {
             </SelectContent>
           </Select>
         )}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 px-2.5"
+          onClick={props.onOpenLanguages}
+          disabled={props.busy}
+          title={t("languages.title")}
+          aria-label={`${t("languages.button")} (${props.locales.length})`}
+        >
+          <Globe className="h-3.5 w-3.5" aria-hidden />
+          <span className="hidden min-[1600px]:inline">{t("languages.button")}</span>
+          <span className="tabular-nums">{props.locales.length}</span>
+        </Button>
 
         <Button
           type="button"

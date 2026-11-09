@@ -2,11 +2,13 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { designConfigError, generateDesign, isProviderError, type DesignPart } from "@/lib/design-model";
 import { fullSizeScreenshotUrl } from "@/lib/app-store";
+import { DeckStreamScanner, DRAFT_STREAM_TYPE, type DraftEvent } from "@/lib/deck-stream";
 import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { report, requestIdOf } from "@/lib/ops";
 import { aiErrorResponse } from "@/lib/openai-errors";
 import { authorizeRequest } from "@/lib/supabase/access";
 import { readAsset } from "@/lib/supabase/assets";
+import { DRAFT_SCREENSHOT_PATH } from "@/lib/screenshot-library";
 import { z } from "zod";
 import {
   buildDeckPrompt,
@@ -19,7 +21,11 @@ import {
   MAX_STYLE_REFERENCES,
   MIN_DECK_SLIDES,
   normalizeDeck,
+  normalizeDeckSlide,
+  normalizeDeckTheme,
+  normalizeDeckThemeId,
   resolveDeckCount,
+  type DeckSuggestion,
 } from "@/lib/suggest-deck";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +58,7 @@ const screenshotInputSchema = z.object({
   path: z
     .string()
     // Uploads, App Store imports (local mode), or private cloud assets.
-    .regex(/^\/(?:screenshots\/(?:uploaded\/[\w.-]+|app-store\/[\w.-]+\/[\w.-]+)|api\/assets\/[a-f0-9-]+\/[\w/.-]+)\.(png|jpe?g|webp)$/i)
+    .regex(DRAFT_SCREENSHOT_PATH)
     .refine((value) => path.posix.normalize(value) === value && !value.includes(".."), {
       message: "Invalid screenshot path",
     }),
@@ -83,6 +89,9 @@ const suggestDeckRequestSchema = z.object({
   count: z.number().int().min(MIN_DECK_SLIDES).max(MAX_DECK_SLIDES).optional(),
   screenshots: z.array(screenshotInputSchema).min(1).max(MAX_SCREENSHOTS).optional(),
   styleReferences: z.array(styleReferenceSchema).max(MAX_STYLE_REFERENCES).optional(),
+  // Stream each screen as it is drafted (application/x-ndjson DraftEvents)
+  // instead of one JSON reply at the end.
+  stream: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -186,27 +195,34 @@ export async function POST(req: Request) {
     }
   }
 
-  try {
+  const system = buildDeckPrompt(
+    locales,
+    device,
+    deckCount,
+    screenshots.length,
+    styleReferences.map((reference) => ({
+      name: reference.name,
+      hasImages: (reference.screenshotUrls ?? []).length > 0,
+    })),
+  );
+
+  // onTextFor hands each attempt a fresh reader for the reply as it streams.
+  async function draftDeck(
+    signal: AbortSignal,
+    onTextFor?: (attempt: number) => (delta: string) => void,
+  ): Promise<DeckSuggestion> {
     let lastError: unknown;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         // The first draft a new user sees: the draft model, at high effort.
         const draft = await generateDesign({
           task: "draft",
-          system: buildDeckPrompt(
-            locales,
-            device,
-            deckCount,
-            screenshots.length,
-            styleReferences.map((reference) => ({
-              name: reference.name,
-              hasImages: (reference.screenshotUrls ?? []).length > 0,
-            })),
-          ),
+          system,
           content: userContent,
           schema: responseSchema,
           name: "app_store_template_deck",
-          signal: req.signal,
+          signal,
+          onText: onTextFor?.(attempt),
         });
         if (!draft) {
           throw new Error("The model returned no template deck.");
@@ -215,7 +231,7 @@ export async function POST(req: Request) {
         if (!deck) {
           throw new Error("The model returned an invalid template deck.");
         }
-        return NextResponse.json({ ok: true, deck });
+        return deck;
       } catch (error) {
         lastError = error;
         if (!isRetryableStructureError(error) || attempt === 1) throw error;
@@ -224,19 +240,107 @@ export async function POST(req: Request) {
       }
     }
     throw lastError;
-  } catch (error) {
-    const providerFailure = aiErrorResponse(error, "The AI could not draft a template right now. Try again.", req);
-    if (providerFailure) return providerFailure;
-    if (req.signal.aborted) {
-      return NextResponse.json(
-        { ok: false, error: "Template generation cancelled." },
-        { status: 499 },
-      );
-    }
-    report("ai_template_failed", error, { requestId: requestIdOf(req) });
-    const message = error instanceof Error ? error.message : "Template generation failed.";
-    return NextResponse.json({ ok: false, error: message }, { status: 502 });
   }
+
+  if (validation.data.stream) return streamDraft(req, deckCount, locales, device, draftDeck);
+
+  try {
+    return NextResponse.json({ ok: true, deck: await draftDeck(req.signal) });
+  } catch (error) {
+    return failureResponse(error, req);
+  }
+}
+
+// Screens go out the moment the model closes them, so the editor fills in
+// while the rest of the deck is still being written. The full reply is still
+// validated at the end and sent as "done"; the editor replaces the streamed
+// screens with it.
+function streamDraft(
+  req: Request,
+  count: number,
+  locales: string[],
+  device: "iphone" | "ipad" | "android",
+  draftDeck: (signal: AbortSignal, onTextFor: (attempt: number) => (delta: string) => void) => Promise<DeckSuggestion>,
+): Response {
+  const encoder = new TextEncoder();
+  const abort = new AbortController();
+  req.signal.addEventListener("abort", () => abort.abort(), { once: true });
+  let open = true;
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: DraftEvent) => {
+        if (!open) return;
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        } catch {
+          open = false;
+        }
+      };
+      // Claude thinks for a while before writing; keep proxies from timing out.
+      const ping = setInterval(() => send({ type: "ping" }), 10_000);
+      send({ type: "start", count });
+      try {
+        const deck = await draftDeck(abort.signal, (attempt) => {
+          if (attempt > 0) send({ type: "retry" });
+          const fields: Record<string, unknown> = {};
+          let themeSent = false;
+          const scanner = new DeckStreamScanner(
+            (key, value) => {
+              fields[key] = value;
+              if (themeSent || !("theme" in fields) || !("themeId" in fields)) return;
+              themeSent = true;
+              const appName = typeof fields.appName === "string" ? fields.appName.trim().slice(0, 40) : "";
+              send({
+                type: "theme",
+                ...(appName ? { appName } : {}),
+                themeId: normalizeDeckThemeId(fields.themeId),
+                ...(normalizeDeckTheme(fields.theme) ? { customTheme: normalizeDeckTheme(fields.theme)! } : {}),
+              });
+            },
+            (index, value) => {
+              const slide = index < count ? normalizeDeckSlide(value, locales, device) : null;
+              if (slide) send({ type: "slide", index, slide });
+            },
+          );
+          return (delta) => scanner.push(delta);
+        });
+        send({ type: "done", deck });
+      } catch (error) {
+        const response = failureResponse(error, req, abort.signal);
+        const json = (await response.json().catch(() => ({}))) as { error?: string };
+        send({ type: "error", error: json.error || "Template generation failed.", status: response.status });
+      } finally {
+        clearInterval(ping);
+        open = false;
+        try {
+          controller.close();
+        } catch {
+          // The client already went away.
+        }
+      }
+    },
+    cancel() {
+      open = false;
+      abort.abort();
+    },
+  });
+  return new Response(body, {
+    headers: { "content-type": DRAFT_STREAM_TYPE, "cache-control": "no-store", "x-accel-buffering": "no" },
+  });
+}
+
+function failureResponse(error: unknown, req: Request, signal: AbortSignal = req.signal): NextResponse {
+  const providerFailure = aiErrorResponse(error, "The AI could not draft a template right now. Try again.", req);
+  if (providerFailure) return providerFailure;
+  if (signal.aborted) {
+    return NextResponse.json(
+      { ok: false, error: "Template generation cancelled." },
+      { status: 499 },
+    );
+  }
+  report("ai_template_failed", error, { requestId: requestIdOf(req) });
+  const message = error instanceof Error ? error.message : "Template generation failed.";
+  return NextResponse.json({ ok: false, error: message }, { status: 502 });
 }
 
 function isRetryableStructureError(error: unknown) {

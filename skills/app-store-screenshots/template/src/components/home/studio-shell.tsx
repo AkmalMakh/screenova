@@ -1,8 +1,8 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { ArrowUp, ChevronDown, Globe, LayoutGrid, Link2, Loader2, Plus, Search, Smartphone, Tablet, X } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { ArrowUp, ChevronDown, Globe, Images, LayoutGrid, Link2, Loader2, Plus, Search, Smartphone, Tablet, Upload, X } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { CONTENT_LANGUAGES } from "@/lib/locale";
 import { deviceLabel, useT } from "@/lib/ui-i18n";
@@ -275,6 +275,7 @@ export function StudioComposer({
   attachments,
   attachError,
   onAttachClick,
+  onAttachLibrary,
   onRemoveAttachment,
   device,
   onDeviceChange,
@@ -292,9 +293,11 @@ export function StudioComposer({
   onSubmit: (text: string) => void;
   loading: boolean;
   draftRef: React.RefObject<HTMLTextAreaElement | null>;
-  attachments: Array<{ id: string; name: string; dataUrl: string }>;
+  attachments: Array<{ id: string; name: string; preview: string }>;
   attachError: string | null;
   onAttachClick: () => void;
+  /** Set when the user has uploads to pick from; "+" then offers both sources. */
+  onAttachLibrary?: () => void;
   onRemoveAttachment: (id: string) => void;
   device: Device;
   onDeviceChange: (device: Device) => void;
@@ -359,7 +362,7 @@ export function StudioComposer({
               className="group relative h-16 w-11 overflow-hidden rounded-sm border border-border/70"
             >
               <img
-                src={attachment.dataUrl}
+                src={attachment.preview}
                 alt={attachment.name}
                 className="h-full w-full object-cover"
               />
@@ -440,17 +443,44 @@ export function StudioComposer({
       )}
 
       <div className="flex flex-wrap items-center gap-2 px-3 pb-3 pt-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10 shrink-0 rounded-full"
-          onClick={onAttachClick}
-          disabled={loading}
-          aria-label={t("home.attach")}
-        >
-          <Plus className="h-5 w-5" />
-        </Button>
+        {onAttachLibrary ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 shrink-0 rounded-full"
+                disabled={loading}
+                aria-label={t("home.attach")}
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="start" collisionPadding={12} className="w-60 rounded-sm">
+              <DropdownMenuItem className="gap-2 py-2.5 text-footnote" onSelect={onAttachClick}>
+                <Upload className="h-4 w-4 text-muted-foreground" aria-hidden />
+                {t("home.attachComputer")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2 py-2.5 text-footnote" onSelect={onAttachLibrary}>
+                <Images className="h-4 w-4 text-muted-foreground" aria-hidden />
+                {t("home.attachLibrary")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-full"
+            onClick={onAttachClick}
+            disabled={loading}
+            aria-label={t("home.attach")}
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
+        )}
 
         <SegmentedControl
           label={t("home.device")}
