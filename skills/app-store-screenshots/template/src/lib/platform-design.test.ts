@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adaptSlides, counterpartDevice, isStarterDeck, switchDevice, withCounterpartDesign } from "./platform-design";
+import { adaptSlides, counterpartDevice, designSource, isStarterDeck, switchDevice, withCounterpartDesign, withDesignFrom } from "./platform-design";
 import { DEFAULT_PROJECT } from "./defaults";
 import type { ProjectState, Slide } from "./types";
 
@@ -61,6 +61,36 @@ describe("one design for both stores", () => {
     const fresh = { ...DEFAULT_PROJECT };
     expect(switchDevice(fresh, "android").slidesByDevice.android).toBe(DEFAULT_PROJECT.slidesByDevice.android);
     expect(isStarterDeck("android", fresh.slidesByDevice.android)).toBe(true);
+  });
+
+  it("an untouched iPad deck takes the iPhone look with empty screens to upload into", () => {
+    const withDevice = project({ slidesByDevice: { ...project().slidesByDevice, iphone: [{ ...designed[0], transforms: { ...designed[0].transforms, device: { x: 160, y: 900, width: 1000, height: 2170 } }, screenshotByLocale: { de: "/screenshots/de.png" } }, designed[1]] } });
+    const next = switchDevice(withDevice, "ipad");
+    const [first, second] = next.slidesByDevice.ipad;
+    expect(first).toMatchObject({ headline: { en: "Plan your day" }, frameStyle: "white", screenshot: "", layout: "device-bottom" });
+    expect(first.screenshotByLocale).toBeUndefined();
+    // The phone-shaped frame box is dropped so the layout places the tablet; the caption keeps its spot.
+    expect(first.transforms?.device).toBeUndefined();
+    expect(first.transforms?.caption).toBeDefined();
+    expect(first.decorations).toHaveLength(1);
+    expect(second.headline.en).toBe("Track it");
+    expect(next.customThemesByDevice?.ipad).toMatchObject({ id: "ai-custom-ipad", accent: "#2f7a52" });
+    // 1320×2868 to 2064×2752: text boxes widen with the canvas, type follows the
+    // smaller (vertical) factor, so a headline wraps less instead of overlapping.
+    expect(first.transforms?.caption?.width).toBe(Math.round(1100 * 2064 / 1320));
+    expect(first.transforms?.caption?.height).toBe(Math.round(400 * 2752 / 2868));
+    expect(first.headlineStyle?.fontSize).toBe(Math.round(120 * 2752 / 2868));
+    expect(first.textElements?.[0].fontSize).toBe(Math.round(60 * 2752 / 2868));
+  });
+
+  it("finds a tablet's design on its store's tablet first, then on a phone", () => {
+    expect(designSource(project(), "ipad")).toBe("iphone");
+    expect(designSource(project(), "android-10")).toBe("iphone");
+    const tablet = withDesignFrom(project(), "android-10", "iphone");
+    expect(designSource(tablet, "ipad")).toBe("android-10");
+    expect(designSource(project({ orientation: "landscape" }), "android-10")).toBeNull();
+    // Phones still pair only with phones, keeping their screenshots.
+    expect(withDesignFrom(project(), "android", "iphone").slidesByDevice.android[0].screenshot).toBe("/screenshots/one.png");
   });
 
   it("re-fits positions and sizes to the 1080×1920 canvas and drops workspace offsets", () => {

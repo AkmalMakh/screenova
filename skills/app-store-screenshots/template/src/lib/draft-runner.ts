@@ -25,6 +25,8 @@ export type DraftRequest = {
   styleReferences?: Array<{ name: string; url: string; screenshotUrls?: string[] }>;
   /** Name the project after the app name the model proposes. */
   nameFromDraft?: boolean;
+  /** More devices to design: each takes the drafted design when it finishes. */
+  extraDevices?: Device[];
 };
 
 export type DraftJob = {

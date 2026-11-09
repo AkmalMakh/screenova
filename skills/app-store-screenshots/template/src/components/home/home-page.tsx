@@ -132,7 +132,7 @@ function Home() {
   const ignoredAutoReferences = React.useRef(new Set<string>());
   const referenceLookups = React.useRef(new Map<string, Promise<void>>());
   const [referenceError, setReferenceError] = React.useState<string | null>(null);
-  const [chatDevice, setChatDevice] = React.useState<Device>("iphone");
+  const [chatDevices, setChatDevices] = React.useState<Device[]>(["iphone"]);
   const [chatLocales, setChatLocales] = React.useState<string[]>(["en"]);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [libraryOpen, setLibraryOpen] = React.useState(false);
@@ -147,7 +147,7 @@ function Home() {
         sessionStorage.removeItem("screenova:studio-prompt");
       }
       const device = sessionStorage.getItem("screenova:studio-device");
-      if (device && (CHAT_DEVICES as string[]).includes(device)) setChatDevice(device as Device);
+      if (device && (CHAT_DEVICES as string[]).includes(device)) setChatDevices([device as Device]);
       sessionStorage.removeItem("screenova:studio-device");
     } catch { /* The composer also works without browser storage. */ }
   }, []);
@@ -409,7 +409,9 @@ function Home() {
       launchDraft({
         name: t("draft.projectName"),
         nameFromDraft: true,
-        device: chatDevice,
+        // The first chosen device is drafted; the others take its design.
+        device: chatDevices[0],
+        extraDevices: chatDevices.slice(1),
         locales: chatLocales.length ? chatLocales : ["en"],
         messages: [{ role: "user", text: value }],
         attachments: attachments.map(({ name, path, dataUrl }) => ({ name, path, dataUrl })),
@@ -424,11 +426,12 @@ function Home() {
   // A first draft takes a minute or more, so the editor opens at once on a
   // new project with one placeholder per screen: the user watches each
   // screenshot upload and each screen get designed, instead of a spinner here.
-  function launchDraft({ name, appIcon, nameFromDraft, device, locales, messages, attachments: files, styleReferences = [] }: {
+  function launchDraft({ name, appIcon, nameFromDraft, device, extraDevices = [], locales, messages, attachments: files, styleReferences = [] }: {
     name: string;
     appIcon?: string;
     nameFromDraft?: boolean;
     device: Device;
+    extraDevices?: Device[];
     locales: string[];
     messages: DraftRequest["messages"];
     attachments: DraftAttachment[];
@@ -449,7 +452,7 @@ function Home() {
       // Every attachment gets a phone, whether or not it has uploaded yet.
       slidesByDevice: { ...prev.slidesByDevice, [device]: placeholderSlides(count, paths, locales, device) },
     }));
-    startDraft({ projectId: created.id || "", device, locales, messages, attachments: files, styleReferences, nameFromDraft }, count);
+    startDraft({ projectId: created.id || "", device, extraDevices, locales, messages, attachments: files, styleReferences, nameFromDraft }, count);
     router.push("/editor");
   }
 
@@ -463,6 +466,14 @@ function Home() {
   function toggleLocale(code: string, current: string[]): string[] {
     if (!current.includes(code)) return [...current, code];
     return current.length === 1 ? current : current.filter((entry) => entry !== code);
+  }
+
+  // Several devices at once, kept in the picker's order; at least one stays on.
+  function toggleChatDevice(device: Device) {
+    setChatDevices((current) => {
+      if (current.includes(device)) return current.length === 1 ? current : current.filter((entry) => entry !== device);
+      return CHAT_DEVICES.filter((entry) => entry === device || current.includes(entry));
+    });
   }
 
   function toggleChatLocale(code: string) {
@@ -649,8 +660,8 @@ function Home() {
                 onAttachClick={() => fileRef.current?.click()}
                 onAttachLibrary={library.length ? () => setLibraryOpen(true) : undefined}
                 onRemoveAttachment={removeAttachment}
-                device={chatDevice}
-                onDeviceChange={setChatDevice}
+                devices={chatDevices}
+                onToggleDevice={toggleChatDevice}
                 deviceOptions={CHAT_DEVICES}
                 locales={chatLocales}
                 onToggleLocale={toggleChatLocale}

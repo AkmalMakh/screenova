@@ -31,7 +31,7 @@ import {
   themeById,
 } from "@/lib/constants";
 import { detectPlatform, nid } from "@/lib/defaults";
-import { counterpartDevice, switchDevice, withCounterpartDesign } from "@/lib/platform-design";
+import { counterpartDevice, switchDevice, withCounterpartDesign, withDesignFrom } from "@/lib/platform-design";
 import {
   applyDesignProposal,
   cloneProject,
@@ -74,6 +74,7 @@ import { fileToDataUrl, uploadImage } from "./screenshot-picker";
 import { Sidebar } from "./sidebar";
 import { clearDraft, retryDraft, startDraft, useDraft } from "@/lib/draft-runner";
 import { mergeDraftSlides, placeholderSlides } from "@/lib/draft-slides";
+import { styledLikeDeck } from "@/lib/slide-style";
 import { resolveDeckCount } from "@/lib/constants";
 import { DraftProgress } from "./draft-progress";
 import { LanguagesDialog, languageName } from "./languages-dialog";
@@ -277,19 +278,25 @@ function Editor() {
     const customTheme = final?.customTheme ?? theme?.customTheme;
     const themeId = final?.themeId ?? theme?.themeId;
     const appName = draft.request.nameFromDraft ? (final?.appName || theme?.appName || "").trim() : "";
-    setState((prev) => ({
-      ...prev,
-      ...(themeId ? { themeId } : {}),
-      ...(customTheme
-        ? { customThemesByDevice: { ...(prev.customThemesByDevice || {}), [device]: { ...customTheme, id: `ai-custom-${device}` } } }
-        : {}),
-      ...(appName ? { appName } : {}),
-      ...(final ? { locale: locales.find((locale) => final.slides.some((slide) => slide.copy[locale]?.headline)) ?? prev.locale } : {}),
-      slidesByDevice: {
-        ...prev.slidesByDevice,
-        [device]: mergeDraftSlides(prev.slidesByDevice[device] || [], draft.slides, draft.total, draft.paths, locales, device),
-      },
-    }));
+    setState((prev) => {
+      let next: typeof prev = {
+        ...prev,
+        ...(themeId ? { themeId } : {}),
+        ...(customTheme
+          ? { customThemesByDevice: { ...(prev.customThemesByDevice || {}), [device]: { ...customTheme, id: `ai-custom-${device}` } } }
+          : {}),
+        ...(appName ? { appName } : {}),
+        ...(final ? { locale: locales.find((locale) => final.slides.some((slide) => slide.copy[locale]?.headline)) ?? prev.locale } : {}),
+        slidesByDevice: {
+          ...prev.slidesByDevice,
+          [device]: mergeDraftSlides(prev.slidesByDevice[device] || [], draft.slides, draft.total, draft.paths, locales, device),
+        },
+      };
+      // Other chosen devices take the finished design: phones keep the
+      // screenshots, tablets get empty screens to upload into.
+      if (final) for (const extra of draft.request.extraDevices ?? []) next = withDesignFrom(next, extra, device);
+      return next;
+    });
     if (appName) renameProject(projectId, appName);
     // Follow the screen being designed, so the user watches it land.
     const latest = draft.slides.reduce((last, slide, index) => (slide ? index : last), -1);
@@ -428,18 +435,20 @@ function Editor() {
     [setState, state.device, state.slidesByDevice],
   );
 
+  // A new screen takes the look of the screen being viewed (or the last one).
   const addSlide = React.useCallback(
     (slide: Slide) => {
-      setState((prev) => ({
-        ...prev,
-        slidesByDevice: {
-          ...prev.slidesByDevice,
-          [prev.device]: [...(prev.slidesByDevice[prev.device] || []), slide],
-        },
-      }));
+      setState((prev) => {
+        const slides = prev.slidesByDevice[prev.device] || [];
+        const reference = slides.find((entry) => entry.id === activeSlideId) ?? slides.at(-1);
+        return {
+          ...prev,
+          slidesByDevice: { ...prev.slidesByDevice, [prev.device]: [...slides, styledLikeDeck(slide, reference)] },
+        };
+      });
       setActiveSlideId(slide.id);
     },
-    [setState],
+    [setState, activeSlideId],
   );
 
   const patchLocalized = React.useCallback(

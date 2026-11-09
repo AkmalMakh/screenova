@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { ArrowUp, ChevronDown, Globe, Images, LayoutGrid, Link2, Loader2, Plus, Search, Smartphone, Tablet, Upload, X } from "lucide-react";
+import { ArrowUp, Check, ChevronDown, Globe, Images, LayoutGrid, Link2, Loader2, Plus, Search, Smartphone, Tablet, Upload, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { CONTENT_LANGUAGES } from "@/lib/locale";
@@ -277,8 +277,8 @@ export function StudioComposer({
   onAttachClick,
   onAttachLibrary,
   onRemoveAttachment,
-  device,
-  onDeviceChange,
+  devices,
+  onToggleDevice,
   deviceOptions,
   locales,
   onToggleLocale,
@@ -299,8 +299,9 @@ export function StudioComposer({
   /** Set when the user has uploads to pick from; "+" then offers both sources. */
   onAttachLibrary?: () => void;
   onRemoveAttachment: (id: string) => void;
-  device: Device;
-  onDeviceChange: (device: Device) => void;
+  /** Every device to design for; the first is drafted, the rest follow its design. */
+  devices: Device[];
+  onToggleDevice: (device: Device) => void;
   deviceOptions: Device[];
   locales: string[];
   onToggleLocale: (code: string) => void;
@@ -482,11 +483,11 @@ export function StudioComposer({
           </Button>
         )}
 
-        <SegmentedControl
+        <ToggleTrack
           label={t("home.device")}
-          value={device}
+          selected={devices}
           options={deviceOptions.map((value) => ({ value, label: deviceLabel(value, t), icon: <DeviceGlyph device={value} /> }))}
-          onChange={(value) => onDeviceChange(value as Device)}
+          onToggle={(value) => onToggleDevice(value as Device)}
           disabled={loading}
         />
 
@@ -522,18 +523,18 @@ export function StudioComposer({
   );
 }
 
-/** One track with a selected thumb — not N independent pills. */
-function SegmentedControl({
+/** One track whose chosen options get a thumb; several can be on at once. */
+function ToggleTrack({
   label,
-  value,
+  selected,
   options,
-  onChange,
+  onToggle,
   disabled,
 }: {
   label: string;
-  value: string;
+  selected: string[];
   options: Array<{ value: string; label: string; icon?: React.ReactNode }>;
-  onChange: (value: string) => void;
+  onToggle: (value: string) => void;
   disabled?: boolean;
 }) {
   return (
@@ -543,14 +544,14 @@ function SegmentedControl({
       className="inline-flex h-10 shrink-0 items-center gap-0.5 rounded-full bg-foreground/[0.06] p-1"
     >
       {options.map((option) => {
-        const on = option.value === value;
+        const on = selected.includes(option.value);
         return (
           <button
             key={option.value}
             type="button"
             disabled={disabled}
             aria-pressed={on}
-            onClick={() => onChange(option.value)}
+            onClick={() => onToggle(option.value)}
             className={cn(
               "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-footnote font-medium transition-colors disabled:opacity-50",
               on
@@ -558,7 +559,8 @@ function SegmentedControl({
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {option.icon}
+            {/* A check, not just the thumb, says this is a multiple choice. */}
+            {on ? <Check className="h-3.5 w-3.5" aria-hidden /> : option.icon}
             {option.label}
           </button>
         );

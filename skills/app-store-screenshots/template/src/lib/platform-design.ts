@@ -1,5 +1,5 @@
 import { CANVAS } from "./constants";
-import { DEFAULT_PROJECT, nid } from "./defaults";
+import { DEFAULT_PROJECT, detectPlatform, nid } from "./defaults";
 import type { Device, ElementTransform, Orientation, ProjectState, Slide } from "./types";
 
 // iOS and Android decks are stored per device. A deck designed for one store
@@ -37,6 +37,10 @@ export function isStarterDeck(device: Device, slides: Slide[] | undefined): bool
  * Re-fit a deck designed on one canvas to another. Element centers keep their
  * relative position on each axis; sizes and type scale by the mean of the two
  * axis factors so text stays readable when the aspect ratio changes.
+ *
+ * reflowText is for a big change of shape (phone to tablet): text boxes
+ * stretch with the canvas on each axis while type scales by the smaller
+ * factor, so lines wrap less instead of growing into the block below.
  */
 export function adaptSlides(
   slides: Slide[],
@@ -44,16 +48,18 @@ export function adaptSlides(
   to: Device,
   orientation: Orientation,
   makeId: () => string = nid,
+  { reflowText = false }: { reflowText?: boolean } = {},
 ): Slide[] {
   const src = canvasSize(from, orientation);
   const dst = canvasSize(to, orientation);
   const sx = dst.w / src.w;
   const sy = dst.h / src.h;
   const s = (sx + sy) / 2;
+  const typeScale = reflowText ? Math.min(sx, sy) : s;
 
-  const fit = (t: ElementTransform): ElementTransform => {
-    const width = t.width * s;
-    const height = t.height * s;
+  const fit = (t: ElementTransform, box = false): ElementTransform => {
+    const width = t.width * (box ? sx : s);
+    const height = t.height * (box ? sy : s);
     let x = (t.x + t.width / 2) * sx - width / 2;
     let y = (t.y + t.height / 2) * sy - height / 2;
     // Elements that sat fully inside the source canvas stay inside the target;
@@ -62,25 +68,25 @@ export function adaptSlides(
     if (t.y >= 0 && t.y + t.height <= src.h) y = Math.min(Math.max(y, 0), dst.h - height);
     return { ...t, x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
   };
-  const size = (value: number | undefined, min: number, max: number) =>
-    value === undefined ? undefined : Math.min(max, Math.max(min, Math.round(value * s)));
+  const size = (value: number | undefined, min: number, max: number, factor = s) =>
+    value === undefined ? undefined : Math.min(max, Math.max(min, Math.round(value * factor)));
 
   return slides.map((slide) => {
     const { canvasOffset: _offset, ...rest } = slide;
     const next: Slide = { ...rest, id: makeId() };
     if (slide.transforms) {
       next.transforms = Object.fromEntries(
-        Object.entries(slide.transforms).map(([key, t]) => [key, t ? fit(t) : t]),
+        Object.entries(slide.transforms).map(([key, t]) => [key, t ? fit(t, reflowText && key === "caption") : t]),
       ) as Slide["transforms"];
     }
     if (slide.headlineStyle) {
-      next.headlineStyle = { ...slide.headlineStyle, fontSize: size(slide.headlineStyle.fontSize, 20, 250)! };
+      next.headlineStyle = { ...slide.headlineStyle, fontSize: size(slide.headlineStyle.fontSize, 20, 250, typeScale)! };
     }
     if (slide.textElements) {
       next.textElements = slide.textElements.map((el) => ({
         ...el,
-        transform: fit(el.transform),
-        ...(el.fontSize !== undefined ? { fontSize: size(el.fontSize, 8, 400) } : {}),
+        transform: fit(el.transform, reflowText),
+        ...(el.fontSize !== undefined ? { fontSize: size(el.fontSize, 8, 400, typeScale) } : {}),
       }));
     }
     if (slide.decorations) {
@@ -95,31 +101,66 @@ export function adaptSlides(
   });
 }
 
-/** Copy the counterpart device's design (slides and AI palette) onto `device`. */
-export function withCounterpartDesign(state: ProjectState, device: Device): ProjectState {
-  const from = counterpartDevice(device, state.orientation);
-  if (!from) return state;
+export function formFactor(device: Device): "phone" | "tablet" | "other" {
+  if (device === "iphone" || device === "android") return "phone";
+  if (device === "ipad" || device === "android-7" || device === "android-10") return "tablet";
+  return "other";
+}
+
+/**
+ * Where an untouched deck takes its design from: the same form factor on the
+ * other store first, then, for a tablet, whichever phone deck is designed
+ * (same store first). Null when nothing designed fits.
+ */
+export function designSource(state: ProjectState, device: Device): Device | null {
+  const designed = (candidate: Device) => !isStarterDeck(candidate, state.slidesByDevice[candidate]);
+  const counterpart = counterpartDevice(device, state.orientation);
+  if (counterpart && designed(counterpart)) return counterpart;
+  if (formFactor(device) !== "tablet" || state.orientation === "landscape") return null;
+  const phones: Device[] = detectPlatform(device) === "ios" ? ["iphone", "android"] : ["android", "iphone"];
+  return phones.find(designed) ?? null;
+}
+
+// A phone screenshot doesn't fit a tablet frame, and the phone's frame
+// placement doesn't fit the tablet's shape: keep the look, empty the screens,
+// and let the layout place the tablet.
+function withEmptyScreens(slide: Slide): Slide {
+  const { screenshotSecondary: _secondary, screenshotByLocale: _byLocale, screenshotSecondaryByLocale: _secondaryByLocale, transforms, ...rest } = slide;
+  const { device: _device, deviceSecondary: _deviceSecondary, ...kept } = transforms ?? {};
+  return { ...rest, screenshot: "", ...(Object.keys(kept).length ? { transforms: kept } : {}) };
+}
+
+/** Copy `from`'s design (slides and AI palette) onto `device`. */
+export function withDesignFrom(state: ProjectState, device: Device, from: Device): ProjectState {
   const source = state.slidesByDevice[from];
   if (!source?.length) return state;
+  const crossing = formFactor(from) !== formFactor(device);
+  const adapted = adaptSlides(source, from, device, state.orientation, nid, { reflowText: crossing });
+  const slides = crossing ? adapted.map(withEmptyScreens) : adapted;
   const theme = state.customThemesByDevice?.[from];
   return {
     ...state,
-    slidesByDevice: { ...state.slidesByDevice, [device]: adaptSlides(source, from, device, state.orientation) },
+    slidesByDevice: { ...state.slidesByDevice, [device]: slides },
     ...(theme
       ? { customThemesByDevice: { ...state.customThemesByDevice, [device]: { ...theme, id: `ai-custom-${device}` } } }
       : {}),
   };
 }
 
+/** Copy the counterpart device's design (slides and AI palette) onto `device`. */
+export function withCounterpartDesign(state: ProjectState, device: Device): ProjectState {
+  const from = counterpartDevice(device, state.orientation);
+  return from ? withDesignFrom(state, device, from) : state;
+}
+
 /**
- * Switching devices: an untouched deck adopts the counterpart's design, so an
- * iPhone deck shows up on Android ready to export. Edited decks are kept.
+ * Switching devices: an untouched deck adopts a designed deck's look, so an
+ * iPhone deck shows up on Android ready to export and on iPad with the same
+ * style and empty screens to fill. Edited decks are kept.
  */
 export function switchDevice(state: ProjectState, device: Device): ProjectState {
   const next = { ...state, device };
-  const from = counterpartDevice(device, state.orientation);
-  if (!from || !isStarterDeck(device, state.slidesByDevice[device]) || isStarterDeck(from, state.slidesByDevice[from])) {
-    return next;
-  }
-  return withCounterpartDesign(next, device);
+  if (!isStarterDeck(device, state.slidesByDevice[device])) return next;
+  const from = designSource(state, device);
+  return from ? withDesignFrom(next, device, from) : next;
 }

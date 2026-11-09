@@ -767,11 +767,12 @@ test("mobile editor keeps zoom reachable and opens one panel at a time", async (
 
 test("Android can take the iPhone design in one click and undo it", async ({ page, request }) => {
   await openEditor(page);
-  await page.getByRole("button", { name: "Show screen settings" }).click();
+  // Screen settings open by default on desktop widths.
+  await expect(page.getByRole("button", { name: "Hide screen settings" })).toBeVisible();
   await page.getByRole("textbox", { name: "Headline", exact: true }).fill("Shared across stores");
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Shared across stores");
   await page.getByRole("tab", { name: "Android", exact: true }).click();
-  await expect(page.getByText("1080×1920")).toBeVisible();
+  await expect(page.getByRole("combobox").filter({ hasText: "Android Phone" })).toBeVisible();
   await page.getByRole("button", { name: "Use iPhone design", exact: true }).click();
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.android[0].headline.en).toBe("Shared across stores");
   const copied = await activeProject(request);
@@ -829,4 +830,28 @@ test("Your uploads reuses an earlier screenshot without uploading it again", asy
   await expect.poll(() => call?.screenshots?.[0]?.path).toBe(upload.path);
   await expect.poll(async () => (await activeProject(request)).slidesByDevice.iphone[0].headline.en).toBe("Same screen, new story");
   expect(uploads).toBe(0);
+});
+
+test("choosing iPhone and iPad drafts once and gives the iPad the same design with empty screens", async ({ page, request }) => {
+  let drafted: { device?: string } | undefined;
+  await page.route("**/api/design/suggest-deck", (route) => {
+    drafted = route.request().postDataJSON();
+    return fulfillDraft(route, { appName: "Two devices", themeId: "dark-bold", summary: "Both devices",
+      slides: [{ layout: "device-bottom", frameStyle: "white", copy: { en: { label: "PLAN", headline: "A calmer day" } } }] });
+  });
+  await page.goto("/studio");
+  await page.locator('input[type="file"]').setInputFiles("public/before-after/raw-calendar.webp");
+  const devices = page.getByRole("group", { name: "Device" });
+  await devices.getByRole("button", { name: "iPad", exact: true }).click();
+  await expect(devices.getByRole("button", { name: "iPhone", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(devices.getByRole("button", { name: "iPad", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByPlaceholder(/Describe your app/).fill("A calendar for phones and tablets");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.ipad?.[0]?.headline?.en).toBe("A calmer day");
+  expect(drafted?.device).toBe("iphone");
+  const project = await activeProject(request);
+  expect(project.device).toBe("iphone");
+  expect(project.slidesByDevice.iphone[0].screenshot).toMatch(/^\/screenshots\/uploaded\//);
+  expect(project.slidesByDevice.ipad).toHaveLength(1);
+  expect(project.slidesByDevice.ipad[0]).toMatchObject({ screenshot: "", frameStyle: "white", layout: "device-bottom" });
 });
