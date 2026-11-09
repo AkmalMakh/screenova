@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { adaptSlides, counterpartDevice, designSource, isStarterDeck, switchDevice, withCounterpartDesign, withDesignFrom } from "./platform-design";
 import { DEFAULT_PROJECT } from "./defaults";
+import { createProjectState } from "./project-store";
 import type { ProjectState, Slide } from "./types";
 
 const designed: Slide[] = [
@@ -81,6 +82,19 @@ describe("one design for both stores", () => {
     expect(first.transforms?.caption?.height).toBe(Math.round(400 * 2752 / 2868));
     expect(first.headlineStyle?.fontSize).toBe(Math.round(120 * 2752 / 2868));
     expect(first.textElements?.[0].fontSize).toBe(Math.round(60 * 2752 / 2868));
+  });
+
+  it("treats a translated starter as untouched, even with its keys reordered by the database", () => {
+    // A project made in several languages starts with translated starter screens.
+    const starter = createProjectState("Mote", ["en", "de", "es", "ru"]).slidesByDevice["android-10"];
+    const fromDatabase = JSON.parse(JSON.stringify(starter), (_key, value) =>
+      value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).reverse()) : value);
+    expect(isStarterDeck("android-10", fromDatabase)).toBe(true);
+    const next = switchDevice(project({ slidesByDevice: { ...project().slidesByDevice, "android-10": fromDatabase } }), "android-10");
+    expect(next.slidesByDevice["android-10"][0].headline.en).toBe("Plan your day");
+    // An edit in any language means the user has started on that deck.
+    const edited = fromDatabase.map((slide: Slide, index: number) => (index === 0 ? { ...slide, headline: { ...slide.headline, de: "Mein Tablet" } } : slide));
+    expect(isStarterDeck("android-10", edited)).toBe(false);
   });
 
   it("finds a tablet's design on its store's tablet first, then on a phone", () => {

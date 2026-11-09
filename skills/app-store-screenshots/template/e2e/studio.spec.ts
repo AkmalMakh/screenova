@@ -2,6 +2,7 @@ import { test, expect, type Page, type APIRequestContext, type Route } from "@pl
 import { readFile } from "node:fs/promises";
 import JSZip from "jszip";
 import sharp from "sharp";
+import { exportDevices } from "./support/export";
 
 const devices = ["iphone", "ipad", "android", "android-7", "android-10", "feature-graphic"];
 
@@ -259,7 +260,7 @@ test("upload a fresh image in production and export correctly sized PNGs", async
   await page.reload();
   await expect(page.getByRole("button", { name: "Export bundle" })).toBeEnabled();
   const downloaded = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export bundle" }).click();
+  await exportDevices(page, ["iphone"]);
   await expect(page.getByRole("button", { name: /^Exporting/ })).toBeDisabled();
   const download = await downloaded;
   const target = testInfo.outputPath("screenshots.zip");
@@ -436,7 +437,7 @@ test("Send opens the editor at once and fills in the streamed draft in every cho
   await page.getByRole("button", { name: "Send", exact: true }).click();
   // The editor is open, with the uploaded screenshot, before the draft returns.
   await expect(page).toHaveURL(/\/editor$/);
-  await expect(page.getByText("Claude is planning your deck…", { exact: true })).toBeVisible();
+  await expect(page.getByText("Screenova AI is planning your deck…", { exact: true })).toBeVisible();
   await expect.poll(() => calls.length).toBe(1);
   expect(calls[0]).toMatchObject({ locales: ["en", "de"], stream: true });
   expect(calls[0].screenshots).toHaveLength(1);
@@ -522,7 +523,7 @@ for (const [device, orientation, dimensions] of [
     await request.post("/api/project", { data: bundle });
     await openEditor(page);
     const downloaded = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Export bundle" }).click();
+    await exportDevices(page, [device]);
     const target = testInfo.outputPath("screenshots.zip");
     await (await downloaded).saveAs(target);
     const zip = await JSZip.loadAsync(await readFile(target));
@@ -877,4 +878,28 @@ test("Your uploads shows every screenshot whole when there are more than fit", a
   expect(rows.length).toBeGreaterThan(1);
   for (let index = 1; index < rows.length; index += 1) expect(rows[index] - rows[index - 1]).toBeGreaterThanOrEqual(Math.round(boxes[0].height));
   expect(boxes[0].height / boxes[0].width).toBeGreaterThan(2);
+});
+
+test("Export bundle asks which devices to include and fills an untouched tablet first", async ({ page, request }, testInfo) => {
+  const workspace = fixture();
+  // iPad and its Android counterpart are untouched, so iPad takes the iPhone design.
+  workspace.projects.qa.slidesByDevice.ipad = [];
+  workspace.projects.qa.slidesByDevice["android-10"] = [];
+  expect((await request.post("/api/project", { data: workspace })).ok()).toBe(true);
+  await openEditor(page);
+  await page.getByRole("button", { name: "Export bundle", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: /^iPad/ })).toContainText("Uses your iPhone design");
+  await expect(dialog.getByRole("button", { name: /^iPhone/ })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Escape");
+  const downloaded = page.waitForEvent("download");
+  await exportDevices(page, ["iphone", "ipad"]);
+  const target = testInfo.outputPath("devices.zip");
+  await (await downloaded).saveAs(target);
+  const zip = await JSZip.loadAsync(await readFile(target));
+  const pngs = Object.keys(zip.files).filter((name) => name.endsWith(".png"));
+  expect(pngs.some((name) => name.startsWith("ios/iphone/"))).toBe(true);
+  expect(pngs.some((name) => name.startsWith("ios/ipad/"))).toBe(true);
+  expect(pngs.some((name) => name.startsWith("android/"))).toBe(false);
+  await expect.poll(async () => (await activeProject(request)).slidesByDevice.ipad?.[0]?.headline?.en).toBe("Your day, organized");
 });

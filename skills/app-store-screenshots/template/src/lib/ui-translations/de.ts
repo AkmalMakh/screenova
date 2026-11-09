@@ -541,7 +541,7 @@ export const de: Record<TranslationKey, string> = {
 
   // ---- first-draft progress, uploads library, editor languages ----
   "draft.uploading": "Screenshots werden hochgeladen · {done} von {total}",
-  "draft.planning": "Claude plant dein Deck…",
+  "draft.planning": "Screenova AI plant dein Deck…",
   "draft.designing": "Screen {current} von {total} wird gestaltet",
   "draft.hint": "Die Screens erscheinen hier, sobald sie gestaltet sind. Bearbeiten kannst du, wenn der Entwurf fertig ist.",
   "draft.failed": "Der Entwurf wurde abgebrochen",
@@ -559,7 +559,7 @@ export const de: Record<TranslationKey, string> = {
   "library.item": "Screenshot {index}",
   "languages.button": "Sprachen",
   "languages.title": "Sprachen",
-  "languages.hint": "Wähle die Sprachen dieses Projekts. Claude schreibt für jede neue Sprache native Texte auf Basis deiner Texte in {source}.",
+  "languages.hint": "Wähle die Sprachen dieses Projekts. Screenova AI schreibt für jede neue Sprache native Texte auf Basis deiner Texte in {source}.",
   "languages.source": "Quelle",
   "languages.rewrite": "Auch Sprachen neu schreiben, die schon Texte haben",
   "languages.select": "Auswählen",
@@ -568,4 +568,11 @@ export const de: Record<TranslationKey, string> = {
   "languages.updated": "Sprachen aktualisiert",
   "languages.failed": "Die neuen Sprachen konnten nicht geschrieben werden",
   "languages.noCopy": "Es gibt noch keine Texte in {source}, daher starten die neuen Sprachen leer.",
+  "export.title": "Screenshots exportieren",
+  "export.hint": "Wähle die Geräte für den Export. Jedes bekommt alle Sprachen und App-Store-Größen.",
+  "export.screens": "{count} Screen | {count} Screens",
+  "export.copies": "Übernimmt dein {device}-Design",
+  "export.starter": "Noch nicht gestaltet",
+  "export.cancel": "Abbrechen",
+  "export.submit": "{count} Gerät exportieren | {count} Geräte exportieren",
 };
